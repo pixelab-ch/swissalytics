@@ -40,4 +40,30 @@ describe('parseRobotsForAiBots', () => {
     const r = parseRobotsForAiBots('# commentaire\n\nUser-agent: CCBot\nDisallow: /');
     expect(r.find((b) => b.name === 'CCBot')!.status).toBe('blocked');
   });
+
+  // --- root-path semantics (site-level signal) ---
+
+  it('Disallow: /wp-admin/ sous * → GPTBot allowed (seul /wp-admin/ est restreint, la racine est ouverte)', () => {
+    const txt = 'User-agent: *\nDisallow: /wp-admin/';
+    const r = parseRobotsForAiBots(txt);
+    expect(r.find((b) => b.name === 'GPTBot')!.status).toBe('allowed');
+  });
+
+  it('Allow: / + Disallow: /private sous * → GPTBot allowed (racine explicitement autorisée)', () => {
+    const txt = 'User-agent: *\nAllow: /\nDisallow: /private';
+    const r = parseRobotsForAiBots(txt);
+    expect(r.find((b) => b.name === 'GPTBot')!.status).toBe('allowed');
+  });
+
+  it('GPTBot Disallow: / + Allow: /public/ → GPTBot blocked (racine bloquée, /public/ est une exception de chemin)', () => {
+    const txt = 'User-agent: GPTBot\nDisallow: /\nAllow: /public/';
+    const r = parseRobotsForAiBots(txt);
+    expect(r.find((b) => b.name === 'GPTBot')!.status).toBe('blocked');
+  });
+
+  it('Disallow: /admin et Disallow: /cart sous * → GPTBot allowed (seuls des chemins spécifiques sont restreints)', () => {
+    const txt = 'User-agent: *\nDisallow: /admin\nDisallow: /cart';
+    const r = parseRobotsForAiBots(txt);
+    expect(r.find((b) => b.name === 'GPTBot')!.status).toBe('allowed');
+  });
 });

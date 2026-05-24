@@ -75,11 +75,19 @@ function parseGroups(txt: string): Group[] {
 /**
  * Resolve the effective status for a given bot name against the parsed groups.
  *
+ * Site-level semantics: we evaluate rules against the root URL "/".
+ * A rule only affects "/" if its path is a prefix of "/" — i.e. path is "" or "/".
+ * Path-specific rules like /wp-admin/, /private, /cart do NOT affect the root.
+ *
  * Precedence:
  *  1. A specific group for this agent wins over the wildcard (*) group.
- *  2. Within a group: longest matching path wins.
- *  3. At equal path length: Allow beats Disallow.
- *  4. An empty Disallow ("Disallow:") means "allow everything".
+ *  2. Within a group: rules are evaluated against the root path "/".
+ *     A rule matches "/" iff rule.path === '' || '/'.startsWith(rule.path).
+ *  3. Among matching rules: longest path wins.
+ *  4. At equal path length: Allow beats Disallow.
+ *  5. An empty Disallow ("Disallow:") means "allow everything".
+ *  6. If no rule matches "/" → allowed (root is open; path-specific disallows
+ *     are irrelevant to site-level access).
  */
 function resolveStatus(agentName: string, groups: Group[]): BotStatus {
   const a = agentName.toLowerCase();
@@ -95,11 +103,18 @@ function resolveStatus(agentName: string, groups: Group[]): BotStatus {
     return specific ? 'allowed' : 'unmentioned';
   }
 
-  // Find the best matching rule: longest path, Allow wins ties.
+  // Evaluate rules against the root path "/".
+  // A rule matches "/" iff its path is a prefix of "/" — only "" or "/" qualify.
+  const ROOT = '/';
   let bestLen = -1;
   let bestType: 'allow' | 'disallow' | null = null;
 
   for (const rule of group.rules) {
+    // Only consider rules whose path is a prefix of the root URL.
+    if (rule.path !== '' && !ROOT.startsWith(rule.path)) {
+      continue;
+    }
+
     const pathLen = rule.path.length;
 
     // A Disallow with an empty path = "allow everything" — treat as allow.
@@ -115,6 +130,7 @@ function resolveStatus(agentName: string, groups: Group[]): BotStatus {
     }
   }
 
+  // No rule matched "/" → root is open; site-level access is allowed.
   if (bestType === null) return 'allowed';
   return bestType === 'disallow' ? 'blocked' : 'allowed';
 }
