@@ -91,6 +91,7 @@ export interface AccessibilityBasics {
 
 import type { GeoAnalysisResult } from './analyzers/types';
 import type { SpaDetection } from './analyzer/spa-detection';
+import type { BotResult } from './analyzer/bot-coverage';
 
 export interface AnalysisResult {
   url: string;
@@ -242,6 +243,8 @@ export interface TechnicalAnalysis {
     strictTransportSecurity: boolean;
   };
   manifest: { exists: boolean; href?: string };
+  /** Bot-coverage: statut par crawler IA (robots.txt). */
+  botCoverage: BotResult[];
   issues: Issue[];
 }
 

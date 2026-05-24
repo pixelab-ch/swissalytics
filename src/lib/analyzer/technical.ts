@@ -4,6 +4,7 @@ import http from 'http';
 import type { TechnicalAnalysis, AccessibilityBasics, Issue, CwvMetrics } from '../types';
 import { validateUrl } from '@/lib/security';
 import { fetchPageSpeed } from '@/lib/pagespeed/client';
+import { parseRobotsForAiBots } from './bot-coverage';
 
 async function fetchText(url: string, maxRedirects = 5): Promise<{ ok: boolean; text: string }> {
   try {
@@ -263,6 +264,9 @@ export async function analyzeTechnical($: CheerioAPI, pageUrl: string, html?: st
   const robotsTxt = { exists: robotsRes.ok, content: robotsRes.ok ? robotsRes.text.substring(0, 2000) : undefined };
   const llmsTxt = { exists: llmsRes.ok, content: llmsRes.ok ? llmsRes.text.substring(0, 2000) : undefined };
 
+  // Bot-coverage: parse the FULL robots.txt text (not the truncated content above).
+  const botCoverage = parseRobotsForAiBots(robotsRes.ok ? robotsRes.text : undefined);
+
   let sitemapExists = sitemapRes.ok;
   let sitemapUrl = sitemapExists ? `${baseUrl}/sitemap.xml` : undefined;
   let sitemapInRobots = false;
@@ -511,6 +515,7 @@ export async function analyzeTechnical($: CheerioAPI, pageUrl: string, html?: st
     resourceHints,
     httpHeaders,
     manifest,
+    botCoverage,
     issues,
   };
 }
