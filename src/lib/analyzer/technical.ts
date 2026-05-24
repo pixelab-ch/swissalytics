@@ -337,7 +337,7 @@ export async function analyzeTechnical($: CheerioAPI, pageUrl: string, html?: st
   if (!robotsTxt.exists) issues.push({ type: 'warning', message: 'Fichier robots.txt introuvable' });
   if (robotsTxt.exists && !sitemapInRobots) issues.push({ type: 'info', message: 'Sitemap non référencé dans robots.txt' });
   if (!sitemapExists) issues.push({ type: 'warning', message: 'Fichier sitemap.xml introuvable' });
-  if (!llmsTxt.exists) issues.push({ type: 'info', message: 'Fichier llms.txt introuvable (recommandé pour le GEO)' });
+  if (!llmsTxt.exists) issues.push({ type: 'info', message: 'Fichier llms.txt absent (bonus optionnel — non requis par Google)' });
   if (!canonical) issues.push({ type: 'warning', message: 'Balise canonical manquante' });
   if (!lang) issues.push({ type: 'warning', message: 'Attribut lang manquant sur la balise <html>' });
   if (!viewport) issues.push({ type: 'error', message: 'Meta viewport manquante' });
@@ -461,7 +461,7 @@ export async function analyzeTechnical($: CheerioAPI, pageUrl: string, html?: st
   if (missingButtonLabels > 0) score -= Math.min(4, missingButtonLabels);
 
   // Modern SEO (max -15)
-  if (!llmsTxt.exists) score -= 3;
+  // llms.txt: non pénalisé — Google (mai 2026) ne le considère pas comme déterminant
   if (robotsTxt.exists && !sitemapInRobots) score -= 3;
   if (cssAnalysis.inline > 30) score -= 5;
   if (!hasMain && !hasNav) score -= 4;
