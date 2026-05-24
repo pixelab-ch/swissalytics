@@ -66,4 +66,32 @@ describe('parseRobotsForAiBots', () => {
     const r = parseRobotsForAiBots(txt);
     expect(r.find((b) => b.name === 'GPTBot')!.status).toBe('allowed');
   });
+
+  // --- wildcard / anchor normalisation (C1 / I1) ---
+
+  it('Disallow: /* sous * → GPTBot blocked (/* normalise en /)', () => {
+    const r = parseRobotsForAiBots('User-agent: *\nDisallow: /*');
+    expect(r.find((b) => b.name === 'GPTBot')!.status).toBe('blocked');
+  });
+
+  it('Disallow: * (sans slash) sous * → GPTBot blocked (* normalise en chaîne vide = tout bloquer)', () => {
+    const r = parseRobotsForAiBots('User-agent: *\nDisallow: *');
+    expect(r.find((b) => b.name === 'GPTBot')!.status).toBe('blocked');
+  });
+
+  it('Disallow: /$ (ancre Google) sous * → GPTBot blocked (/$ normalise en /)', () => {
+    const r = parseRobotsForAiBots('User-agent: *\nDisallow: /$');
+    expect(r.find((b) => b.name === 'GPTBot')!.status).toBe('blocked');
+  });
+
+  it('User-agent: * Disallow: /* (wildcard glob) → tous les bots bloqués', () => {
+    const r = parseRobotsForAiBots('User-agent: *\nDisallow: /*');
+    expect(r.every((b) => b.status === 'blocked')).toBe(true);
+  });
+
+  it('GPTBot Disallow: /* + Allow: /public/ → GPTBot blocked (la racine reste bloquée)', () => {
+    const txt = 'User-agent: GPTBot\nDisallow: /*\nAllow: /public/';
+    const r = parseRobotsForAiBots(txt);
+    expect(r.find((b) => b.name === 'GPTBot')!.status).toBe('blocked');
+  });
 });

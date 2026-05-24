@@ -76,14 +76,19 @@ function parseGroups(txt: string): Group[] {
  * Resolve the effective status for a given bot name against the parsed groups.
  *
  * Site-level semantics: we evaluate rules against the root URL "/".
- * A rule only affects "/" if its path is a prefix of "/" — i.e. path is "" or "/".
+ * A rule only affects "/" if its normalised path is a prefix of "/" — i.e. "" or "/".
  * Path-specific rules like /wp-admin/, /private, /cart do NOT affect the root.
+ *
+ * Normalisation (applied before the prefix test):
+ *  - Strip a trailing `*` (e.g. `/*` → `/`, `*` → ``)
+ *  - Strip a trailing `$` (e.g. `/$` → `/`)
+ * This means `/*`, `*`, and `/$` all resolve to root matches.
  *
  * Precedence:
  *  1. A specific group for this agent wins over the wildcard (*) group.
  *  2. Within a group: rules are evaluated against the root path "/".
- *     A rule matches "/" iff rule.path === '' || '/'.startsWith(rule.path).
- *  3. Among matching rules: longest path wins.
+ *     A rule matches "/" iff norm === '' || '/'.startsWith(norm).
+ *  3. Among matching rules: longest normalised path wins.
  *  4. At equal path length: Allow beats Disallow.
  *  5. An empty Disallow ("Disallow:") means "allow everything".
  *  6. If no rule matches "/" → allowed (root is open; path-specific disallows
@@ -104,20 +109,25 @@ function resolveStatus(agentName: string, groups: Group[]): BotStatus {
   }
 
   // Evaluate rules against the root path "/".
-  // A rule matches "/" iff its path is a prefix of "/" — only "" or "/" qualify.
+  // Normalise each rule's path before the prefix check:
+  //   strip a trailing `*` (glob wildcard) and a trailing `$` (Google end-anchor).
+  //   e.g.  `/*` → `/`,  `*` → ``,  `/$` → `/`
+  // A rule matches "/" iff norm === '' || '/'.startsWith(norm).
   const ROOT = '/';
   let bestLen = -1;
   let bestType: 'allow' | 'disallow' | null = null;
 
   for (const rule of group.rules) {
-    // Only consider rules whose path is a prefix of the root URL.
-    if (rule.path !== '' && !ROOT.startsWith(rule.path)) {
+    const norm = rule.path.replace(/\*+$/, '').replace(/\$$/, '');
+
+    // Only consider rules whose normalised path is a prefix of the root URL.
+    if (norm !== '' && !ROOT.startsWith(norm)) {
       continue;
     }
 
-    const pathLen = rule.path.length;
+    const pathLen = norm.length;
 
-    // A Disallow with an empty path = "allow everything" — treat as allow.
+    // A Disallow with an empty (original) path = "allow everything" — treat as allow.
     const effectiveType: 'allow' | 'disallow' =
       rule.type === 'disallow' && rule.path === '' ? 'allow' : rule.type;
 
@@ -135,6 +145,18 @@ function resolveStatus(agentName: string, groups: Group[]): BotStatus {
   return bestType === 'disallow' ? 'blocked' : 'allowed';
 }
 
+/**
+ * Parse a robots.txt string and return the site-level reachability of the root
+ * path `/` for each known AI bot.
+ *
+ * Contract:
+ *  - Only the root path `/` is evaluated (site-level signal). Path-specific rules
+ *    (e.g. `Disallow: /admin`) and in-path wildcards (e.g. `Disallow: /*.pdf`)
+ *    are intentionally ignored because they do not block the site as a whole.
+ *  - Trailing `*` and `$` in rule paths are normalised away before the root test
+ *    (`/*` → `/`, `*` → ``, `/$` → `/`), so common whole-site blocks are detected.
+ *  - Agent names are matched exactly (case-insensitive); no prefix matching.
+ */
 export function parseRobotsForAiBots(robotsTxt: string | undefined): BotResult[] {
   if (!robotsTxt) {
     return AI_BOTS.map((b) => ({ name: b.name, crawls: b.crawls, status: 'unmentioned' as const }));
