@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
 import type { AnalysisResult } from '@/lib/types';
 import HeadingsTab from '../tabs/HeadingsTab';
 import ImagesTab from '../tabs/ImagesTab';
@@ -29,6 +28,11 @@ interface DetailsContentProps {
 
 /* ---------------- private helper (only used here) ---------------- */
 
+/**
+ * One entry of the horizontal sub-section bar. "Top-underline" style:
+ * red bottom-border under the active tab (the main left-rail now owns the
+ * red-left-border treatment). Mono uppercase, grey when inactive.
+ */
 function SectionNavEntry({
   num,
   label,
@@ -46,33 +50,22 @@ function SectionNavEntry({
       onClick={onClick}
       className="mono"
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        width: '100%',
-        textAlign: 'left',
-        padding: '14px 16px',
-        borderLeft: `3px solid ${active ? 'var(--sa-red)' : 'transparent'}`,
-        borderTop: 'none',
-        borderRight: 'none',
-        borderBottom: 'none',
-        background: active ? 'var(--sa-cream-2)' : 'transparent',
-        color: 'var(--sa-ink)',
-        fontSize: 12,
+        appearance: 'none',
+        background: 'none',
+        border: 'none',
+        borderBottom: `2px solid ${active ? 'var(--sa-red)' : 'transparent'}`,
+        marginBottom: -1,
+        padding: '8px 0',
+        fontSize: 11,
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
         fontWeight: 700,
+        color: active ? 'var(--sa-ink)' : 'var(--sa-ink-4)',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
       }}
     >
-      <span
-        className="tnum"
-        style={{ color: active ? 'var(--sa-red)' : 'var(--sa-ink-4)' }}
-      >
-        §{num}
-      </span>
-      <span style={{ color: 'var(--sa-ink)' }}>{label}</span>
+      <span className="tnum">§{num}</span> {label}
     </button>
   );
 }
@@ -87,35 +80,6 @@ export function DetailsContent({
   setSection,
   sectionDefs,
 }: DetailsContentProps) {
-  const [isNarrow, setIsNarrow] = useState(false);
-
-  useEffect(() => {
-    function handler() {
-      setIsNarrow(window.innerWidth < 768);
-    }
-    handler();
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
-
-  const sidebarStyle: CSSProperties = isNarrow
-    ? {
-        display: 'flex',
-        gap: 0,
-        overflowX: 'auto',
-        borderBottom: '1px solid var(--sa-rule)',
-        marginBottom: 16,
-      }
-    : {
-        position: 'sticky',
-        top: 24,
-        alignSelf: 'start',
-        borderRight: '1px solid var(--sa-rule)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0,
-      };
-
   const content = (() => {
     switch (section) {
       case 'headings':
@@ -145,14 +109,18 @@ export function DetailsContent({
   })();
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: isNarrow ? '1fr' : '240px 1fr',
-        gap: 24,
-      }}
-    >
-      <nav style={sidebarStyle}>
+    <div>
+      {/* Horizontal underlined sub-section bar. Scrolls horizontally on
+          narrow viewports rather than wrapping. */}
+      <nav
+        style={{
+          display: 'flex',
+          gap: 26,
+          overflowX: 'auto',
+          borderBottom: '1px solid var(--sa-rule)',
+          marginBottom: 20,
+        }}
+      >
         {sectionDefs.map((s) => (
           <SectionNavEntry
             key={s.key}
