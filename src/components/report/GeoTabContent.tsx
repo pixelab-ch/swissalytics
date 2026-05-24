@@ -10,7 +10,7 @@ import type {
 import SpaWarning from './SpaWarning';
 import GeoDegradedBanner from './GeoDegradedBanner';
 import InfoBox from '../InfoBox';
-import BotCoverage from './BotCoverage';
+import { BotCoverage } from './BotCoverage';
 
 /**
  * P18.A — descriptions par LLM affichées dans le tooltip "i" sur chaque

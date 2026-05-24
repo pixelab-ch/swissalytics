@@ -135,12 +135,12 @@ const FIXTURE: AnalysisResult = {
     manifest: { exists: false },
     /** Mix: GPTBot blocked, CCBot blocked, others unmentioned/allowed */
     botCoverage: [
-      { name: 'Googlebot', crawls: 'Google Search + AI Overviews', status: 'allowed' },
-      { name: 'GPTBot', crawls: 'OpenAI / ChatGPT', status: 'blocked' },
-      { name: 'ClaudeBot', crawls: 'Anthropic / Claude', status: 'unmentioned' },
-      { name: 'PerplexityBot', crawls: 'Perplexity', status: 'unmentioned' },
-      { name: 'Google-Extended', crawls: 'Gemini (entraînement)', status: 'unmentioned' },
-      { name: 'CCBot', crawls: 'Common Crawl', status: 'blocked' },
+      { name: 'Googlebot', status: 'allowed' },
+      { name: 'GPTBot', status: 'blocked' },
+      { name: 'ClaudeBot', status: 'unmentioned' },
+      { name: 'PerplexityBot', status: 'unmentioned' },
+      { name: 'Google-Extended', status: 'unmentioned' },
+      { name: 'CCBot', status: 'blocked' },
     ],
     issues: [
       { type: 'error', message: 'JavaScript bloquant détecté (render-blocking)' },

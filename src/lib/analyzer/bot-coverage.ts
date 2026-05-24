@@ -2,22 +2,20 @@ export type BotStatus = 'allowed' | 'blocked' | 'unmentioned';
 
 export interface AiBot {
   name: string;
-  /** crawler de quoi (affichage UI) */
-  crawls: string;
 }
 
+/** Ordered list of known AI bots. The display description is resolved in the UI layer. */
 export const AI_BOTS: AiBot[] = [
-  { name: 'Googlebot', crawls: 'Google Search + AI Overviews' },
-  { name: 'GPTBot', crawls: 'OpenAI / ChatGPT' },
-  { name: 'ClaudeBot', crawls: 'Anthropic / Claude' },
-  { name: 'PerplexityBot', crawls: 'Perplexity' },
-  { name: 'Google-Extended', crawls: 'Gemini (entraînement)' },
-  { name: 'CCBot', crawls: 'Common Crawl' },
+  { name: 'Googlebot' },
+  { name: 'GPTBot' },
+  { name: 'ClaudeBot' },
+  { name: 'PerplexityBot' },
+  { name: 'Google-Extended' },
+  { name: 'CCBot' },
 ];
 
 export interface BotResult {
   name: string;
-  crawls: string;
   status: BotStatus;
 }
 
@@ -159,7 +157,7 @@ function resolveStatus(agentName: string, groups: Group[]): BotStatus {
  */
 export function parseRobotsForAiBots(robotsTxt: string | undefined): BotResult[] {
   if (!robotsTxt) {
-    return AI_BOTS.map((b) => ({ name: b.name, crawls: b.crawls, status: 'unmentioned' as const }));
+    return AI_BOTS.map((b) => ({ name: b.name, status: 'unmentioned' as const }));
   }
 
   const groups = parseGroups(robotsTxt);
@@ -170,10 +168,10 @@ export function parseRobotsForAiBots(robotsTxt: string | undefined): BotResult[]
 
     // If neither a specific block nor a wildcard block mentions this bot → unmentioned.
     if (!hasSpecific && !hasWildcard) {
-      return { name: b.name, crawls: b.crawls, status: 'unmentioned' as const };
+      return { name: b.name, status: 'unmentioned' as const };
     }
 
     const status = resolveStatus(b.name, groups);
-    return { name: b.name, crawls: b.crawls, status };
+    return { name: b.name, status };
   });
 }

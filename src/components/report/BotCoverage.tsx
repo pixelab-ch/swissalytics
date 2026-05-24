@@ -2,12 +2,33 @@ import type { BotResult } from '@/lib/analyzer/bot-coverage';
 
 const AI_BOTS_WARN = ['GPTBot', 'ClaudeBot', 'PerplexityBot'];
 
+/** FR descriptions for each known bot — mirrors LLM_DESCRIPTIONS_FR/EN pattern in GeoTabContent */
+const BOT_DESCRIPTIONS_FR: Record<string, string> = {
+  Googlebot: 'Google Search + AI Overviews',
+  GPTBot: 'OpenAI / ChatGPT',
+  ClaudeBot: 'Anthropic / Claude',
+  PerplexityBot: 'Perplexity',
+  'Google-Extended': 'Gemini (entraînement)',
+  CCBot: 'Common Crawl',
+};
+
+const BOT_DESCRIPTIONS_EN: Record<string, string> = {
+  Googlebot: 'Google Search + AI Overviews',
+  GPTBot: 'OpenAI / ChatGPT',
+  ClaudeBot: 'Anthropic / Claude',
+  PerplexityBot: 'Perplexity',
+  'Google-Extended': 'Gemini (training)',
+  CCBot: 'Common Crawl',
+};
+
 interface BotCoverageProps {
   bots: BotResult[];
   isFr: boolean;
 }
 
-export default function BotCoverage({ bots, isFr }: BotCoverageProps) {
+export function BotCoverage({ bots, isFr }: BotCoverageProps) {
+  const descriptions = isFr ? BOT_DESCRIPTIONS_FR : BOT_DESCRIPTIONS_EN;
+
   const blockedAiBots = bots.filter(
     (b) => b.status === 'blocked' && AI_BOTS_WARN.includes(b.name),
   );
@@ -121,7 +142,7 @@ export default function BotCoverage({ bots, isFr }: BotCoverageProps) {
                     color: 'var(--sa-ink-4)',
                   }}
                 >
-                  {bot.crawls}
+                  {descriptions[bot.name] ?? bot.name}
                 </span>
               </div>
 
@@ -171,3 +192,5 @@ export default function BotCoverage({ bots, isFr }: BotCoverageProps) {
     </section>
   );
 }
+
+export default BotCoverage;
