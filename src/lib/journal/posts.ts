@@ -113,7 +113,7 @@ export const JOURNAL_POSTS: JournalPost[] = [
       {
         type: 'p',
         html:
-          "C'est exactement ce que Swissalytics audite. Collez votre URL : on vous dit, en 40 secondes, si un LLM peut vous identifier clairement ou pas.",
+          "C'est exactement ce que Swissalytics audite. Collez votre URL : on vous dit, en 30 secondes, si un LLM peut vous identifier clairement ou pas.",
       },
     ],
   },

@@ -573,8 +573,8 @@ export default function ArticlePage({
               }}
             >
               {isFr
-                ? 'Votre URL, 40 secondes, gratuit.'
-                : 'Your URL, 40 seconds, free.'}
+                ? 'Votre URL, 30 secondes, gratuit.'
+                : 'Your URL, 30 seconds, free.'}
             </div>
           </div>
           <Link
