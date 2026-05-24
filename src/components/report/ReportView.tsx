@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from '@/components/design-system/ThemeProvider';
 import { COPY } from '@/lib/i18n/copy';
@@ -78,6 +78,61 @@ function StripCaptionBar({
   );
 }
 
+/**
+ * Left-rail tab entry — same visual pattern as DetailsContent's
+ * SectionNavEntry (§NN mono prefix, red left border on active, cream-2
+ * background). Used for the 4 main report tabs.
+ */
+function MainNavEntry({
+  num,
+  label,
+  active,
+  onClick,
+}: {
+  num: string;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className="mono"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        width: '100%',
+        textAlign: 'left',
+        padding: '14px 16px',
+        borderLeft: `3px solid ${active ? 'var(--sa-red)' : 'transparent'}`,
+        borderTop: 'none',
+        borderRight: 'none',
+        borderBottom: 'none',
+        background: active ? 'var(--sa-cream-2)' : 'transparent',
+        color: 'var(--sa-ink)',
+        fontSize: 12,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        fontWeight: 700,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span
+        className="tnum"
+        style={{ color: active ? 'var(--sa-red)' : 'var(--sa-ink-4)' }}
+      >
+        §{num}
+      </span>
+      <span style={{ color: 'var(--sa-ink)' }}>{label}</span>
+    </button>
+  );
+}
+
 export default function ReportView({
   report,
   reportId,
@@ -141,6 +196,18 @@ export default function ReportView({
   // Details section
   const [section, setSection] = useState<DetailsSectionKey>('headings');
 
+  // Responsive: under 768px the main rail collapses to a horizontal
+  // scrollable bar (same approach as DetailsContent's sub-section nav).
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    function handler() {
+      setIsNarrow(window.innerWidth < 768);
+    }
+    handler();
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
   // Verdict — re-added after P7.2 with editorial copy (3 phrases per
   // tier, picked deterministically by report seed) + inline Pixelab
   // link. Same URL = same phrase across refreshes/shares.
@@ -190,6 +257,28 @@ export default function ReportView({
 
   const tabsMono = copy.tabsMono; // [OVERVIEW, DETAILS, ACTION PLAN, AI INDEXATION / GEO]
   const tabKeys: TabKey[] = ['overview', 'details', 'plan', 'geo'];
+
+  // Main-tab rail entries: §NN number + i18n label.
+  const tabDefs: Array<{ key: TabKey; num: string; label: string }> = tabKeys.map(
+    (k, i) => ({ key: k, num: String(i + 1).padStart(2, '0'), label: tabsMono[i] }),
+  );
+
+  const mainNavStyle: CSSProperties = isNarrow
+    ? {
+        display: 'flex',
+        gap: 0,
+        overflowX: 'auto',
+        borderBottom: '1px solid var(--sa-rule)',
+      }
+    : {
+        position: 'sticky',
+        top: 16,
+        alignSelf: 'start',
+        borderRight: '1px solid var(--sa-rule)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0,
+      };
 
   const showShare = !!reportId && !readOnly;
 
@@ -364,81 +453,65 @@ export default function ReportView({
         </p>
       </div>
 
-      {/* 3. Tab bar */}
+      {/* 3. Main rail (left) + tab content. The rail reuses the
+          SectionNavEntry pattern; below 768px it collapses to a
+          horizontal scrollable bar. */}
       <div
-        role="tablist"
-        className="mono"
         style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 40,
-          borderBottom: '1px solid var(--sa-rule)',
-          padding: '24px 24px 0',
-          flexWrap: 'wrap',
+          display: 'grid',
+          gridTemplateColumns: isNarrow ? '1fr' : '240px 1fr',
+          gap: 24,
+          marginTop: 26,
         }}
       >
-        {tabKeys.map((k, i) => {
-          const active = tab === k;
-          return (
-            <button
-              key={k}
-              role="tab"
-              aria-selected={active}
-              onClick={() => changeTab(k)}
-              className="mono"
-              style={{
-                appearance: 'none',
-                background: 'transparent',
-                border: 'none',
-                padding: '10px 0',
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: active ? 'var(--sa-ink)' : 'var(--sa-ink-4)',
-                borderBottom: `2px solid ${active ? 'var(--sa-ink)' : 'transparent'}`,
-                marginBottom: -1,
-                cursor: 'pointer',
-              }}
-            >
-              {tabsMono[i]}
-            </button>
-          );
-        })}
-      </div>
+        <nav role="tablist" style={mainNavStyle}>
+          {tabDefs.map((t) => (
+            <MainNavEntry
+              key={t.key}
+              num={t.num}
+              label={t.label}
+              active={tab === t.key}
+              onClick={() => changeTab(t.key)}
+            />
+          ))}
+        </nav>
 
-      {/* 4. Tab content */}
-      <div style={{ paddingTop: 32 }}>
-        {tab === 'overview' && (
-          <OverviewContent
-            report={report}
-            headingsTotal={headingsTotal}
-            allIssues={allIssues}
-            isFr={isFr}
-          />
-        )}
+        {/* Tab content */}
+        <div>
+          {tab === 'overview' && (
+            <OverviewContent
+              report={report}
+              headingsTotal={headingsTotal}
+              critItems={critItems}
+              warnItems={warnItems}
+              infoItems={infoItems}
+              isFr={isFr}
+              onGoToPlan={() => changeTab('plan')}
+            />
+          )}
 
-        {tab === 'details' && (
-          <DetailsContent
-            report={report}
-            cwvLoading={cwvLoading}
-            keywordSuggestionsLoading={keywordSuggestionsLoading}
-            section={section}
-            setSection={setSection}
-            sectionDefs={sectionDefs}
-          />
-        )}
+          {tab === 'details' && (
+            <DetailsContent
+              report={report}
+              cwvLoading={cwvLoading}
+              keywordSuggestionsLoading={keywordSuggestionsLoading}
+              section={section}
+              setSection={setSection}
+              sectionDefs={sectionDefs}
+            />
+          )}
 
-        {tab === 'plan' && (
-          <PlanContent
-            copy={copy}
-            critItems={critItems}
-            warnItems={warnItems}
-            infoItems={infoItems}
-          />
-        )}
+          {tab === 'plan' && (
+            <PlanContent
+              copy={copy}
+              critItems={critItems}
+              warnItems={warnItems}
+              infoItems={infoItems}
+            />
+          )}
 
-        {tab === 'geo' && <GeoTabContent report={report} isFr={isFr} />}
+          {tab === 'geo' && <GeoTabContent report={report} isFr={isFr} />}
+        </div>
       </div>
     </div>
   );
