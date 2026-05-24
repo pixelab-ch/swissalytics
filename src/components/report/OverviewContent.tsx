@@ -1,13 +1,20 @@
 'use client';
 
-import { useMemo } from 'react';
-import type { AnalysisResult, Issue } from '@/lib/types';
+import type { AnalysisResult } from '@/lib/types';
+import type { PlanItem } from '@/lib/engine/plan';
+import { PlanBucket } from './PlanBucket';
 
 interface OverviewContentProps {
   report: AnalysisResult;
   headingsTotal: number;
-  allIssues: Array<Issue & { category: string }>;
+  /** Plan buckets from buildPlan, computed once in ReportView and shared
+   *  with the Plan tab for visual consistency. */
+  critItems: PlanItem[];
+  warnItems: PlanItem[];
+  infoItems: PlanItem[];
   isFr: boolean;
+  /** Switches the main rail to the Plan tab (changeTab('plan')). */
+  onGoToPlan: () => void;
 }
 
 /* ---------------- private helpers (only used here) ---------------- */
@@ -74,123 +81,99 @@ function OverviewStatCard({
   );
 }
 
-function OverviewIssues({
-  issues,
-  isFr,
-}: {
-  issues: Array<Issue & { category: string }>;
-  isFr: boolean;
-}) {
-  const top = issues.slice(0, 7);
-  return (
-    <div className="frame" style={{ background: 'var(--sa-cream)' }}>
-      <div
-        className="ink-b mono"
-        style={{
-          padding: '10px 20px',
-          background: 'var(--sa-ink)',
-          color: 'var(--sa-cream)',
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-        }}
-      >
-        §06 · {isFr ? 'Problèmes prioritaires' : 'Top issues'} · {issues.length}
-      </div>
-      {top.length === 0 ? (
-        <div
-          style={{
-            padding: '24px',
-            color: 'var(--sa-ink-3)',
-            fontSize: 14,
-          }}
-        >
-          {isFr ? 'Aucun problème détecté.' : 'No issues detected.'}
-        </div>
-      ) : (
-        <div>
-          {top.map((iss, i) => {
-            const pillBg =
-              iss.type === 'error'
-                ? 'var(--sa-red)'
-                : iss.type === 'warning'
-                ? 'var(--sa-warn)'
-                : 'var(--sa-ink-4)';
-            const pillLabel =
-              iss.type === 'error' ? 'CRIT' : iss.type === 'warning' ? 'WARN' : 'INFO';
-            return (
-              <div
-                key={`${iss.message}-${i}`}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '72px 1fr auto',
-                  gap: 16,
-                  padding: '14px 20px',
-                  borderBottom:
-                    i < top.length - 1 ? '1px solid var(--sa-rule)' : 'none',
-                  alignItems: 'center',
-                }}
-              >
-                <span
-                  className="mono"
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    letterSpacing: '0.12em',
-                    padding: '4px 8px',
-                    background: pillBg,
-                    color: 'var(--sa-cream)',
-                    textAlign: 'center',
-                  }}
-                >
-                  {pillLabel}
-                </span>
-                <span
-                  style={{
-                    color: 'var(--sa-ink)',
-                    fontSize: 14,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {iss.message}
-                </span>
-                <span
-                  className="mono"
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: 'var(--sa-ink-4)',
-                    fontWeight: 700,
-                  }}
-                >
-                  {iss.category}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ---------------- exported tab content ---------------- */
 
+/**
+ * Dashboard / overview. Leads with the issues grouped into Critique /
+ * Important / Bonus (same PlanBucket rendering as the Plan tab), then a
+ * link to the full action plan, then the raw stat cards demoted under a
+ * discreet "for info — raw figures" label.
+ */
 export function OverviewContent({
   report,
   headingsTotal,
-  allIssues,
+  critItems,
+  warnItems,
+  infoItems,
   isFr,
+  onGoToPlan,
 }: OverviewContentProps) {
-  const sortedIssues = useMemo(() => {
-    const weight = (t: Issue['type']) => (t === 'error' ? 0 : t === 'warning' ? 1 : 2);
-    return [...allIssues].sort((a, b) => weight(a.type) - weight(b.type));
-  }, [allIssues]);
+  const hasIssues =
+    critItems.length > 0 || warnItems.length > 0 || infoItems.length > 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* 1. Grouped plan buckets — leading content. */}
+      {hasIssues ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <PlanBucket
+            captionNum="01"
+            label={isFr ? 'Critique · à faire d’abord' : 'Critical · do this first'}
+            items={critItems}
+            dotColor="var(--sa-red)"
+          />
+          <PlanBucket
+            captionNum="02"
+            label={isFr ? 'Important' : 'Important'}
+            items={warnItems}
+            dotColor="var(--sa-warn)"
+          />
+          <PlanBucket
+            captionNum="03"
+            label={isFr ? 'Bonus' : 'Bonus'}
+            items={infoItems}
+            dotColor="var(--sa-ink-4)"
+          />
+        </div>
+      ) : (
+        <div
+          className="frame"
+          style={{ background: 'var(--sa-cream)', padding: '24px' }}
+        >
+          <div style={{ color: 'var(--sa-ink-3)', fontSize: 14 }}>
+            {isFr ? 'Aucun problème détecté.' : 'No issues detected.'}
+          </div>
+        </div>
+      )}
+
+      {/* 2. Link to the full action plan. */}
+      <button
+        type="button"
+        onClick={onGoToPlan}
+        className="mono"
+        style={{
+          display: 'block',
+          width: '100%',
+          textAlign: 'center',
+          appearance: 'none',
+          padding: 12,
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          background: 'var(--sa-ink)',
+          color: 'var(--sa-cream)',
+          border: '2px solid var(--sa-ink)',
+          cursor: 'pointer',
+        }}
+      >
+        {isFr ? 'Voir le plan d’action complet →' : 'See the full action plan →'}
+      </button>
+
+      {/* 3. Raw stat cards — demoted, "for info" only. */}
+      <div
+        className="mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: 'var(--sa-ink-4)',
+          fontWeight: 700,
+          marginTop: 8,
+        }}
+      >
+        ▸ {isFr ? 'Pour info — chiffres bruts' : 'For info — raw figures'}
+      </div>
       <div
         style={{
           display: 'grid',
@@ -225,8 +208,6 @@ export function OverviewContent({
           }
         />
       </div>
-
-      <OverviewIssues issues={sortedIssues} isFr={isFr} />
     </div>
   );
 }
