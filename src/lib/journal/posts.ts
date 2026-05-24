@@ -356,7 +356,24 @@ export const JOURNAL_POSTS: JournalPost[] = [
       {
         type: 'p',
         html:
-          "Ça ne force aucun LLM à citer votre site. Aucun moteur IA majeur ne s'engage publiquement à le lire en 2025. Mais plusieurs études indiquent qu'il <i>est</i> lu, au moins par certains crawlers.",
+          "Ça ne force aucun LLM à citer votre site. Aucun moteur IA majeur ne s'engage publiquement à le lire. Mais plusieurs études indiquent qu'il <i>est</i> lu, au moins par certains crawlers.",
+      },
+      { type: 'h2', text: "La position de Google (mai 2026)" },
+      {
+        type: 'p',
+        html:
+          "En mai 2026, Google a clarifié sa doctrine : <b>llms.txt n'est pas un facteur déterminant</b> pour le référencement dans les moteurs IA. Le fichier peut être utile à certains crawlers tiers, mais Google ne l'utilise pas comme signal de classement. En d'autres termes, son absence ne pénalise pas un site — et sa présence n'est pas une garantie d'être cité.",
+      },
+      {
+        type: 'quote',
+        text:
+          "« llms.txt est un bonus optionnel, pas une priorité. Ce qui compte, c'est la qualité du contenu, le balisage Schema.org et la crawlabilité. »",
+      },
+      { type: 'h2', text: "Alors, on le pose ou pas ?" },
+      {
+        type: 'p',
+        html:
+          "Si votre site est déjà bien structuré (JSON-LD, robots.txt, sitemap, contenu factuel), poser un llms.txt prend 20 minutes et peut aider certains crawlers IA secondaires. Mais ne le posez pas à la place des fondations — et ne croyez pas qu'il remplace un bon Schema.org.",
       },
     ],
   },

@@ -36,8 +36,8 @@ export default function ExemplesPage() {
       after: 91,
       win: isFr ? '+340% trafic local' : '+340% local traffic',
       quote: isFr
-        ? 'Schéma LocalBusiness + llms.txt. Deux semaines après, nous étions cités par ChatGPT.'
-        : 'LocalBusiness schema + llms.txt. Two weeks later, ChatGPT was citing us.',
+        ? 'Schéma LocalBusiness + contenu structuré. Deux semaines après, nous étions cités par ChatGPT.'
+        : 'LocalBusiness schema + structured content. Two weeks later, ChatGPT was citing us.',
     },
     {
       sector: isFr ? 'SaaS B2B · Zurich' : 'B2B SaaS · Zurich',

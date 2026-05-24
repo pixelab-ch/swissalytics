@@ -33,7 +33,7 @@ export default function MethodePage() {
         {
           n: '03',
           h: 'Les scores sont calculés comment',
-          body: "Chaque catégorie a sa grille. Pour les images : poids de l'attribut alt (60 %) + optimisation du format (40 %). Pour la lisibilité : Flesch-Kincaid adapté au français. Pour l'IA-Ready : présence JSON-LD, llms.txt, schéma Organization, et lisibilité machine.",
+          body: "Chaque catégorie a sa grille. Pour les images : poids de l'attribut alt (60 %) + optimisation du format (40 %). Pour la lisibilité : Flesch-Kincaid adapté au français. Pour l'IA-Ready : présence JSON-LD, schéma Organization, lisibilité machine, et llms.txt (bonus optionnel).",
           aside: 'Pondération ouverte',
         },
         {
@@ -77,7 +77,7 @@ export default function MethodePage() {
         {
           n: '03',
           h: 'How scores are computed',
-          body: "Each category has its own grid. Images: alt weight (60%) + format optimization (40%). Readability: Flesch-Kincaid, French-adapted. AI-Ready: JSON-LD presence, llms.txt, Organization schema, machine readability.",
+          body: "Each category has its own grid. Images: alt weight (60%) + format optimization (40%). Readability: Flesch-Kincaid, French-adapted. AI-Ready: JSON-LD presence, Organization schema, machine readability, and llms.txt (optional bonus).",
           aside: 'Open weights',
         },
         {
