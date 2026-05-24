@@ -10,6 +10,7 @@ import type {
 import SpaWarning from './SpaWarning';
 import GeoDegradedBanner from './GeoDegradedBanner';
 import InfoBox from '../InfoBox';
+import BotCoverage from './BotCoverage';
 
 /**
  * P18.A — descriptions par LLM affichées dans le tooltip "i" sur chaque
@@ -169,6 +170,7 @@ export function GeoTabContent({ report, isFr }: GeoTabContentProps) {
       {report.spa && <SpaWarning spa={report.spa} />}
       {geo.degraded && <GeoDegradedBanner degraded={geo.degraded} />}
       <IndexationPanel indexation={geo.geo.indexation} isFr={isFr} />
+      <BotCoverage bots={report.technical.botCoverage} isFr={isFr} />
       <LighthousePanel lighthouse={geo.seo.lighthouse} isFr={isFr} />
       <SchemaPanel schema={geo.geo.schema} isFr={isFr} />
       <EeatPanel
