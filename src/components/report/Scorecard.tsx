@@ -1,25 +1,35 @@
 'use client';
 
 import { scoreColor } from '@/components/design-system/primitives';
+import { scoreQualifier } from './scorecardQualifier';
+import InfoBox from '@/components/InfoBox';
 
 interface ScorecardProps {
   num: string;
   label: string;
-  /** null = data not yet available (async fetch in flight) → render loading state */
+  /** null = data not yet available (async fetch in flight) → render calm loading state */
   score: number | null;
   isLast: boolean;
+  isFr: boolean;
+  /** Optional short definition shown via InfoBox "i" popover next to qualifier label */
+  hint?: string;
 }
 
 /**
  * One of the 4 dimension cards in the right cell of the MetricStrip.
  *
- * Loading state (score === null) renders pulsing '···' + an indeterminate
- * scanner bar; used by the IA-Ready scorecard while /api/geo-analyze is in
- * flight (it's fetched async after the main /api/analyze response).
+ * Loading state (score === null) renders a calm mono "calcul…"/"computing…"
+ * in --sa-ink-4, no aggressive flash animation.
+ *
+ * Below the score bar: qualifier label (Solide/Correct/À renforcer) colored
+ * via scoreColor, plus an optional InfoBox "i" popover for jargon hints.
  */
-export function Scorecard({ num, label, score, isLast }: ScorecardProps) {
+export function Scorecard({ num, label, score, isLast, isFr, hint }: ScorecardProps) {
   const isLoading = score === null;
   const color = isLoading ? 'var(--sa-ink-4)' : scoreColor(score);
+  const qualifier = scoreQualifier(score, isFr);
+  const qualifierColor = isLoading ? 'var(--sa-ink-4)' : scoreColor(score!);
+
   return (
     <div
       style={{
@@ -51,17 +61,19 @@ export function Scorecard({ num, label, score, isLast }: ScorecardProps) {
             letterSpacing: '-0.03em',
             color,
             lineHeight: 1,
-            ...(isLoading ? { animation: 'sa-flash 1.4s ease-in-out infinite' } : {}),
+            ...(isLoading ? { opacity: 0.45 } : {}),
           }}
         >
-          {isLoading ? '···' : score}
+          {isLoading ? 'calcul…' : score}
         </span>
-        <span
-          className="mono"
-          style={{ fontSize: 11, color: 'var(--sa-ink-4)', fontWeight: 700 }}
-        >
-          /100
-        </span>
+        {!isLoading && (
+          <span
+            className="mono"
+            style={{ fontSize: 11, color: 'var(--sa-ink-4)', fontWeight: 700 }}
+          >
+            /100
+          </span>
+        )}
       </div>
       <div
         style={{
@@ -79,9 +91,9 @@ export function Scorecard({ num, label, score, isLast }: ScorecardProps) {
               top: -1,
               left: 0,
               height: 5,
-              width: '40%',
+              width: '30%',
               background: 'var(--sa-ink-4)',
-              animation: 'sa-scorecard-scan 1.6s ease-in-out infinite',
+              opacity: 0.3,
             }}
           />
         ) : (
@@ -95,6 +107,25 @@ export function Scorecard({ num, label, score, isLast }: ScorecardProps) {
               background: color,
             }}
           />
+        )}
+      </div>
+      {/* Qualifier row: label + optional InfoBox */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span
+          className="mono"
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: isLoading ? 'var(--sa-ink-4)' : qualifierColor,
+            opacity: isLoading ? 0.5 : 1,
+          }}
+        >
+          {qualifier.label}
+        </span>
+        {hint && !isLoading && (
+          <InfoBox items={[{ term: label, definition: hint }]} />
         )}
       </div>
     </div>

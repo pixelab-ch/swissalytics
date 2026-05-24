@@ -275,10 +275,46 @@ export default function ReportView({
 
           {/* RIGHT CELL — 4 scorecards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
-            <Scorecard num="02" label={scorecardLabels[0]} score={seoTechScore} isLast={false} />
-            <Scorecard num="03" label={scorecardLabels[1]} score={contentScore} isLast={false} />
-            <Scorecard num="04" label={scorecardLabels[2]} score={aiReadyScore} isLast={false} />
-            <Scorecard num="05" label={scorecardLabels[3]} score={localScore} isLast={true} />
+            <Scorecard
+              num="02"
+              label={scorecardLabels[0]}
+              score={seoTechScore}
+              isLast={false}
+              isFr={isFr}
+              hint={isFr
+                ? "Vitesse, HTTPS, crawlabilité, balises meta, sitemap — les fondations techniques qu'un moteur exige."
+                : 'Speed, HTTPS, crawlability, meta tags, sitemap — the technical foundations search engines require.'}
+            />
+            <Scorecard
+              num="03"
+              label={scorecardLabels[1]}
+              score={contentScore}
+              isLast={false}
+              isFr={isFr}
+              hint={isFr
+                ? 'Lisibilité Flesch, structure H1-H6, densité des mots-clés — est-ce que le contenu est clair et bien structuré ?'
+                : 'Flesch readability, H1-H6 structure, keyword density — is the content clear and well-structured?'}
+            />
+            <Scorecard
+              num="04"
+              label={scorecardLabels[2]}
+              score={aiReadyScore}
+              isLast={false}
+              isFr={isFr}
+              hint={isFr
+                ? "Est-ce que ChatGPT, Gemini, Claude, Mistral peuvent t'identifier et te citer."
+                : 'Whether ChatGPT, Gemini, Claude, Mistral can identify and cite you.'}
+            />
+            <Scorecard
+              num="05"
+              label={scorecardLabels[3]}
+              score={localScore}
+              isLast={true}
+              isFr={isFr}
+              hint={isFr
+                ? 'Signaux géographiques : adresse, NAP, Schema LocalBusiness.'
+                : 'Geographic signals: address, NAP consistency, Schema LocalBusiness.'}
+            />
           </div>
         </div>
       </div>
