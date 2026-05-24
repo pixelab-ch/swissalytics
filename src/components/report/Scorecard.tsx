@@ -26,9 +26,9 @@ interface ScorecardProps {
  */
 export function Scorecard({ num, label, score, isLast, isFr, hint }: ScorecardProps) {
   const isLoading = score === null;
-  const color = isLoading ? 'var(--sa-ink-4)' : scoreColor(score);
+  const color = score === null ? 'var(--sa-ink-4)' : scoreColor(score);
   const qualifier = scoreQualifier(score, isFr);
-  const qualifierColor = isLoading ? 'var(--sa-ink-4)' : scoreColor(score!);
+  const qualifierColor = score === null ? 'var(--sa-ink-4)' : scoreColor(score);
 
   return (
     <div

@@ -1,6 +1,7 @@
 'use client';
 
 import type { AnalysisResult } from '@/lib/types';
+import { NavEntry } from './NavEntry';
 import HeadingsTab from '../tabs/HeadingsTab';
 import ImagesTab from '../tabs/ImagesTab';
 import LinksTab from '../tabs/LinksTab';
@@ -24,50 +25,6 @@ interface DetailsContentProps {
   section: DetailsSectionKey;
   setSection: (s: DetailsSectionKey) => void;
   sectionDefs: Array<{ key: DetailsSectionKey; num: string; label: string }>;
-}
-
-/* ---------------- private helper (only used here) ---------------- */
-
-/**
- * One entry of the horizontal sub-section bar. "Top-underline" style:
- * red bottom-border under the active tab (the main left-rail now owns the
- * red-left-border treatment). Mono uppercase, grey when inactive.
- */
-function SectionNavEntry({
-  num,
-  label,
-  active,
-  onClick,
-}: {
-  num: string;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="mono"
-      style={{
-        appearance: 'none',
-        background: 'none',
-        border: 'none',
-        borderBottom: `2px solid ${active ? 'var(--sa-red)' : 'transparent'}`,
-        marginBottom: -1,
-        padding: '8px 0',
-        fontSize: 11,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        fontWeight: 700,
-        color: active ? 'var(--sa-ink)' : 'var(--sa-ink-4)',
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <span className="tnum">§{num}</span> {label}
-    </button>
-  );
 }
 
 /* ---------------- exported tab content ---------------- */
@@ -113,6 +70,7 @@ export function DetailsContent({
       {/* Horizontal underlined sub-section bar. Scrolls horizontally on
           narrow viewports rather than wrapping. */}
       <nav
+        role="tablist"
         style={{
           display: 'flex',
           gap: 26,
@@ -122,8 +80,9 @@ export function DetailsContent({
         }}
       >
         {sectionDefs.map((s) => (
-          <SectionNavEntry
+          <NavEntry
             key={s.key}
+            variant="bar"
             num={s.num}
             label={s.label}
             active={section === s.key}

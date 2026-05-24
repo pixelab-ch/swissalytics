@@ -10,6 +10,7 @@ import { pickVerdictIndex } from '@/lib/engine/verdictPicker';
 import type { AnalysisResult, Issue } from '@/lib/types';
 import DegradedBanner from './DegradedBanner';
 import { Gauge } from './Gauge';
+import { NavEntry } from './NavEntry';
 import { Scorecard } from './Scorecard';
 import { ShareButton } from './ShareButton';
 import { OverviewContent } from './OverviewContent';
@@ -75,61 +76,6 @@ function StripCaptionBar({
         </span>
       )}
     </div>
-  );
-}
-
-/**
- * Left-rail tab entry — same visual pattern as DetailsContent's
- * SectionNavEntry (§NN mono prefix, red left border on active, cream-2
- * background). Used for the 4 main report tabs.
- */
-function MainNavEntry({
-  num,
-  label,
-  active,
-  onClick,
-}: {
-  num: string;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className="mono"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        width: '100%',
-        textAlign: 'left',
-        padding: '14px 16px',
-        borderLeft: `3px solid ${active ? 'var(--sa-red)' : 'transparent'}`,
-        borderTop: 'none',
-        borderRight: 'none',
-        borderBottom: 'none',
-        background: active ? 'var(--sa-cream-2)' : 'transparent',
-        color: 'var(--sa-ink)',
-        fontSize: 12,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        fontWeight: 700,
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <span
-        className="tnum"
-        style={{ color: active ? 'var(--sa-red)' : 'var(--sa-ink-4)' }}
-      >
-        §{num}
-      </span>
-      <span style={{ color: 'var(--sa-ink)' }}>{label}</span>
-    </button>
   );
 }
 
@@ -466,8 +412,9 @@ export default function ReportView({
       >
         <nav role="tablist" style={mainNavStyle}>
           {tabDefs.map((t) => (
-            <MainNavEntry
+            <NavEntry
               key={t.key}
+              variant="rail"
               num={t.num}
               label={t.label}
               active={tab === t.key}
