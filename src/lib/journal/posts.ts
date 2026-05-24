@@ -116,6 +116,59 @@ export const JOURNAL_POSTS: JournalPost[] = [
           "C'est exactement ce que Swissalytics audite. Collez votre URL : on vous dit, en 30 secondes, si un LLM peut vous identifier clairement ou pas.",
       },
     ],
+    contentEn: [
+      { type: 'h2', text: 'What barely matters' },
+      {
+        type: 'p',
+        html:
+          "First, what we thought counted — and barely does: <b>PageRank</b>, Google position, number of backlinks, domain age. Across 400 answers, the top-cited site was <b>almost never</b> the first Google result. Sometimes it was on page 3.",
+      },
+      {
+        type: 'quote',
+        text:
+          "\"The site cited first by ChatGPT was almost never the top Google result. Sometimes it was on page 3.\"",
+      },
+      { type: 'h2', text: 'The three signals that count' },
+      {
+        type: 'p',
+        html:
+          "Cross-referencing the 400 answers, three factors emerged consistently. We ranked them in order of empirical importance:",
+      },
+      {
+        type: 'numbered',
+        items: [
+          {
+            n: '01',
+            title: 'Explicit named entities',
+            body:
+              "The site clearly states <i>who</i> it is (brand name, founders, year, location) in the HTML — headings, subheadings, JSON-LD. Without that, ChatGPT cannot identify you.",
+          },
+          {
+            n: '02',
+            title: 'Complete Schema.org markup',
+            body:
+              "Cited sites had <b>2.3× more</b> JSON-LD blocks than average. <span class=\"mono\">Organization</span>, <span class=\"mono\">LocalBusiness</span>, <span class=\"mono\">FAQPage</span>. The correlation is nearly linear.",
+          },
+          {
+            n: '03',
+            title: 'A declarative tone, not a marketing one',
+            body:
+              "\"We are a web agency in Geneva founded in 2020\" gets cited. \"We bring your digital ambitions to life\" never does. ChatGPT looks for facts, not slogans.",
+          },
+        ],
+      },
+      { type: 'h2', text: 'The takeaway' },
+      {
+        type: 'p',
+        html:
+          "To get cited by ChatGPT, you need to <b>write like an encyclopedia</b>, not a brochure. The sites that come out on top are the ones that state plainly, in clean HTML, who they are and what they do.",
+      },
+      {
+        type: 'p',
+        html:
+          "That is exactly what Swissalytics audits. Paste your URL: we tell you, in 30 seconds, whether an LLM can clearly identify you or not.",
+      },
+    ],
   },
   {
     slug: 'schema-org-le-detail-qui-change-tout',
@@ -169,6 +222,43 @@ export const JOURNAL_POSTS: JournalPost[] = [
         ],
       },
     ],
+    contentEn: [
+      { type: 'h2', text: 'Why it matters now' },
+      {
+        type: 'p',
+        html:
+          "AI engines — ChatGPT, Perplexity, Gemini — read raw HTML, not your JavaScript. JSON-LD is the only format they can reliably use to understand <b>who</b> you are.",
+      },
+      {
+        type: 'quote',
+        text:
+          "\"Without JSON-LD, your site looks like a stranger claiming to be someone. With it, it looks like an identifiable entity.\"",
+      },
+      { type: 'h2', text: 'The three blocks to deploy first' },
+      {
+        type: 'numbered',
+        items: [
+          {
+            n: '01',
+            title: 'Organization',
+            body:
+              "Who you are. Legal name, logo, address, contact, social profiles. This is your machine-readable ID card.",
+          },
+          {
+            n: '02',
+            title: 'LocalBusiness (where relevant)',
+            body:
+              "Opening hours, coordinates, service area. Mandatory if you have a physical location or a defined geographic zone.",
+          },
+          {
+            n: '03',
+            title: 'FAQPage',
+            body:
+              "The questions your clients actually ask, paired with your answers. LLMs love pulling structured question-and-answer pairs.",
+          },
+        ],
+      },
+    ],
   },
   {
     slug: 'le-seo-n-est-pas-mort',
@@ -213,6 +303,38 @@ export const JOURNAL_POSTS: JournalPost[] = [
             title: 'La structure a remplacé le volume',
             body:
               "Un article de 500 mots bien structuré bat un article de 3000 mots mal organisé. Les LLM extraient par section.",
+          },
+        ],
+      },
+    ],
+    contentEn: [
+      { type: 'h2', text: 'The real shift' },
+      {
+        type: 'p',
+        html:
+          "In 2024, Google introduced AI Overviews. In 2025, ChatGPT surpassed 400 million weekly users. The common thread: people no longer click ten blue links — they read a synthesised answer that <i>cites</i> its sources.",
+      },
+      { type: 'h2', text: 'What concretely changes' },
+      {
+        type: 'numbered',
+        items: [
+          {
+            n: '01',
+            title: 'Intent has replaced the keyword',
+            body:
+              "You no longer target an exact query — you target a <i>need</i>. LLMs paraphrase, synonymise, and broaden.",
+          },
+          {
+            n: '02',
+            title: 'Citations have replaced clicks',
+            body:
+              "Being cited in an AI answer, even without a click, is now worth more than a cold 30-second visit.",
+          },
+          {
+            n: '03',
+            title: 'Structure has replaced volume',
+            body:
+              "A well-structured 500-word article beats a poorly organised 3,000-word one. LLMs extract by section.",
           },
         ],
       },
@@ -266,6 +388,43 @@ export const JOURNAL_POSTS: JournalPost[] = [
             title: 'Fondateurs nommés',
             body:
               "Les noms propres des personnes sont des ancres fortes pour les LLM. Mettez-les dans l\\'À propos et dans le JSON-LD.",
+          },
+        ],
+      },
+    ],
+    contentEn: [
+      { type: 'h2', text: 'The problem' },
+      {
+        type: 'p',
+        html:
+          "LLMs learn from vast amounts of text. When two entities share a name, they <b>merge statistically</b> unless distinctive signals are explicitly in place.",
+      },
+      {
+        type: 'quote',
+        text:
+          "\"A generic name without context is a face in a crowd. A generic name with context is an identifiable person.\"",
+      },
+      { type: 'h2', text: 'The distinctive signals to put in place' },
+      {
+        type: 'numbered',
+        items: [
+          {
+            n: '01',
+            title: 'Consistent location',
+            body:
+              "Say \"Atelier Web Geneva\" rather than \"Atelier Web\". In the <span class=\"mono\">title</span>, the <span class=\"mono\">h1</span>, the JSON-LD, and the footer.",
+          },
+          {
+            n: '02',
+            title: 'Year of founding',
+            body:
+              "\"Founded in 2020\" in the Organization markup. It distinguishes you mechanically.",
+          },
+          {
+            n: '03',
+            title: 'Named founders',
+            body:
+              "Proper names of people are strong anchors for LLMs. Put them in the About page and in the JSON-LD.",
           },
         ],
       },
@@ -329,6 +488,49 @@ export const JOURNAL_POSTS: JournalPost[] = [
           "Suivi sur 80 requêtes-tests (aide à l'enfance, protection, Suisse, Lausanne). Avant : cité dans 19 réponses. Après : cité dans 27. <b>+42 %</b>. Score Swissalytics : 58 → 84.",
       },
     ],
+    contentEn: [
+      { type: 'h2', text: 'Starting point' },
+      {
+        type: 'p',
+        html:
+          "The site was technically clean but <b>invisible</b> to an LLM: no JSON-LD Organization, no FAQPage, named entities rarely present in page body text. Starting Swissalytics score: 58/100.",
+      },
+      { type: 'h2', text: 'The eight fixes applied' },
+      {
+        type: 'numbered',
+        items: [
+          {
+            n: '01',
+            title: 'Complete JSON-LD Organization',
+            body:
+              "With logo, founding date, mission, area of action, and contact. Deployed within 48 hours.",
+          },
+          {
+            n: '02',
+            title: 'FAQPage on key pages',
+            body:
+              "Seven recurring donor questions, structured in JSON-LD and mirrored as visible text on the page.",
+          },
+          {
+            n: '03',
+            title: 'Rewritten <span class="mono">h1</span>s and meta descriptions',
+            body:
+              "With named entities (name, founding year, countries of action) instead of slogans.",
+          },
+        ],
+      },
+      {
+        type: 'quote',
+        text:
+          "\"Eight fixes, zero redesign. The site looks identical to a human visitor — it is unrecognisable to an LLM.\"",
+      },
+      { type: 'h2', text: 'Measured outcome' },
+      {
+        type: 'p',
+        html:
+          "Tracked across 80 test queries (child protection, aid, Switzerland, Lausanne). Before: cited in 19 answers. After: cited in 27. <b>+42 %</b>. Swissalytics score: 58 → 84.",
+      },
+    ],
   },
   {
     slug: 'llms-txt-mode-d-emploi',
@@ -374,6 +576,37 @@ export const JOURNAL_POSTS: JournalPost[] = [
         type: 'p',
         html:
           "Si votre site est déjà bien structuré (JSON-LD, robots.txt, sitemap, contenu factuel), poser un llms.txt prend 20 minutes et peut aider certains crawlers IA secondaires. Mais ne le posez pas à la place des fondations — et ne croyez pas qu'il remplace un bon Schema.org.",
+      },
+    ],
+    contentEn: [
+      { type: 'h2', text: "What it actually is" },
+      {
+        type: 'p',
+        html:
+          "A Markdown-formatted text file at the root of your domain. It lists — for an LLM — the pages that genuinely matter, with a short description each. <b>It is a machine-readable table of contents.</b>",
+      },
+      { type: 'h2', text: "What it does not do" },
+      {
+        type: 'p',
+        html:
+          "It does not force any LLM to cite your site. No major AI engine publicly commits to reading it. But several studies suggest it <i>is</i> read, at least by some crawlers.",
+      },
+      { type: 'h2', text: "Google's position (May 2026)" },
+      {
+        type: 'p',
+        html:
+          "In May 2026, Google clarified its doctrine: <b>llms.txt is not a determining factor</b> for ranking in AI engines. The file may be useful to certain third-party crawlers, but Google does not use it as a ranking signal. In other words, its absence does not penalise a site — and its presence is no guarantee of being cited.",
+      },
+      {
+        type: 'quote',
+        text:
+          "\"llms.txt is an optional bonus, not a priority. What counts is content quality, Schema.org markup, and crawlability.\"",
+      },
+      { type: 'h2', text: "So — deploy it or not?" },
+      {
+        type: 'p',
+        html:
+          "If your site is already well-structured (JSON-LD, robots.txt, sitemap, factual content), adding an llms.txt takes 20 minutes and may help some secondary AI crawlers. But do not deploy it instead of the foundations — and do not believe it replaces solid Schema.org markup.",
       },
     ],
   },
@@ -422,6 +655,38 @@ export const JOURNAL_POSTS: JournalPost[] = [
         type: 'p',
         html:
           "Un site bien structuré pour Google est <i>déjà</i> 70 % optimisé pour ChatGPT. HTML propre, balisage Schema.org, contenu dense et factuel, <span class=\"mono\">h1</span> clair. Les 30 % restants sont ce qui fait la spécificité du GEO.",
+      },
+    ],
+    contentEn: [
+      { type: 'h2', text: 'The four acronyms' },
+      {
+        type: 'numbered',
+        items: [
+          {
+            n: '01',
+            title: 'SEO — Search Engine Optimization',
+            body:
+              "Optimising for an engine that returns links. The goal: getting clicked.",
+          },
+          {
+            n: '02',
+            title: 'GEO — Generative Engine Optimization',
+            body:
+              "Optimising for an engine that returns a generated answer. The goal: getting cited.",
+          },
+          {
+            n: '03',
+            title: 'AEO / AIO / LLMO',
+            body:
+              "Commercial synonyms for GEO. No technical difference — just vendor branding.",
+          },
+        ],
+      },
+      { type: 'h2', text: 'Where they overlap' },
+      {
+        type: 'p',
+        html:
+          "A site well-structured for Google is <i>already</i> 70 % optimised for ChatGPT. Clean HTML, Schema.org markup, dense and factual content, a clear <span class=\"mono\">h1</span>. The remaining 30 % is what makes GEO distinct.",
       },
     ],
   },
