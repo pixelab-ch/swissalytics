@@ -13,8 +13,8 @@ const LINKS: Record<string, { label: string; href?: string; external?: boolean }
   ],
   ressources: [
     { label: 'Journal', href: '/journal' },
-    { label: 'Glossaire SEO' },
-    { label: 'Guide GEO' },
+    { label: 'Glossaire SEO', href: '/glossaire' },
+    { label: 'Guide GEO', href: '/guide-geo' },
     { label: 'Mentions légales', href: '/mentions-legales' },
   ],
   agence: [
