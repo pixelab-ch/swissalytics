@@ -11,6 +11,12 @@
  */
 
 import * as cheerio from 'cheerio';
+import {
+  type PageLink,
+  extractLinks,
+  fetchRealPage,
+  candidateUrls,
+} from './page-discovery';
 
 type Schema = Record<string, unknown>;
 
@@ -37,73 +43,82 @@ export interface SchemaOrgResult {
   recommendations: string[];
 }
 
+/**
+ * Pure HTML → SchemaOrgResult analysis. Shared by the single-page
+ * `analyzeSchemaOrg` (which fetches first) and the multi-page aggregator
+ * (which fetches each page through the SSRF-guarded `fetchRealPage`).
+ */
+function analyzeSchemaHtml(html: string): SchemaOrgResult {
+  const $ = cheerio.load(html);
+
+  // Extraire tous les JSON-LD
+  const schemas = extractSchemas($);
+
+  // Vérifier présence de chaque type
+  const organization = findSchemaType(schemas, 'Organization');
+  const author = findSchemaType(schemas, 'Person') || findSchemaType(schemas, 'ProfilePage');
+  const faqPage = findSchemaType(schemas, 'FAQPage');
+  const breadcrumb = findSchemaType(schemas, 'BreadcrumbList');
+  const article = findSchemaType(schemas, 'Article') || findSchemaType(schemas, 'BlogPosting');
+  const website = findSchemaType(schemas, 'WebSite');
+
+  const schemasFound = {
+    organization: !!organization,
+    author: !!author,
+    faqPage: !!faqPage,
+    breadcrumb: !!breadcrumb,
+    article: !!article,
+    website: !!website,
+  };
+
+  const totalFound = Object.values(schemasFound).filter(Boolean).length;
+
+  // Valider chaque schéma trouvé
+  const errors: string[] = [];
+
+  if (organization) {
+    errors.push(...validateOrganization(organization));
+  }
+
+  if (author) {
+    errors.push(...validateAuthor(author));
+  }
+
+  if (faqPage) {
+    errors.push(...validateFAQPage(faqPage));
+  }
+
+  // Calcul score
+  const score = calculateSchemaScore(schemasFound, errors.length);
+
+  // Recommandations
+  const recommendations = generateSchemaRecommendations(schemasFound);
+
+  return {
+    score,
+    schemas: schemasFound,
+    totalFound,
+    details: {
+      organization: organization || undefined,
+      author: author || undefined,
+      faqPage: faqPage || undefined,
+      breadcrumb: breadcrumb || undefined,
+      article: article || undefined,
+      website: website || undefined,
+    },
+    errors,
+    recommendations,
+  };
+}
+
 export async function analyzeSchemaOrg(url: string): Promise<SchemaOrgResult> {
   console.log(`[Schema.org] Démarrage analyse de ${url}...`);
-  
+
   try {
     // Fetch page HTML
     const html = await fetchPageHTML(url);
-    const $ = cheerio.load(html);
-    
-    // Extraire tous les JSON-LD
-    const schemas = extractSchemas($);
-    
-    // Vérifier présence de chaque type
-    const organization = findSchemaType(schemas, 'Organization');
-    const author = findSchemaType(schemas, 'Person') || findSchemaType(schemas, 'ProfilePage');
-    const faqPage = findSchemaType(schemas, 'FAQPage');
-    const breadcrumb = findSchemaType(schemas, 'BreadcrumbList');
-    const article = findSchemaType(schemas, 'Article') || findSchemaType(schemas, 'BlogPosting');
-    const website = findSchemaType(schemas, 'WebSite');
-    
-    const schemasFound = {
-      organization: !!organization,
-      author: !!author,
-      faqPage: !!faqPage,
-      breadcrumb: !!breadcrumb,
-      article: !!article,
-      website: !!website,
-    };
-    
-    const totalFound = Object.values(schemasFound).filter(Boolean).length;
-    
-    // Valider chaque schéma trouvé
-    const errors: string[] = [];
-    
-    if (organization) {
-      errors.push(...validateOrganization(organization));
-    }
-    
-    if (author) {
-      errors.push(...validateAuthor(author));
-    }
-    
-    if (faqPage) {
-      errors.push(...validateFAQPage(faqPage));
-    }
-    
-    // Calcul score
-    const score = calculateSchemaScore(schemasFound, errors.length);
-    
-    // Recommandations
-    const recommendations = generateSchemaRecommendations(schemasFound);
-    
-    return {
-      score,
-      schemas: schemasFound,
-      totalFound,
-      details: {
-        organization: organization || undefined,
-        author: author || undefined,
-        faqPage: faqPage || undefined,
-        breadcrumb: breadcrumb || undefined,
-        article: article || undefined,
-        website: website || undefined,
-      },
-      errors,
-      recommendations,
-    };
-    
+    return analyzeSchemaHtml(html);
+
   } catch (error) {
     // Log clean one-liner instead of full stack trace — Schema.org
     // failures are routine (404 robots.txt, 403 from anti-bot sites,
@@ -312,46 +327,108 @@ function generateSchemaRecommendations(schemas: Record<string, boolean>): string
 }
 
 /**
- * Analyse Schema.org multi-pages (approche réaliste LLM)
- * Analyse homepage + pages clés pour un score global représentatif
+ * Page-type keyword groups for link-driven schema discovery. Each group
+ * targets the schema types a given page type typically carries:
+ *  - team    → Person / ProfilePage (author signal)
+ *  - blog    → Article / BlogPosting + BreadcrumbList
+ *  - portfolio/services → BreadcrumbList (+ VideoObject etc.)
+ *  - contact → ContactPage / BreadcrumbList
+ *  - legal   → BreadcrumbList
+ * Matched accent-tolerant on path segments + anchor text (see page-discovery).
+ */
+const SCHEMA_PAGE_KEYWORDS: Record<string, string[]> = {
+  team: [
+    'team', 'equipe', 'équipe', 'lequipe', 'l-equipe', 'léquipe', 'a-propos',
+    'à-propos', 'apropos', 'qui-sommes-nous', 'about', 'about-us', 'ueber-uns',
+    'über-uns', 'chi-siamo',
+  ],
+  blog: ['blog', 'article', 'articles', 'actualites', 'actualités', 'news', 'magazine'],
+  portfolio: ['portfolio', 'projets', 'projects', 'realisations', 'réalisations', 'cases', 'work'],
+  services: ['services', 'service', 'prestations', 'solutions', 'leistungen', 'servizi'],
+  contact: ['contact', 'contactez-nous', 'nous-contacter', 'kontakt', 'contatti', 'contattaci'],
+  legal: [
+    'mentions-legales', 'mentions-légales', 'impressum', 'datenschutz', 'agb',
+    'privacy', 'privacy-policy', 'cgu', 'cgv', 'legal', 'legal-notice',
+    'note-legali', 'imprint',
+  ],
+  testimonials: [
+    'temoignages', 'témoignages', 'avis', 'references', 'références', 'testimonials',
+    'reviews', 'referenzen', 'kundenstimmen', 'testimonianze', 'recensioni',
+  ],
+};
+
+/** Cap total candidate sub-pages fetched per analysis (homepage excluded). */
+const SCHEMA_MAX_SUBPAGES = 8;
+
+/**
+ * Discover relevant sub-page URLs from the homepage's REAL links — one best
+ * candidate per page-type group — same-origin + scheme-allowlisted by
+ * `candidateUrls`. Deduped and capped. Returns absolute URLs (homepage NOT
+ * included; the caller analyzes the homepage HTML it already fetched).
+ */
+function discoverSchemaPages(pageUrl: string, baseUrl: string, links: PageLink[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const keywords of Object.values(SCHEMA_PAGE_KEYWORDS)) {
+    // No hardcoded fallback slug: if a site has no link for a page type, we
+    // simply don't probe it (so we never penalize a site for lacking enigma's
+    // exact paths). Take the first (best) same-origin candidate per group.
+    const [best] = candidateUrls(pageUrl, baseUrl, links, keywords, []);
+    if (best && !seen.has(best)) {
+      seen.add(best);
+      out.push(best);
+    }
+  }
+  return out.slice(0, SCHEMA_MAX_SUBPAGES);
+}
+
+/**
+ * Analyse Schema.org multi-pages — link-driven.
+ *
+ * Pre-fix this probed a hardcoded enigma.swiss-specific URL list
+ * (`/blog/automatisation-ia-suisse`, `/portfolio`, `/temoignages`, …), which
+ * 404'd on every other site and skewed the average. Now it fetches the
+ * homepage ONCE (SSRF-guarded, soft-404-aware), reads its REAL links, and
+ * discovers the relevant page types (blog/article, portfolio/projects,
+ * service, team, contact, legal, testimonials) from those links. The score
+ * is averaged over the pages ACTUALLY found — a site is never penalized for
+ * not having enigma's exact paths.
  */
 export async function analyzeSchemaOrgMultiPage(baseUrl: string): Promise<SchemaOrgResult> {
   console.log(`[Schema.org Multi-Page] Analyse complète site ${baseUrl}...`);
-  
-  // Déterminer pages clés à analyser (optimisé pour détecter tous schemas)
-  const pagesToAnalyze = [
-    baseUrl, // Homepage (Organization, FAQPage, WebSite)
-    `${baseUrl}/team`, // Author/ProfilePage
-    `${baseUrl}/blog/automatisation-ia-suisse`, // Article + Breadcrumb
-    `${baseUrl}/blog/receptionniste-ia-247-lead-generation`, // Article (2ème pour confirmer)
-    `${baseUrl}/blog/seo-ia-moteurs-recherche-2025`, // Article (3ème pour score stable)
-    `${baseUrl}/portfolio`, // Breadcrumb + VideoObject
-    `${baseUrl}/temoignages`, // Review/AggregateRating + Breadcrumb
-    `${baseUrl}/contact`, // Breadcrumb + ContactPage
-    `${baseUrl}/mentions-legales`, // Breadcrumb
-  ];
-  
-  console.log(`[Schema.org Multi-Page] Test de ${pagesToAnalyze.length} pages clés (vise 95+/100)...`);
-  
-  // Analyser chaque page
-  const results = await Promise.allSettled(
-    pagesToAnalyze.map(url => analyzeSchemaOrg(url))
-  );
-  
-  // Agréger les résultats
-  const validResults = results
-    .filter((r): r is PromiseFulfilledResult<SchemaOrgResult> => r.status === 'fulfilled')
-    .map(r => r.value);
-  
-  if (validResults.length === 0) {
-    console.log('[Schema.org Multi-Page] Aucune page analysée avec succès, fallback homepage seule');
+
+  // Fetch the homepage ONCE through the SSRF guard / soft-404 filter.
+  const homepageHtml = await fetchRealPage(baseUrl);
+  if (!homepageHtml) {
+    console.log('[Schema.org Multi-Page] Homepage inaccessible, fallback page seule');
     return analyzeSchemaOrg(baseUrl);
   }
-  
-  // Calculer score global (moyenne pondérée)
+
+  const $home = cheerio.load(homepageHtml);
+  const links = extractLinks($home);
+  const subPages = discoverSchemaPages(baseUrl, baseUrl, links);
+
+  console.log(`[Schema.org Multi-Page] ${subPages.length} sous-pages découvertes via liens réels`);
+
+  // Homepage result is from the HTML we already have (no refetch). Sub-pages
+  // are fetched through fetchRealPage (SSRF-guarded + soft-404-aware); pages
+  // that 404 / soft-404 / get rejected simply yield no result and are skipped.
+  const subResults = await Promise.all(
+    subPages.map(async (url): Promise<SchemaOrgResult | null> => {
+      const html = await fetchRealPage(url);
+      return html ? analyzeSchemaHtml(html) : null;
+    }),
+  );
+
+  const validResults: SchemaOrgResult[] = [
+    analyzeSchemaHtml(homepageHtml),
+    ...subResults.filter((r): r is SchemaOrgResult => r !== null),
+  ];
+
+  // Calculer score global (moyenne sur les pages réellement trouvées).
   const totalScore = validResults.reduce((sum, r) => sum + r.score, 0);
   let avgScore = Math.round(totalScore / validResults.length);
-  
+
   // Agréger schemas trouvés (si au moins 1 page a le schema = true)
   const aggregatedSchemas = {
     organization: validResults.some(r => r.schemas.organization),
@@ -361,22 +438,18 @@ export async function analyzeSchemaOrgMultiPage(baseUrl: string): Promise<Schema
     article: validResults.some(r => r.schemas.article),
     website: validResults.some(r => r.schemas.website),
   };
-  
-  // Bonus si 6/6 schemas détectés sur l'ensemble du site (+20 pts)
+
+  // Bonus si 6/6 schemas détectés sur l'ensemble du site (+20 pts). This is a
+  // SITE-level coverage bonus (not tied to any specific URL), so it survives
+  // the link-driven migration.
   const hasAll6Schemas = Object.values(aggregatedSchemas).every(Boolean);
   if (hasAll6Schemas) {
     avgScore = Math.min(100, avgScore + 20);
     console.log('[Schema.org Multi-Page] ✅ Bonus +20 pts: 6/6 schemas détectés sur le site');
   }
-  
-  // Bonus si bon nombre de pages analysées avec succès (+10 pts si 7+)
-  if (validResults.length >= 7) {
-    avgScore = Math.min(100, avgScore + 10);
-    console.log(`[Schema.org Multi-Page] ✅ Bonus +10 pts: ${validResults.length} pages analysées`);
-  }
-  
+
   const totalFound = Object.values(aggregatedSchemas).filter(Boolean).length;
-  
+
   // Agréger détails (prendre la meilleure instance de chaque schema)
   const aggregatedDetails: SchemaOrgResult['details'] = {};
   for (const key of Object.keys(aggregatedSchemas) as Array<keyof SchemaOrgResult['details']>) {
@@ -385,16 +458,16 @@ export async function analyzeSchemaOrgMultiPage(baseUrl: string): Promise<Schema
       aggregatedDetails[key] = bestResult.details[key];
     }
   }
-  
+
   // Agréger erreurs (dédupliquer)
   const allErrors = validResults.flatMap(r => r.errors);
   const uniqueErrors = Array.from(new Set(allErrors));
-  
+
   // Recalculer recommandations sur base agrégée
   const recommendations = generateSchemaRecommendations(aggregatedSchemas);
-  
+
   console.log(`[Schema.org Multi-Page] Score final: ${avgScore}/100 (${totalFound}/6 schemas sur ${validResults.length} pages)`);
-  
+
   return {
     score: avgScore,
     schemas: aggregatedSchemas,
