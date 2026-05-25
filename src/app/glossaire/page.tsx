@@ -235,7 +235,7 @@ export default function GlossairePage() {
         <DisplayTitle
           parts={
             isFr
-              ? ['16 termes que', ['tout le monde utilise', { red: ',' }], ['personne ne définit', { red: '.' }]]
+              ? ['16 termes que', 'tout le monde utilise,', ['personne ne définit', { red: '.' }]]
               : ['16 terms everyone uses', [', nobody defines', { red: '.' }]]
           }
           size="page"
