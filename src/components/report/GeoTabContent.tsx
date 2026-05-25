@@ -344,13 +344,12 @@ function IndexationPanel({
             gap: 0,
           }}
         >
-          {engineEntries.map(([id, engine], i) => (
+          {engineEntries.map(([id, engine]) => (
             <EngineCard
               key={id}
               id={id}
               engine={engine}
               isFr={isFr}
-              isLastRow={i >= engineEntries.length - (engineEntries.length % 4 || 4)}
             />
           ))}
         </div>
@@ -367,7 +366,6 @@ function EngineCard({
   id: string;
   engine: GeoIndexationEngineResult;
   isFr: boolean;
-  isLastRow: boolean;
 }) {
   const displayName = engine.name || id.charAt(0).toUpperCase() + id.slice(1);
   const confidenceLabel = formatConfidence(engine.confidence, isFr);

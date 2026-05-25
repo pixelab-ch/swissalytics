@@ -114,39 +114,19 @@ function analyzeSchemaHtml(html: string): SchemaOrgResult {
 export async function analyzeSchemaOrg(url: string): Promise<SchemaOrgResult> {
   console.log(`[Schema.org] Démarrage analyse de ${url}...`);
 
-  try {
-    // Fetch page HTML
-    const html = await fetchPageHTML(url);
+  // Use the SSRF-guarded, abort-timeout-aware fetchRealPage so this
+  // single-page path has identical safety guarantees to the multipage path
+  // (assertSafeUrl, per-fetch AbortController, soft-404 filter). The
+  // standalone export has no route-level SSRF guarantee of its own.
+  const html = await fetchRealPage(url);
+  if (html) {
     return analyzeSchemaHtml(html);
-
-  } catch (error) {
-    // Log clean one-liner instead of full stack trace — Schema.org
-    // failures are routine (404 robots.txt, 403 from anti-bot sites,
-    // timeouts on slow CMSs) and historically spammed 7-8 stack frames
-    // per failure into prod logs, drowning out signal.
-    const msg = error instanceof Error ? error.message : String(error);
-    console.warn(`[Schema.org] skip (${msg.slice(0, 80)})`);
-
-    // Fallback données simulées
-    return simulateSchemaData();
   }
-}
 
-/**
- * Fetch HTML de la page
- */
-async function fetchPageHTML(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Swissalytics/1.0 (+https://swissalytics.com)',
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-  
-  return await response.text();
+  // fetchRealPage returns null on HTTP error, SSRF rejection, timeout, or
+  // soft-404 — log a clean one-liner (no stack trace) and fall back.
+  console.warn(`[Schema.org] skip — fetchRealPage returned null for ${url.slice(0, 80)}`);
+  return simulateSchemaData();
 }
 
 /**

@@ -38,6 +38,11 @@ export const MAX_CANDIDATES = 3;
  * exact hostname or its last two labels (`team.enigma.swiss` → `enigma.swiss`).
  * Good enough to keep candidate fetches on the analyzed site and drop
  * cross-origin links (e.g. an external `linkedin.com/.../about`).
+ *
+ * Known limitation: multi-part ccTLDs (e.g. `foo.co.uk` → key `co.uk`) are
+ * treated imperfectly — a subdomain of a different `co.uk` registrant could
+ * pass the same-site check. This is NOT an SSRF risk because `assertSafeUrl`
+ * still blocks private/link-local/metadata IPs on every fetch downstream.
  */
 function siteKey(hostname: string): string {
   const labels = hostname.toLowerCase().split('.').filter(Boolean);

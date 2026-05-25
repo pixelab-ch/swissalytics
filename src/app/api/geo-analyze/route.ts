@@ -33,8 +33,15 @@ import type { GeoAnalysisResult } from '@/lib/analyzers/types';
  * 5s was killing the whole tile before any provider could answer —
  * 25s gives breathing room for 2-3 LLMs to respond.
  *
- * SEO / schema stay short — they're local cheerio + cheap fetches; if
- * they take >5s something is wrong with the target site.
+ * SEO stays short — it's local cheerio; if it takes >5s something is
+ * wrong with the target site.
+ *
+ * Schema uses `analyzeSchemaOrgMultiPage` which fetches the homepage
+ * (capped ~4s by FETCH_TIMEOUT_MS) then up to 8 sub-pages in parallel
+ * (each capped ~4s) — worst-case ~8s on a slow CMS. 5s was clipping
+ * legit sites. 12s matches the EEAT budget for the identical pattern
+ * (1 homepage fetch + parallel sub-page fetches). Analyzers run in
+ * parallel via Promise.allSettled so the budget hit is not cumulative.
  *
  * EEAT (P-eeat) is now link-driven: it fetches the submitted page ONCE,
  * reads its real links, then fetches at most one real candidate page per
@@ -50,7 +57,7 @@ const TIMEOUTS = {
   lighthouse: 35_000,
   seo: 5_000,
   geo: 25_000,
-  schema: 5_000,
+  schema: 12_000,
   eeat: 12_000,
 } as const;
 
