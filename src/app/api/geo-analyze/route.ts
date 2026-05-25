@@ -33,15 +33,25 @@ import type { GeoAnalysisResult } from '@/lib/analyzers/types';
  * 5s was killing the whole tile before any provider could answer —
  * 25s gives breathing room for 2-3 LLMs to respond.
  *
- * SEO / schema / eeat stay short — they're local cheerio + cheap
- * fetches; if they take >5s something is wrong with the target site.
+ * SEO / schema stay short — they're local cheerio + cheap fetches; if
+ * they take >5s something is wrong with the target site.
+ *
+ * EEAT (P-eeat) is now link-driven: it fetches the submitted page ONCE,
+ * reads its real links, then fetches at most one real candidate page per
+ * signal (team / contact / legal) instead of probing ~10 guessed URLs. It
+ * also fetches each candidate end-to-end (GET + soft-404 body check) on
+ * possibly slow CMS pages. 5s was clipping legit sites (e.g. enigma.swiss,
+ * whose team page is `/fr/lequipe/`) and dropping the whole tile to the
+ * all-missing fallback → bogus "create a team page" reco. 12s gives the
+ * 1 homepage + ≤3 candidate fetches room while staying well under the 25s
+ * overall geo budget.
  */
 const TIMEOUTS = {
   lighthouse: 35_000,
   seo: 5_000,
   geo: 25_000,
   schema: 5_000,
-  eeat: 5_000,
+  eeat: 12_000,
 } as const;
 
 const CORS = {
