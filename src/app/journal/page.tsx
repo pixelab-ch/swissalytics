@@ -188,7 +188,7 @@ export default function JournalIndexPage() {
                   style={{
                     fontSize: 'clamp(32px, 4.4vw, 56px)',
                     fontWeight: 800,
-                    letterSpacing: '-0.03em',
+                    letterSpacing: '-0.02em',
                     lineHeight: 1.02,
                     margin: 0,
                     textWrap: 'balance',

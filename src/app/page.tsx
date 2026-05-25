@@ -260,7 +260,7 @@ function EasterEgg({ lang, onReset }: { lang: 'fr' | 'en'; onReset: () => void }
             className="display"
             style={{
               fontSize: 'clamp(40px, 6vw, 80px)',
-              letterSpacing: '-0.03em',
+              letterSpacing: '-0.02em',
               lineHeight: 0.95,
               color: 'var(--sa-ink)',
               margin: '0 0 24px 0',

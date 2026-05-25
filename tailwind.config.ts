@@ -58,7 +58,7 @@ const config: Config = {
         gauge: { track: "var(--a-gauge-track)" },
         status: { success: "var(--sa-ok)", error: "var(--sa-err)", warning: "var(--sa-warn)" },
       },
-      letterSpacing: { "tight-2": "-0.02em", "tight-3": "-0.03em", "tight-4": "-0.04em" },
+      letterSpacing: { "tight-2": "-0.015em", "tight-3": "-0.02em", "tight-4": "-0.025em" },
       borderRadius: { none: "0", xs: "2px" },
     },
   },

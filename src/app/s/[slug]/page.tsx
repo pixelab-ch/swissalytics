@@ -60,7 +60,7 @@ export default function SharedReportPage({
           <div className="mono caption-red" style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 20 }}>
             § {state.status === 404 ? (lang === 'fr' ? '404 — Lien expiré' : '404 — Link expired') : (lang === 'fr' ? 'Erreur' : 'Error')}
           </div>
-          <h1 className="display" style={{ fontSize: 'clamp(44px, 6vw, 96px)', letterSpacing: '-0.035em', lineHeight: 0.94, color: 'var(--sa-ink)', margin: '0 0 24px 0' }}>
+          <h1 className="display" style={{ fontSize: 'clamp(44px, 6vw, 96px)', letterSpacing: '-0.02em', lineHeight: 0.94, color: 'var(--sa-ink)', margin: '0 0 24px 0' }}>
             {state.status === 404
               ? (lang === 'fr' ? 'Ce lien n\u2019existe plus.' : 'This link no longer exists.')
               : (lang === 'fr' ? 'Une erreur est survenue.' : 'An error occurred.')}

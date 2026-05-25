@@ -63,9 +63,9 @@ export function Pixel({
    DisplayTitle — hero / page / section sizing + Pixel + italic
    ============================================================ */
 const DISPLAY_SIZES: Record<'hero' | 'page' | 'sect', CSSProperties> = {
-  hero: { fontSize: 'clamp(56px, 8vw, 132px)', letterSpacing: '-0.04em', lineHeight: 0.92 },
-  page: { fontSize: 'clamp(44px, 6vw, 96px)', letterSpacing: '-0.035em', lineHeight: 0.94 },
-  sect: { fontSize: 'clamp(32px, 4vw, 56px)', letterSpacing: '-0.03em', lineHeight: 1.0 },
+  hero: { fontSize: 'clamp(56px, 8vw, 132px)', letterSpacing: '-0.02em', lineHeight: 0.92 },
+  page: { fontSize: 'clamp(44px, 6vw, 96px)', letterSpacing: '-0.02em', lineHeight: 0.94 },
+  sect: { fontSize: 'clamp(32px, 4vw, 56px)', letterSpacing: '-0.015em', lineHeight: 1.0 },
 };
 
 export function DisplayTitle({
