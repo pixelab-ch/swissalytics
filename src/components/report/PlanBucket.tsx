@@ -1,6 +1,6 @@
 'use client';
 
-import type { PlanItem } from '@/lib/engine/plan';
+import type { Effort, PlanItem } from '@/lib/engine/plan';
 
 interface PlanBucketProps {
   captionNum: string;
@@ -8,6 +8,27 @@ interface PlanBucketProps {
   items: PlanItem[];
   /** CSS color for the leading dot in the caption bar (red/warn/grey). */
   dotColor: string;
+  isFr: boolean;
+}
+
+/**
+ * Map the bare S/M/L effort code to an explicit localized phrase. The raw
+ * letters were unreadable on their own; users see "Effort faible/moyen/élevé"
+ * (FR) or "Low/Medium/High effort" (EN).
+ */
+function effortLabel(effort: Effort, isFr: boolean): string {
+  if (isFr) {
+    return effort === 'S'
+      ? 'Effort faible'
+      : effort === 'L'
+      ? 'Effort élevé'
+      : 'Effort moyen';
+  }
+  return effort === 'S'
+    ? 'Low effort'
+    : effort === 'L'
+    ? 'High effort'
+    : 'Medium effort';
 }
 
 /**
@@ -15,7 +36,7 @@ interface PlanBucketProps {
  * from `lib/engine/plan.buildPlan(report)`. Returns null when empty so
  * absent buckets don't take vertical space.
  */
-export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketProps) {
+export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBucketProps) {
   if (items.length === 0) return null;
   return (
     <div className="frame" style={{ background: 'var(--sa-cream)' }}>
@@ -45,7 +66,7 @@ export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketPro
             key={`${item.n}-${i}`}
             style={{
               display: 'grid',
-              gridTemplateColumns: '56px 1fr 80px',
+              gridTemplateColumns: '56px 1fr auto',
               gap: 16,
               padding: '20px 24px',
               borderBottom:
@@ -115,7 +136,7 @@ export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketPro
                   whiteSpace: 'nowrap',
                 }}
               >
-                {item.effort}
+                {effortLabel(item.effort, isFr)}
               </span>
             </div>
           </div>

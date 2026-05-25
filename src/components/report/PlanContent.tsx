@@ -10,6 +10,7 @@ interface PlanContentProps {
   critItems: PlanItem[];
   warnItems: PlanItem[];
   infoItems: PlanItem[];
+  isFr: boolean;
 }
 
 /**
@@ -19,7 +20,7 @@ interface PlanContentProps {
  * Phase 4 will extend `buildPlan` to absorb /api/geo-analyze recommendations,
  * which currently aren't shown anywhere — they'll surface here.
  */
-export function PlanContent({ copy, critItems, warnItems, infoItems }: PlanContentProps) {
+export function PlanContent({ copy, critItems, warnItems, infoItems, isFr }: PlanContentProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       {/* §99 CTA Banner */}
@@ -105,18 +106,21 @@ export function PlanContent({ copy, critItems, warnItems, infoItems }: PlanConte
         label={copy.planBucketCrit}
         items={critItems}
         dotColor="var(--sa-red)"
+        isFr={isFr}
       />
       <PlanBucket
         captionNum="11"
         label={copy.planBucketWarn}
         items={warnItems}
         dotColor="var(--sa-warn)"
+        isFr={isFr}
       />
       <PlanBucket
         captionNum="12"
         label={copy.planBucketInfo}
         items={infoItems}
         dotColor="var(--sa-ink-4)"
+        isFr={isFr}
       />
     </div>
   );
