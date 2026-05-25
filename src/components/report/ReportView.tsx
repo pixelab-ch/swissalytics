@@ -426,8 +426,9 @@ export default function ReportView({
           ))}
         </nav>
 
-        {/* Tab content */}
-        <div>
+        {/* Tab content – min-width:0 prevents the 1fr grid track from
+            expanding to fit nowrap children (e.g. the Détails section bar). */}
+        <div style={{ minWidth: 0 }}>
           {tab === 'overview' && (
             <OverviewContent
               report={report}
