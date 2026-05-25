@@ -1,6 +1,7 @@
 'use client';
 
-import type { Effort, PlanItem } from '@/lib/engine/plan';
+import type { PlanItem } from '@/lib/engine/plan';
+import { effortLabel } from './cockpitData';
 
 interface PlanBucketProps {
   captionNum: string;
@@ -9,26 +10,6 @@ interface PlanBucketProps {
   /** CSS color for the leading dot in the caption bar (red/warn/grey). */
   dotColor: string;
   isFr: boolean;
-}
-
-/**
- * Map the bare S/M/L effort code to an explicit localized phrase. The raw
- * letters were unreadable on their own; users see "Effort faible/moyen/élevé"
- * (FR) or "Low/Medium/High effort" (EN).
- */
-function effortLabel(effort: Effort, isFr: boolean): string {
-  if (isFr) {
-    return effort === 'S'
-      ? 'Effort faible'
-      : effort === 'L'
-      ? 'Effort élevé'
-      : 'Effort moyen';
-  }
-  return effort === 'S'
-    ? 'Low effort'
-    : effort === 'L'
-    ? 'High effort'
-    : 'Medium effort';
 }
 
 /**
