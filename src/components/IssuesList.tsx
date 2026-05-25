@@ -30,9 +30,6 @@ export default function IssuesList({ issues }: { issues: Issue[] }) {
           paddingBottom: 10,
         }}
       >
-        <span className="mono" style={{ fontSize: 11, letterSpacing: '0.12em', color: 'var(--sa-ink-4)', fontWeight: 700 }}>
-          §00
-        </span>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--sa-ink)', margin: 0, letterSpacing: '-0.01em' }}>
           Problèmes détectés ({issues.length})
         </h3>

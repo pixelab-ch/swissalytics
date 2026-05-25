@@ -23,7 +23,30 @@ interface PlanContentProps {
 export function PlanContent({ copy, critItems, warnItems, infoItems, isFr }: PlanContentProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      {/* §99 CTA Banner */}
+      {/* Buckets — sequential §10 / §11 / §12 */}
+      <PlanBucket
+        captionNum="10"
+        label={copy.planBucketCrit}
+        items={critItems}
+        dotColor="var(--sa-red)"
+        isFr={isFr}
+      />
+      <PlanBucket
+        captionNum="11"
+        label={copy.planBucketWarn}
+        items={warnItems}
+        dotColor="var(--sa-warn)"
+        isFr={isFr}
+      />
+      <PlanBucket
+        captionNum="12"
+        label={copy.planBucketInfo}
+        items={infoItems}
+        dotColor="var(--sa-ink-4)"
+        isFr={isFr}
+      />
+
+      {/* §99 CTA Banner — final "next step" sentinel, last in flow */}
       <div
         className="frame"
         style={{ background: 'var(--sa-cream)', padding: '40px 48px' }}
@@ -99,29 +122,6 @@ export function PlanContent({ copy, critItems, warnItems, infoItems, isFr }: Pla
           </a>
         </div>
       </div>
-
-      {/* Buckets */}
-      <PlanBucket
-        captionNum="10"
-        label={copy.planBucketCrit}
-        items={critItems}
-        dotColor="var(--sa-red)"
-        isFr={isFr}
-      />
-      <PlanBucket
-        captionNum="11"
-        label={copy.planBucketWarn}
-        items={warnItems}
-        dotColor="var(--sa-warn)"
-        isFr={isFr}
-      />
-      <PlanBucket
-        captionNum="12"
-        label={copy.planBucketInfo}
-        items={infoItems}
-        dotColor="var(--sa-ink-4)"
-        isFr={isFr}
-      />
     </div>
   );
 }

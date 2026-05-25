@@ -24,9 +24,11 @@ const BOT_DESCRIPTIONS_EN: Record<string, string> = {
 interface BotCoverageProps {
   bots: BotResult[];
   isFr: boolean;
+  /** Section marker number (§NN). Defaults to 07 in the GEO tab DOM order. */
+  num?: string;
 }
 
-export function BotCoverage({ bots, isFr }: BotCoverageProps) {
+export function BotCoverage({ bots, isFr, num = '07' }: BotCoverageProps) {
   const descriptions = isFr ? BOT_DESCRIPTIONS_FR : BOT_DESCRIPTIONS_EN;
 
   const blockedAiBots = bots.filter(
@@ -53,7 +55,7 @@ export function BotCoverage({ bots, isFr }: BotCoverageProps) {
         }}
       >
         <span>
-          §10 — {isFr ? 'Robots IA (robots.txt)' : 'AI Robots (robots.txt)'}
+          §{num} — {isFr ? 'Robots IA (robots.txt)' : 'AI Robots (robots.txt)'}
         </span>
         <span style={{ opacity: 0.85, fontWeight: 700 }}>
           {bots.filter((b) => b.status !== 'blocked').length}/{bots.length}{' '}
