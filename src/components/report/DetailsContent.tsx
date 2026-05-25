@@ -67,14 +67,17 @@ export function DetailsContent({
 
   return (
     <div>
-      {/* Horizontal underlined sub-section bar. Scrolls horizontally on
-          narrow viewports rather than wrapping. */}
+      {/* Underlined sub-section bar. Wraps onto multiple rows when the six
+          labels exceed the content column instead of opening an inner
+          horizontal scroll region (which also forced a stray vertical
+          scrollbar via the implicit overflow-y:auto). */}
       <nav
         role="tablist"
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           gap: 26,
-          overflowX: 'auto',
+          rowGap: 8,
           borderBottom: '1px solid var(--sa-rule)',
           marginBottom: 20,
         }}
