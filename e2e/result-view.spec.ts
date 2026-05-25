@@ -29,16 +29,18 @@ test.describe('Overview — cockpit dashboard', () => {
     // on the overview (those moved to the Plan tab).
     await expect(page.getByText(/Critique\s*·\s*à faire/i)).toHaveCount(0);
 
-    // A severity badge (Crit) is present in the priority rows.
-    await expect(page.getByText(/^Crit$/i).first()).toBeVisible();
+    // A severity badge is present in the priority rows. FR renders "Crit."
+    // (with period, M3), EN renders "Crit".
+    await expect(page.getByText(/^Crit\.?$/i).first()).toBeVisible();
   });
 
-  test('§02 — AI visibility block: "X / 4" + engine chips + robots-IA line', async ({ page }) => {
+  test('§02 — AI visibility block: "X / N" + engine chips + robots-IA line', async ({ page }) => {
     await expect(page.getByText(/Visibilité IA|AI visibility/i)).toBeVisible();
 
-    // geoAnalysis is present in the fixture → "X / 4" count renders.
+    // geoAnalysis present → honest "X / N" count renders. The 4 canonical
+    // engines are all tested + non-errored in the default fixture → "/ 4".
     await expect(page.getByText(/\/\s*4/).first()).toBeVisible();
-    await expect(page.getByText(/moteurs IA te citent|AI engines cite you/i)).toBeVisible();
+    await expect(page.getByText(/moteurs te citent|engines cite you/i)).toBeVisible();
 
     // Engine chips (fixture: gemini+claude indexed, chatgpt+mistral not).
     await expect(page.getByText(/ChatGPT/).first()).toBeVisible();
@@ -104,6 +106,47 @@ test.describe('Overview — async cockpit loading skeletons', () => {
 
     // The robots-IA line is synchronous → still shown immediately.
     await expect(page.getByText(/Robots IA|AI robots/i)).toBeVisible();
+  });
+});
+
+test.describe('Overview — terminal degraded states (no perpetual skeleton)', () => {
+  test('C1 — geo fetch failed: shows "indisponibles", NOT the animated skeleton', async ({ page }) => {
+    // ?state=geo-failed = geoLoading false + geoAnalysis absent (fetch returned null).
+    await page.goto(`${FIXTURE_URL}?state=geo-failed`);
+    await page.waitForSelector('[role="tablist"]');
+
+    // Terminal degraded message in §02.
+    await expect(
+      page.getByText(/Moteurs IA indisponibles|AI engines unavailable/i),
+    ).toBeVisible();
+
+    // The animated "Interrogation des moteurs IA…" skeleton must NOT be present
+    // (that would mean it animates forever on a fetch failure).
+    await expect(page.getByText(/Interrogation des moteurs IA|Querying AI engines/i)).toHaveCount(0);
+
+    // The "Détail IA →" link is still available (lives in the section header).
+    await expect(page.getByRole('button', { name: /Détail IA|AI detail/i })).toBeVisible();
+
+    // The robots-IA line is synchronous → still shown.
+    await expect(page.getByText(/Robots IA|AI robots/i)).toBeVisible();
+  });
+
+  test('C2 — errored engine renders "indisponible"/neutral, NOT a red ✗', async ({ page }) => {
+    // ?state=engine-mix: chatgpt errored, gemini indexed, claude not-indexed, mistral untested.
+    await page.goto(`${FIXTURE_URL}?state=engine-mix`);
+    await page.waitForSelector('[role="tablist"]');
+
+    // The errored ChatGPT engine shows the "indisponible" / "unavailable" suffix,
+    // never the red ✗ that would falsely imply "doesn't cite you".
+    const chatgptChip = page.getByText(/ChatGPT\s+(indisponible|unavailable)/i);
+    await expect(chatgptChip).toBeVisible();
+
+    // The untested Mistral engine shows "non testé" / "not tested" (neutral).
+    await expect(page.getByText(/Mistral\s+(non testé|not tested)/i)).toBeVisible();
+
+    // Honest denominator: only gemini + claude are tested non-error → "1 / 2"
+    // (gemini cited, claude not). Errored + untested are excluded from both.
+    await expect(page.getByText(/1\s*\/\s*2/).first()).toBeVisible();
   });
 });
 

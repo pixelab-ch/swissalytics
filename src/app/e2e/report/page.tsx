@@ -307,22 +307,58 @@ export default async function E2EReportPage({ searchParams }: E2EReportPageProps
   }
 
   const resolved = await searchParams;
-  const loading = resolved?.state === 'loading';
+  const state = resolved?.state;
+  const loading = state === 'loading';
+  // ?state=geo-failed simulates a TERMINAL geo-fetch failure: the async
+  // fetchGeo() resolved with null (HTTP error/timeout/bad JSON), so geoLoading
+  // flipped back to false WITHOUT geoAnalysis ever arriving. The cockpit §02
+  // must show the "Moteurs IA indisponibles" degraded state — NOT a skeleton
+  // that animates forever.
+  const geoFailed = state === 'geo-failed';
+  // ?state=engine-mix exercises the honest per-engine states: one indexed,
+  // one not-indexed, one errored (LLM call failed), one untested (absent).
+  const engineMix = state === 'engine-mix';
 
-  // ?state=loading simulates the moment right after /analyze when the async
-  // payloads (geoAnalysis = AI engines, coreWebVitals = LCP) haven't arrived
-  // yet, so the cockpit renders its calm skeletons.
-  const report: AnalysisResult = loading
-    ? {
-        ...FIXTURE,
-        geoAnalysis: undefined,
-        technical: { ...FIXTURE.technical, coreWebVitals: undefined },
-      }
-    : FIXTURE;
+  let report: AnalysisResult;
+  if (loading) {
+    // The moment right after /analyze when async payloads haven't arrived yet,
+    // so the cockpit renders its calm skeletons (geoLoading + cwvLoading true).
+    report = {
+      ...FIXTURE,
+      geoAnalysis: undefined,
+      technical: { ...FIXTURE.technical, coreWebVitals: undefined },
+    };
+  } else if (geoFailed) {
+    report = { ...FIXTURE, geoAnalysis: undefined };
+  } else if (engineMix) {
+    report = {
+      ...FIXTURE,
+      geoAnalysis: {
+        ...FIXTURE.geoAnalysis!,
+        geo: {
+          ...FIXTURE.geoAnalysis!.geo,
+          indexation: {
+            ...FIXTURE.geoAnalysis!.geo.indexation,
+            engines: {
+              // chatgpt: errored (LLM call failed) — must NOT render red ✗
+              chatgpt: { indexed: false, confidence: 'none', mentions: 0, error: 'HTTP 404 model deprecated' },
+              // gemini: genuinely indexed
+              gemini: { indexed: true, confidence: 'high', mentions: 3 },
+              // claude: genuinely not indexed
+              claude: { indexed: false, confidence: 'low', mentions: 0 },
+              // mistral: absent → untested
+            },
+          },
+        },
+      },
+    };
+  } else {
+    report = FIXTURE;
+  }
 
   return (
     <Suspense fallback={<div>Loading…</div>}>
-      <ReportView report={report} cwvLoading={loading} />
+      <ReportView report={report} cwvLoading={loading} geoLoading={loading} />
     </Suspense>
   );
 }
