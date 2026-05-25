@@ -72,7 +72,7 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
                 style={{
                   fontWeight: 600,
                   color: 'var(--sa-ink)',
-                  fontSize: 15,
+                  fontSize: 18,
                   marginBottom: 4,
                   lineHeight: 1.35,
                 }}
@@ -82,7 +82,7 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
               <div
                 style={{
                   color: 'var(--sa-ink-3)',
-                  fontSize: 14,
+                  fontSize: 16,
                   lineHeight: 1.5,
                 }}
               >
@@ -92,7 +92,7 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
                 className="mono"
                 style={{
                   marginTop: 6,
-                  fontSize: 10,
+                  fontSize: 11,
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
                   color: 'var(--sa-ink-4)',
@@ -106,7 +106,7 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
               <span
                 className="mono"
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
                   fontWeight: 700,

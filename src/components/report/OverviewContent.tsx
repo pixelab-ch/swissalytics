@@ -109,7 +109,7 @@ function PriorityBlock({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p
                     style={{
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: 600,
                       margin: '0 0 2px',
                       color: 'var(--sa-ink)',
@@ -120,7 +120,7 @@ function PriorityBlock({
                   </p>
                   <p
                     style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       color: 'var(--sa-ink-3)',
                       margin: 0,
                       lineHeight: 1.45,
