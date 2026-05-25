@@ -31,6 +31,7 @@ export default function HomePage() {
   const [degraded, setDegraded] = useState<boolean>(false);
   const [error, setError] = useState('');
   const [cwvLoading, setCwvLoading] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
   // P18.B — separate loading state for /api/keyword-suggestions so the
   // HeadingsTab skeleton can show "Suggestions IA en cours…" while the
   // request is in flight, instead of nothing.
@@ -91,12 +92,15 @@ export default function HomePage() {
       setReportId(id ?? null);
       setDegraded(Boolean(data.degraded));
       setCwvLoading(true);
+      setGeoLoading(true);
 
-      fetchGeo(validatedUrl, buildPageContext(report)).then((geoData) => {
-        if (!geoData) return;
-        setResult((prev) => (prev ? { ...prev, geoAnalysis: geoData } : prev));
-        if (id) persistEnrichment(id, { geoAnalysis: geoData });
-      });
+      fetchGeo(validatedUrl, buildPageContext(report))
+        .then((geoData) => {
+          if (!geoData) return;
+          setResult((prev) => (prev ? { ...prev, geoAnalysis: geoData } : prev));
+          if (id) persistEnrichment(id, { geoAnalysis: geoData });
+        })
+        .finally(() => setGeoLoading(false));
 
       // P18.B — keyword suggestions in their own request, runs in parallel
       // with /api/geo-analyze so they appear in 5-10s instead of 27s.
@@ -200,6 +204,7 @@ export default function HomePage() {
             report={result}
             reportId={reportId ?? undefined}
             cwvLoading={cwvLoading}
+            geoLoading={geoLoading}
             keywordSuggestionsLoading={keywordSuggestionsLoading}
             degraded={degraded}
           />

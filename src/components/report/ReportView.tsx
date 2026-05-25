@@ -23,6 +23,8 @@ interface ReportViewProps {
   reportId?: string;
   readOnly?: boolean;
   cwvLoading?: boolean;
+  /** True while the GEO/AI-engines analysis is still being fetched async. */
+  geoLoading?: boolean;
   /** P18.B — surface "Suggestions IA en cours…" skeleton in HeadingsTab. */
   keywordSuggestionsLoading?: boolean;
   degraded?: boolean;
@@ -84,6 +86,7 @@ export default function ReportView({
   reportId,
   readOnly,
   cwvLoading,
+  geoLoading,
   keywordSuggestionsLoading,
   degraded = false,
 }: ReportViewProps) {
@@ -437,6 +440,7 @@ export default function ReportView({
               onGoToGeo={() => changeTab('geo')}
               onGoToDetails={() => changeTab('details')}
               cwvLoading={cwvLoading}
+              geoLoading={geoLoading}
             />
           )}
 
