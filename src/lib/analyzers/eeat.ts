@@ -13,6 +13,7 @@
 import * as cheerio from 'cheerio';
 import {
   type PageLink,
+  type PageContext,
   extractLinks,
   matchesKeyword,
   findBestCandidate,
@@ -30,6 +31,7 @@ import {
 // is now page-discovery.ts.
 export {
   type PageLink,
+  type PageContext,
   extractLinks,
   matchesKeyword,
   findBestCandidate,
@@ -74,16 +76,26 @@ export interface EEATResult {
   recommendations: string[];
 }
 
-export async function analyzeEEAT(url: string): Promise<EEATResult> {
+/**
+ * Analyse E-E-A-T — link-driven off the homepage that the route already
+ * fetched ONCE (`PageContext`). The homepage is NOT re-fetched here; sub-pages
+ * (team / contact / legal / testimonials) still go through the guarded
+ * `fetchRealPage`. `ctx` is null when the homepage was unreachable / soft-404
+ * / SSRF-rejected — that degrades exactly as before (empty HTML + empty links,
+ * so candidate discovery falls back to the minimal same-origin probe slugs).
+ */
+export async function analyzeEEAT(url: string, ctx: PageContext | null): Promise<EEATResult> {
   console.log(`[E-E-A-T] Démarrage analyse de ${url}...`);
 
   try {
     const baseUrl = new URL(url).origin;
 
-    // Fetch the submitted page ONCE; everything else is link-driven off it.
-    const homepageHtml = await fetchRealPage(url);
-    const $home = cheerio.load(homepageHtml ?? '');
-    const pageLinks = extractLinks($home);
+    // Homepage was fetched ONCE upstream (PageContext); reuse it — no refetch.
+    // A null ctx means the homepage was unreachable: behave as before, i.e. as
+    // if `fetchRealPage` had returned null (empty HTML, no links).
+    const homepageHtml = ctx?.html ?? '';
+    const $home = ctx?.$ ?? cheerio.load('');
+    const pageLinks = ctx?.links ?? [];
 
     // All signal probes run in ONE Promise.all batch (incl. author bios,
     // which reuses the already-fetched homepage HTML — no refetch).
@@ -91,7 +103,7 @@ export async function analyzeEEAT(url: string): Promise<EEATResult> {
       analyzeTeamPage(url, baseUrl, pageLinks),
       checkLegalMentions(url, baseUrl, pageLinks),
       analyzeContactPage(url, baseUrl, pageLinks),
-      analyzeTestimonials(url, baseUrl, pageLinks, homepageHtml ?? ''),
+      analyzeTestimonials(url, baseUrl, pageLinks, homepageHtml),
       analyzeBacklinks(url),
       analyzeAuthorBios($home),
     ]);

@@ -217,6 +217,39 @@ export async function fetchRealPage(url: string): Promise<string | null> {
 }
 
 /**
+ * Shared, fetched-ONCE view of the submitted homepage. Built by
+ * `buildPageContext` (which goes through the guarded `fetchRealPage`) and
+ * threaded into the sub-analyzers (eeat, schema-org) that would otherwise each
+ * re-fetch and re-parse the same homepage. Sub-PAGE fetches (team/contact/
+ * legal/testimonials/blog…) still go through `fetchRealPage` per analyzer —
+ * only the HOMEPAGE refetch is eliminated.
+ */
+export interface PageContext {
+  /** The submitted (already SSRF-validated) URL. */
+  url: string;
+  /** Raw homepage HTML (as returned by `fetchRealPage`). */
+  html: string;
+  /** Parsed homepage. */
+  $: cheerio.CheerioAPI;
+  /** Real `<a href>` links extracted from the homepage. */
+  links: PageLink[];
+}
+
+/**
+ * Fetch + parse the submitted homepage ONCE through the guarded path
+ * (`fetchRealPage` → `assertSafeUrl` + abort + soft-404 filter), returning a
+ * `PageContext` reused by every sub-analyzer that reads the homepage. Returns
+ * `null` when the homepage is unreachable / soft-404 / SSRF-rejected, so each
+ * analyzer can degrade exactly as it did when it self-fetched and got null.
+ */
+export async function buildPageContext(url: string): Promise<PageContext | null> {
+  const html = await fetchRealPage(url);
+  if (html === null) return null;
+  const $ = cheerio.load(html);
+  return { url, html, $, links: extractLinks($) };
+}
+
+/**
  * Resolve candidate URLs for a signal: prefer the real links found on the
  * submitted page (resolved against the page URL), falling back to a small
  * deduped list of guessed slugs only when no link matched.

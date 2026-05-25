@@ -6,6 +6,7 @@ import { analyzeSEO } from '@/lib/analyzers/seo';
 import { analyzeGEOIndexation } from '@/lib/analyzers/geo-indexation';
 import { analyzeSchemaOrgMultiPage } from '@/lib/analyzers/schema-org';
 import { analyzeEEAT } from '@/lib/analyzers/eeat';
+import { buildPageContext } from '@/lib/analyzers/page-discovery';
 import { calculateCompositeScore } from '@/lib/analyzers/composite-score';
 import {
   withTimeout,
@@ -36,22 +37,23 @@ import type { GeoAnalysisResult } from '@/lib/analyzers/types';
  * SEO stays short — it's local cheerio; if it takes >5s something is
  * wrong with the target site.
  *
- * Schema uses `analyzeSchemaOrgMultiPage` which fetches the homepage
- * (capped ~4s by FETCH_TIMEOUT_MS) then up to 8 sub-pages in parallel
- * (each capped ~4s) — worst-case ~8s on a slow CMS. 5s was clipping
- * legit sites. 12s matches the EEAT budget for the identical pattern
- * (1 homepage fetch + parallel sub-page fetches). Analyzers run in
- * parallel via Promise.allSettled so the budget hit is not cumulative.
+ * Schema uses `analyzeSchemaOrgMultiPage` which reuses the SHARED
+ * homepage PageContext (fetched once upstream) then fetches up to 8
+ * sub-pages in parallel (each capped ~4s by FETCH_TIMEOUT_MS) —
+ * worst-case ~8s on a slow CMS. 5s was clipping legit sites. 12s
+ * matches the EEAT budget for the identical sub-page-fetch pattern.
+ * Analyzers run in parallel via Promise.allSettled so the budget hit
+ * is not cumulative.
  *
- * EEAT (P-eeat) is now link-driven: it fetches the submitted page ONCE,
- * reads its real links, then fetches at most one real candidate page per
- * signal (team / contact / legal) instead of probing ~10 guessed URLs. It
- * also fetches each candidate end-to-end (GET + soft-404 body check) on
- * possibly slow CMS pages. 5s was clipping legit sites (e.g. enigma.swiss,
- * whose team page is `/fr/lequipe/`) and dropping the whole tile to the
- * all-missing fallback → bogus "create a team page" reco. 12s gives the
- * 1 homepage + ≤3 candidate fetches room while staying well under the 25s
- * overall geo budget.
+ * EEAT (P-eeat) is link-driven: it reuses the SHARED homepage
+ * PageContext (fetched once upstream), reads its real links, then fetches at
+ * most one real candidate page per signal (team / contact / legal) instead of
+ * probing ~10 guessed URLs. It also fetches each candidate end-to-end (GET +
+ * soft-404 body check) on possibly slow CMS pages. 5s was clipping legit sites
+ * (e.g. enigma.swiss, whose team page is `/fr/lequipe/`) and dropping the whole
+ * tile to the all-missing fallback → bogus "create a team page" reco. 12s gives
+ * the ≤3 candidate fetches room while staying well under the 25s overall geo
+ * budget.
  */
 const TIMEOUTS = {
   lighthouse: 35_000,
@@ -111,17 +113,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'URL non autorisée' }, { status: 403, headers: CORS });
     }
 
+    // Fetch + parse the homepage ONCE (guarded path) and share it across the
+    // sub-analyzers that read the homepage (eeat + schema-org) instead of each
+    // re-fetching it. Returns null when unreachable / soft-404 / SSRF-rejected
+    // — each analyzer degrades exactly as it did when it self-fetched and got
+    // null. SEO + GEO indexation are NOT given the context: SEO uses a distinct
+    // unguarded fetch with throw-on-error semantics, and GEO indexation never
+    // fetches the homepage (it only calls LLM APIs keyed on the domain).
+    const pageContext = await buildPageContext(validatedUrl);
+
     // P8: Run all 5 analyzers in parallel with PER-ANALYZER timeouts
     // and fail-open via Promise.allSettled. A single rejection no
     // longer 500s the whole request — failed analyzers fall back to
     // safe defaults and the response carries a `degraded` flag block
     // so the UI can surface partial data clearly.
     const settled = await Promise.allSettled([
-      withTimeout(runLighthouseAudit(validatedUrl),     TIMEOUTS.lighthouse, 'lighthouse'),
-      withTimeout(analyzeSEO(validatedUrl),             TIMEOUTS.seo,        'seo'),
-      withTimeout(analyzeGEOIndexation(validatedUrl),   TIMEOUTS.geo,        'geo'),
-      withTimeout(analyzeSchemaOrgMultiPage(validatedUrl), TIMEOUTS.schema,  'schema'),
-      withTimeout(analyzeEEAT(validatedUrl),            TIMEOUTS.eeat,       'eeat'),
+      withTimeout(runLighthouseAudit(validatedUrl),                   TIMEOUTS.lighthouse, 'lighthouse'),
+      withTimeout(analyzeSEO(validatedUrl),                           TIMEOUTS.seo,        'seo'),
+      withTimeout(analyzeGEOIndexation(validatedUrl),                 TIMEOUTS.geo,        'geo'),
+      withTimeout(analyzeSchemaOrgMultiPage(validatedUrl, pageContext), TIMEOUTS.schema,   'schema'),
+      withTimeout(analyzeEEAT(validatedUrl, pageContext),             TIMEOUTS.eeat,       'eeat'),
     ]);
 
     const degraded: DegradedFlags = { lighthouse: false, seo: false, geo: false, schema: false, eeat: false };

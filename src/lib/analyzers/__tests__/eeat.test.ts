@@ -22,9 +22,22 @@ vi.mock('@/lib/security/ssrf', async () => {
 });
 
 import { analyzeEEAT } from '../eeat';
+import { buildPageContext } from '../page-discovery';
 import { assertSafeUrl, SsrfError } from '@/lib/security/ssrf';
 
 const assertSafeUrlMock = vi.mocked(assertSafeUrl);
+
+/**
+ * The route now fetches the homepage ONCE (via `buildPageContext`, which goes
+ * through the guarded `fetchRealPage`) and threads the resulting `PageContext`
+ * into `analyzeEEAT`. These tests mirror that: build the context off the same
+ * fetch stub, then drive the analyzer with `(url, ctx)`. The homepage is thus
+ * fetched exactly once (by the builder), never again by the analyzer.
+ */
+async function runEEAT(url: string) {
+  const ctx = await buildPageContext(url);
+  return analyzeEEAT(url, ctx);
+}
 
 /**
  * GEO E-E-A-T analyzer — link-driven, locale-aware content analysis.
@@ -141,7 +154,7 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
       '__home__': { body: HOMEPAGE_ENIGMA },
     }));
 
-    const result = await analyzeEEAT('https://enigma.swiss/');
+    const result = await runEEAT('https://enigma.swiss/');
     expect(result.signals.teamPage.found).toBe(true);
     expect(result.signals.teamPage.authorsCount).toBeGreaterThanOrEqual(3);
     expect(result.signals.teamPage.quality).toBe('high');
@@ -157,7 +170,7 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
       '__home__': { body: HOMEPAGE_ENIGMA },
     }));
 
-    const result = await analyzeEEAT('https://enigma.swiss/');
+    const result = await runEEAT('https://enigma.swiss/');
     expect(result.signals.contactPage.found).toBe(true);
     expect(result.signals.contactPage.hasEmail).toBe(true);
     expect(result.signals.contactPage.hasPhone).toBe(true);
@@ -172,7 +185,7 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
       '__home__': { body: HOMEPAGE_ENIGMA },
     }));
 
-    const result = await analyzeEEAT('https://enigma.swiss/');
+    const result = await runEEAT('https://enigma.swiss/');
     expect(result.signals.teamPage.found).toBe(false);
   });
 
@@ -189,7 +202,7 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
     });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeEEAT('https://example.com/');
+    const result = await runEEAT('https://example.com/');
     expect(result.signals.authorBios.found).toBe(true);
     expect(result.signals.authorBios.count).toBeGreaterThan(0);
   });
@@ -202,7 +215,7 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
       '__home__': { body: HOMEPAGE_NO_LINKS },
     }));
 
-    const result = await analyzeEEAT('https://nolinks.com/');
+    const result = await runEEAT('https://nolinks.com/');
     expect(result.signals.teamPage.found).toBe(true);
   });
 
@@ -212,7 +225,7 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
       // everything else → real 404
     }));
 
-    const result = await analyzeEEAT('https://empty.com/');
+    const result = await runEEAT('https://empty.com/');
     expect(result.signals.teamPage.found).toBe(false);
     expect(result.recommendations.join(' ')).toMatch(/page équipe/i);
   });
@@ -223,7 +236,7 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
       '__home__': { body: HOMEPAGE_ENIGMA },
     }));
 
-    const result = await analyzeEEAT('https://enigma.swiss/');
+    const result = await runEEAT('https://enigma.swiss/');
     expect(result.signals.teamPage.found).toBe(true);
     expect(result.signals.teamPage.quality).toBe('high');
   });
@@ -247,7 +260,7 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
       '__home__': { body: HOMEPAGE },
     }));
 
-    const result = await analyzeEEAT('https://enigma.swiss/');
+    const result = await runEEAT('https://enigma.swiss/');
     expect(result.signals.testimonials.found).toBe(true);
     expect(result.signals.testimonials.count).toBe(2);
     expect(result.signals.testimonials.hasSchema).toBe(true);
@@ -259,7 +272,7 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
       '/de/referenzen': { body: TESTIMONIALS_PAGE },
       '__home__': { body: HOMEPAGE_DE },
     }));
-    let result = await analyzeEEAT('https://site.de/');
+    let result = await runEEAT('https://site.de/');
     expect(result.signals.testimonials.found).toBe(true);
 
     const HOMEPAGE_IT = `<html><head><title>X</title></head><body><a href="/it/recensioni">Recensioni</a></body></html>`;
@@ -267,7 +280,7 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
       '/it/recensioni': { body: TESTIMONIALS_PAGE },
       '__home__': { body: HOMEPAGE_IT },
     }));
-    result = await analyzeEEAT('https://site.it/');
+    result = await runEEAT('https://site.it/');
     expect(result.signals.testimonials.found).toBe(true);
   });
 
@@ -282,7 +295,7 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
     const stub = fetchStub({ '__home__': { body: HOMEPAGE_WITH_REVIEWS } });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeEEAT('https://acme.com/');
+    const result = await runEEAT('https://acme.com/');
     expect(result.signals.testimonials.found).toBe(true);
     expect(result.signals.testimonials.count).toBe(3);
     // Homepage fetched exactly once → testimonials reused it, never refetched it.
@@ -302,7 +315,7 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
       '__home__': { body: HOMEPAGE },
     }));
 
-    const result = await analyzeEEAT('https://site.com/');
+    const result = await runEEAT('https://site.com/');
     expect(result.signals.testimonials.found).toBe(false);
   });
 
@@ -314,7 +327,7 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
     });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeEEAT('https://site.com/');
+    const result = await runEEAT('https://site.com/');
     expect(result.signals.testimonials.found).toBe(false);
     const fetchedTrustpilot = stub.mock.calls.some(([u]) => String(u).includes('trustpilot.com'));
     expect(fetchedTrustpilot).toBe(false);
@@ -324,7 +337,7 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
     vi.stubGlobal('fetch', fetchStub({
       '__home__': { body: '<html><head><title>X</title></head><body><a href="/products">P</a></body></html>' },
     }));
-    const result = await analyzeEEAT('https://empty.com/');
+    const result = await runEEAT('https://empty.com/');
     expect(result.signals.testimonials.found).toBe(false);
     expect(result.recommendations.join(' ')).toMatch(/témoignages/i);
   });
@@ -351,7 +364,7 @@ describe('analyzeEEAT — SSRF + same-origin restriction', () => {
     });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeEEAT('https://victim.com/');
+    const result = await runEEAT('https://victim.com/');
 
     // Cross-origin link dropped → falls back to same-origin probes (all 404).
     expect(result.signals.teamPage.found).toBe(false);
@@ -388,7 +401,7 @@ describe('analyzeEEAT — SSRF + same-origin restriction', () => {
 
     // Submit the metadata IP as the page so the link is "same host" — this
     // isolates the assertSafeUrl layer (defence in depth beyond same-origin).
-    const result = await analyzeEEAT('http://169.254.169.254/');
+    const result = await runEEAT('http://169.254.169.254/');
 
     expect(result.signals.teamPage.found).toBe(false);
     // Crucially: fetch was never called for the metadata endpoint.
@@ -409,7 +422,7 @@ describe('analyzeEEAT — SSRF + same-origin restriction', () => {
     });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeEEAT('https://victim.com/');
+    const result = await runEEAT('https://victim.com/');
     expect(result.signals.teamPage.found).toBe(false);
     const fetchedMeta = stub.mock.calls.some(([u]) =>
       String(u).includes('metadata.google.internal'),
@@ -427,7 +440,7 @@ describe('analyzeEEAT — SSRF + same-origin restriction', () => {
       '__home__': { body: HOMEPAGE_SUBDOMAIN },
     }));
 
-    const result = await analyzeEEAT('https://www.enigma.swiss/');
+    const result = await runEEAT('https://www.enigma.swiss/');
     expect(result.signals.teamPage.found).toBe(true);
   });
 });

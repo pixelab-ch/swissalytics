@@ -13,7 +13,7 @@
 import * as cheerio from 'cheerio';
 import {
   type PageLink,
-  extractLinks,
+  type PageContext,
   fetchRealPage,
   candidateUrls,
   TEAM_KEYWORDS,
@@ -373,18 +373,22 @@ function discoverSchemaPages(pageUrl: string, baseUrl: string, links: PageLink[]
  * is averaged over the pages ACTUALLY found — a site is never penalized for
  * not having enigma's exact paths.
  */
-export async function analyzeSchemaOrgMultiPage(baseUrl: string): Promise<SchemaOrgResult> {
+export async function analyzeSchemaOrgMultiPage(
+  baseUrl: string,
+  ctx: PageContext | null,
+): Promise<SchemaOrgResult> {
   console.log(`[Schema.org Multi-Page] Analyse complète site ${baseUrl}...`);
 
-  // Fetch the homepage ONCE through the SSRF guard / soft-404 filter.
-  const homepageHtml = await fetchRealPage(baseUrl);
-  if (!homepageHtml) {
+  // Homepage was fetched ONCE upstream (PageContext) through the SSRF guard /
+  // soft-404 filter — reuse it, no refetch. A null ctx means it was
+  // unreachable: fall back to the single-page path exactly as before.
+  if (!ctx) {
     console.log('[Schema.org Multi-Page] Homepage inaccessible, fallback page seule');
     return analyzeSchemaOrg(baseUrl);
   }
 
-  const $home = cheerio.load(homepageHtml);
-  const links = extractLinks($home);
+  const homepageHtml = ctx.html;
+  const links = ctx.links;
   const subPages = discoverSchemaPages(baseUrl, baseUrl, links);
 
   console.log(`[Schema.org Multi-Page] ${subPages.length} sous-pages découvertes via liens réels`);

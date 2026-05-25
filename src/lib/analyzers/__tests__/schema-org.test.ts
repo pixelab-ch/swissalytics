@@ -21,9 +21,23 @@ vi.mock('@/lib/security/ssrf', async () => {
 });
 
 import { analyzeSchemaOrgMultiPage } from '../schema-org';
+import { buildPageContext } from '../page-discovery';
 import { assertSafeUrl } from '@/lib/security/ssrf';
 
 const assertSafeUrlMock = vi.mocked(assertSafeUrl);
+
+/**
+ * The route now fetches the homepage ONCE (via `buildPageContext`, through the
+ * guarded `fetchRealPage`) and threads the resulting `PageContext` into
+ * `analyzeSchemaOrgMultiPage`. These tests mirror that: build the context off
+ * the same fetch stub, then drive the analyzer with `(url, ctx)`. The homepage
+ * is fetched exactly once (by the builder), never again by the analyzer — so
+ * the fetch-count assertions still hold.
+ */
+async function runSchemaMultiPage(url: string) {
+  const ctx = await buildPageContext(url);
+  return analyzeSchemaOrgMultiPage(url, ctx);
+}
 
 /**
  * Schema.org multi-page — link-driven discovery.
@@ -109,7 +123,7 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeSchemaOrgMultiPage('https://acme.com');
+    const result = await runSchemaMultiPage('https://acme.com');
 
     // Aggregated across discovered pages.
     expect(result.schemas.organization).toBe(true);
@@ -134,7 +148,7 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     });
     vi.stubGlobal('fetch', stub);
 
-    await analyzeSchemaOrgMultiPage('https://acme.com');
+    await runSchemaMultiPage('https://acme.com');
 
     // Homepage + exactly the 3 discovered sub-pages = 4 fetches.
     expect(stub.mock.calls.length).toBe(4);
@@ -150,7 +164,7 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeSchemaOrgMultiPage('https://acme.com');
+    const result = await runSchemaMultiPage('https://acme.com');
     // The soft-404 blog page contributes no Article schema and isn't averaged in.
     expect(result.schemas.article).toBe(false);
     expect(result.schemas.author).toBe(true);
@@ -171,7 +185,7 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeSchemaOrgMultiPage('https://acme.com');
+    const result = await runSchemaMultiPage('https://acme.com');
     const fetchedMedium = stub.mock.calls.some(([u]) => String(u).includes('medium.com'));
     expect(fetchedMedium).toBe(false);
     // Article never detected because the only blog link was cross-origin.
@@ -184,7 +198,7 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeSchemaOrgMultiPage('https://down.com');
+    const result = await runSchemaMultiPage('https://down.com');
     // Falls back to analyzeSchemaOrg(baseUrl) which (on 404) returns the
     // simulated shape — we just assert it doesn't throw and returns a result.
     expect(result).toHaveProperty('score');
@@ -205,7 +219,7 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     const stub = fetchStub({ '__home__': { body: HOMEPAGE_RICH_NO_LINKS } });
     vi.stubGlobal('fetch', stub);
 
-    const result = await analyzeSchemaOrgMultiPage('https://solo.com');
+    const result = await runSchemaMultiPage('https://solo.com');
     // Only the homepage was fetched (no nav links to discover).
     expect(stub.mock.calls.length).toBe(1);
     expect(result.schemas.organization).toBe(true);
@@ -213,5 +227,28 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     expect(result.schemas.faqPage).toBe(true);
     // Score reflects the homepage's own coverage, not a 9-page-404 average.
     expect(result.score).toBeGreaterThan(0);
+  });
+
+  // Keyword-consolidation regression (Refactor B): schema-org's `team` group
+  // now reuses the shared TEAM_KEYWORDS, which include `notre-equipe`. The
+  // pre-consolidation schema team group LACKED `notre-equipe`, so a homepage
+  // linking only to /notre-equipe would have missed the Person/author schema.
+  it('discovers a /notre-equipe team page (was missing from schema team keywords pre-consolidation)', async () => {
+    const HOMEPAGE_NOTRE_EQUIPE = `
+      <html><head><title>Acme</title></head><body>
+        <nav><a href="/notre-equipe">Notre équipe</a></nav>
+        <script type="application/ld+json">{"@type":"Organization","name":"Acme","url":"https://acme.com","logo":"x","address":"y"}</script>
+      </body></html>`;
+    const stub = fetchStub({
+      '/notre-equipe': { body: TEAM_PAGE },
+      '__home__': { body: HOMEPAGE_NOTRE_EQUIPE },
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const result = await runSchemaMultiPage('https://acme.com');
+    // Author/Person schema is picked up from the discovered /notre-equipe page.
+    expect(result.schemas.author).toBe(true);
+    const fetchedTeam = stub.mock.calls.some(([u]) => String(u).includes('/notre-equipe'));
+    expect(fetchedTeam).toBe(true);
   });
 });
