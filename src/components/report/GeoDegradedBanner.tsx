@@ -73,13 +73,13 @@ export default function GeoDegradedBanner({ degraded }: GeoDegradedBannerProps) 
       >
         {isFr ? (
           <>
-            <strong>{failed.length}</strong> analyseur{failed.length > 1 ? 's' : ''} sur 5 n&apos;a pas répondu
-            (timeout ou erreur transitoire). Le score global est calculé avec des valeurs par défaut pour les parties manquantes — relisez les sections concernées avec prudence.
+            <strong>{failed.length}</strong> des 5 modules d&apos;analyse n&apos;{failed.length > 1 ? 'ont' : 'a'} pas pu s&apos;exécuter
+            (délai dépassé ou erreur temporaire). Le score est calculé avec des valeurs par défaut pour ces parties&nbsp;:
           </>
         ) : (
           <>
-            <strong>{failed.length}</strong> analyzer{failed.length > 1 ? 's' : ''} out of 5 didn&apos;t respond
-            (timeout or transient error). Global score is computed with safe defaults for the missing parts — read the affected sections with caution.
+            <strong>{failed.length}</strong> of the 5 analysis module{failed.length > 1 ? 's' : ''} couldn&apos;t run
+            (timeout or transient error). The score uses default values for {failed.length > 1 ? 'those parts' : 'that part'}&nbsp;:
           </>
         )}
       </p>
