@@ -1,6 +1,29 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+
+/**
+ * Stub the SSRF guard so the integration tests are deterministic (no real
+ * DNS) AND so we can assert the same-origin / private-IP rejection paths.
+ * Default: every URL is "safe". Individual tests override `assertSafeUrl`
+ * to throw an `SsrfError` for a specific host (e.g. metadata IP) and verify
+ * `fetch` is never reached for it.
+ */
+vi.mock('@/lib/security/ssrf', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/security/ssrf')>(
+    '@/lib/security/ssrf',
+  );
+  return {
+    ...actual,
+    assertSafeUrl: vi.fn(async (input: string) => ({
+      url: new URL(input),
+      hostname: new URL(input).hostname,
+      resolvedIp: '93.184.216.34',
+    })),
+  };
+});
+
 import {
   analyzeEEAT,
+  candidateUrls,
   extractLinks,
   findBestCandidate,
   looksLikeSoftError,
@@ -9,7 +32,10 @@ import {
   LEGAL_KEYWORDS,
   type PageLink,
 } from '../eeat';
+import { assertSafeUrl, SsrfError } from '@/lib/security/ssrf';
 import * as cheerio from 'cheerio';
+
+const assertSafeUrlMock = vi.mocked(assertSafeUrl);
 
 /**
  * GEO E-E-A-T analyzer — link-driven, locale-aware content analysis.
@@ -33,6 +59,16 @@ function links(html: string): PageLink[] {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+/** Default safe-URL behaviour, re-established after `restoreAllMocks`. */
+beforeEach(() => {
+  assertSafeUrlMock.mockReset();
+  assertSafeUrlMock.mockImplementation(async (input: string) => ({
+    url: new URL(input),
+    hostname: new URL(input).hostname,
+    resolvedIp: '93.184.216.34',
+  }));
 });
 
 describe('extractLinks', () => {
@@ -274,5 +310,170 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
     const result = await analyzeEEAT('https://empty.com/');
     expect(result.signals.teamPage.found).toBe(false);
     expect(result.recommendations.join(' ')).toMatch(/page équipe/i);
+  });
+
+  it('still finds the same-origin team page (happy path) — /fr/lequipe/', async () => {
+    vi.stubGlobal('fetch', fetchStub({
+      '/fr/lequipe/': { body: TEAM_PAGE },
+      '__home__': { body: HOMEPAGE_ENIGMA },
+    }));
+
+    const result = await analyzeEEAT('https://enigma.swiss/');
+    expect(result.signals.teamPage.found).toBe(true);
+    expect(result.signals.teamPage.quality).toBe('high');
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * SSRF / same-origin guard (eeat C-1). The analyzed page is untrusted:
+ * its links must not let us fetch cross-origin or internal targets.
+ * ------------------------------------------------------------------ */
+describe('analyzeEEAT — SSRF + same-origin restriction', () => {
+  beforeEach(() => {
+    delete process.env.MOZ_API_KEY;
+  });
+
+  it('does NOT fetch a cross-host team link (evil.com) nor treat it as the team page', async () => {
+    const HOMEPAGE_CROSS = `
+      <html><head><title>Site</title></head><body>
+        <a href="https://evil.com/team">Our team</a>
+      </body></html>`;
+    const stub = fetchStub({
+      // If the analyzer ever followed it, this would mark a team page found.
+      'evil.com/team': { body: TEAM_PAGE },
+      '__home__': { body: HOMEPAGE_CROSS },
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const result = await analyzeEEAT('https://victim.com/');
+
+    // Cross-origin link dropped → falls back to same-origin probes (all 404).
+    expect(result.signals.teamPage.found).toBe(false);
+    // And evil.com was never contacted.
+    const fetchedEvil = stub.mock.calls.some(([u]) =>
+      String(u).includes('evil.com'),
+    );
+    expect(fetchedEvil).toBe(false);
+  });
+
+  it('rejects a private-IP / metadata link and NEVER calls fetch for it', async () => {
+    const HOMEPAGE_META = `
+      <html><head><title>Site</title></head><body>
+        <a href="http://169.254.169.254/team">team</a>
+      </body></html>`;
+
+    // The metadata host is a sub-resource of victim.com's "site"? No — it's a
+    // literal IP, different host → it must be dropped by same-origin first.
+    // But to prove the assertSafeUrl layer too, allow it past same-origin by
+    // submitting the IP itself, and make the guard throw for it.
+    assertSafeUrlMock.mockImplementation(async (input: string) => {
+      const host = new URL(input).hostname;
+      if (host === '169.254.169.254') {
+        throw new SsrfError('IP privée ou réservée', 'private-ip');
+      }
+      return { url: new URL(input), hostname: host, resolvedIp: '93.184.216.34' };
+    });
+
+    const stub = fetchStub({
+      '169.254.169.254/team': { body: TEAM_PAGE },
+      '__home__': { body: HOMEPAGE_META },
+    });
+    vi.stubGlobal('fetch', stub);
+
+    // Submit the metadata IP as the page so the link is "same host" — this
+    // isolates the assertSafeUrl layer (defence in depth beyond same-origin).
+    const result = await analyzeEEAT('http://169.254.169.254/');
+
+    expect(result.signals.teamPage.found).toBe(false);
+    // Crucially: fetch was never called for the metadata endpoint.
+    const fetchedMeta = stub.mock.calls.some(([u]) =>
+      String(u).includes('169.254.169.254'),
+    );
+    expect(fetchedMeta).toBe(false);
+  });
+
+  it('protocol-relative cross-host link (//metadata.internal/team) is dropped, not fetched', async () => {
+    const HOMEPAGE_PROTO_REL = `
+      <html><head><title>Site</title></head><body>
+        <a href="//metadata.google.internal/team">team</a>
+      </body></html>`;
+    const stub = fetchStub({
+      'metadata.google.internal': { body: TEAM_PAGE },
+      '__home__': { body: HOMEPAGE_PROTO_REL },
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const result = await analyzeEEAT('https://victim.com/');
+    expect(result.signals.teamPage.found).toBe(false);
+    const fetchedMeta = stub.mock.calls.some(([u]) =>
+      String(u).includes('metadata.google.internal'),
+    );
+    expect(fetchedMeta).toBe(false);
+  });
+
+  it('allows a same-registrable-domain sub-domain link (team.enigma.swiss)', async () => {
+    const HOMEPAGE_SUBDOMAIN = `
+      <html><head><title>Enigma</title></head><body>
+        <a href="https://team.enigma.swiss/equipe">L'équipe</a>
+      </body></html>`;
+    vi.stubGlobal('fetch', fetchStub({
+      'team.enigma.swiss/equipe': { body: TEAM_PAGE },
+      '__home__': { body: HOMEPAGE_SUBDOMAIN },
+    }));
+
+    const result = await analyzeEEAT('https://www.enigma.swiss/');
+    expect(result.signals.teamPage.found).toBe(true);
+  });
+});
+
+describe('candidateUrls — same-origin + bounded fan-out', () => {
+  const linkList = (hrefs: string[]): PageLink[] =>
+    hrefs.map((href) => ({ href, text: 'team' }));
+
+  it('caps the returned candidate list at 3 (I-1)', () => {
+    const many = linkList([
+      '/team-1/equipe', '/team-2/equipe', '/team-3/equipe',
+      '/team-4/equipe', '/team-5/equipe',
+    ]);
+    const out = candidateUrls(
+      'https://site.com/',
+      'https://site.com',
+      many,
+      TEAM_KEYWORDS,
+      [],
+    );
+    expect(out.length).toBe(3);
+  });
+
+  it('drops cross-origin and non-http(s) links, keeps same-site ones', () => {
+    const mixed = linkList([
+      'https://evil.com/team',          // cross-origin → drop
+      'javascript:void(0)/team',        // bad scheme → drop (also not parsed as http)
+      'ftp://site.com/team',            // bad scheme → drop
+      '/equipe',                        // same-origin → keep
+      'https://site.com/about-us',      // same-origin absolute → keep
+    ]);
+    const out = candidateUrls(
+      'https://site.com/',
+      'https://site.com',
+      mixed,
+      TEAM_KEYWORDS,
+      [],
+    );
+    expect(out).toEqual([
+      'https://site.com/equipe',
+      'https://site.com/about-us',
+    ]);
+  });
+
+  it('falls back to same-origin probe slugs when no link matches', () => {
+    const out = candidateUrls(
+      'https://site.com/',
+      'https://site.com',
+      linkList(['/products']).map((l) => ({ ...l, text: 'products' })),
+      TEAM_KEYWORDS,
+      ['team', 'about'],
+    );
+    expect(out).toEqual(['https://site.com/team', 'https://site.com/about']);
   });
 });

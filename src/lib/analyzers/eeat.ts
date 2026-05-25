@@ -11,6 +11,7 @@
  */
 
 import * as cheerio from 'cheerio';
+import { assertSafeUrl, SsrfError } from '@/lib/security/ssrf';
 
 export interface EEATResult {
   score: number;
@@ -52,6 +53,36 @@ export interface PageLink {
 }
 
 const UA = 'Swissalytics/1.0 (+https://swissalytics.com)';
+
+/** Per-fetch hard timeout (ms). Keeps sockets from outliving the analyzer's
+ *  overall `withTimeout` budget — see eeat I-2. */
+const FETCH_TIMEOUT_MS = 4_000;
+
+/** Max candidate URLs fetched per signal — see eeat I-1 (route promises ≤3). */
+const MAX_CANDIDATES = 3;
+
+/**
+ * Registrable-domain-ish key for same-origin restriction (no PSL dependency):
+ * exact hostname or its last two labels (`team.enigma.swiss` → `enigma.swiss`).
+ * Good enough to keep candidate fetches on the analyzed site and drop
+ * cross-origin links (e.g. an external `linkedin.com/.../about`).
+ */
+function siteKey(hostname: string): string {
+  const labels = hostname.toLowerCase().split('.').filter(Boolean);
+  if (labels.length <= 2) return labels.join('.');
+  return labels.slice(-2).join('.');
+}
+
+/**
+ * True when `candidate` belongs to the same site as `pageUrl`: same exact
+ * host, or sharing the same registrable domain (sub-domain of it).
+ */
+function isSameSite(candidate: URL, pageHost: string): boolean {
+  const candHost = candidate.hostname.toLowerCase();
+  const base = pageHost.toLowerCase();
+  if (candHost === base) return true;
+  return siteKey(candHost) === siteKey(base);
+}
 
 /**
  * Keyword sets for the page-based trust signals. Matched (accent-tolerant)
@@ -143,10 +174,34 @@ export function looksLikeSoftError(html: string, title: string): boolean {
   );
 }
 
-/** Fetch a page once, returning its HTML — or null on HTTP error / soft-404. */
+/**
+ * Fetch a page once, returning its HTML — or null on HTTP error / soft-404.
+ *
+ * The URL may be derived from the (untrusted) analyzed page's links, so every
+ * fetch passes through `assertSafeUrl` first (resolves DNS, blocks private /
+ * link-local / metadata IPs) — see eeat C-1. An `SsrfError` (or any rejection
+ * from the guard) is treated as "not found" rather than crashing the analyzer.
+ * A per-fetch `AbortController` caps the socket lifetime so a slow host can't
+ * outlive the analyzer's overall timeout (eeat I-2).
+ */
 async function fetchRealPage(url: string): Promise<string | null> {
   try {
-    const response = await fetch(url, { headers: { 'User-Agent': UA } });
+    await assertSafeUrl(url);
+  } catch (err) {
+    if (err instanceof SsrfError) {
+      console.log(`[E-E-A-T] URL rejetée (SSRF): ${url} (${err.code})`);
+      return null;
+    }
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': UA },
+      signal: controller.signal,
+    });
     if (!response.ok) return null;
     const html = await response.text();
     const title = cheerio.load(html)('title').text();
@@ -157,6 +212,8 @@ async function fetchRealPage(url: string): Promise<string | null> {
     return html;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -165,7 +222,7 @@ async function fetchRealPage(url: string): Promise<string | null> {
  * submitted page (resolved against the page URL), falling back to a small
  * deduped list of guessed slugs only when no link matched.
  */
-function candidateUrls(
+export function candidateUrls(
   pageUrl: string,
   baseUrl: string,
   linksList: PageLink[],
@@ -180,23 +237,41 @@ function candidateUrls(
     out.push(u);
   };
 
-  // 1. Link-driven: every matching link from the page, resolved absolute.
+  const pageHost = (() => {
+    try {
+      return new URL(pageUrl).hostname;
+    } catch {
+      return '';
+    }
+  })();
+
+  // 1. Link-driven: matching links from the page, resolved absolute, but
+  //    restricted to safe schemes AND the SAME SITE as the analyzed page.
+  //    Dropping cross-origin links is both an SSRF defence (eeat C-1) and a
+  //    correctness fix — an external `linkedin.com/.../about` is NOT the
+  //    site's team page.
   for (const link of linksList) {
     if (!matchesKeyword(link, keywords)) continue;
     if (/^(tel:|mailto:|javascript:|#)/i.test(link.href)) continue;
     try {
-      push(new URL(link.href, pageUrl).href);
+      const abs = new URL(link.href, pageUrl);
+      if (abs.protocol !== 'http:' && abs.protocol !== 'https:') continue;
+      if (pageHost && !isSameSite(abs, pageHost)) continue;
+      push(abs.href);
     } catch {
       // ignore unparseable hrefs
     }
   }
 
-  // 2. Safety-net hardcoded probes ONLY when no link matched.
+  // 2. Safety-net hardcoded probes ONLY when no link matched. (Same-origin
+  //    by construction — built off baseUrl.)
   if (out.length === 0) {
     for (const slug of fallbackSlugs) push(`${baseUrl}/${slug}`);
   }
 
-  return out;
+  // I-1: bound the fan-out so a page full of soft-404ing matches can't eat
+  //      the whole fetch budget (route promises ≤3 candidate fetches/signal).
+  return out.slice(0, MAX_CANDIDATES);
 }
 
 export async function analyzeEEAT(url: string): Promise<EEATResult> {
@@ -427,10 +502,29 @@ async function analyzeTestimonials(baseUrl: string): Promise<{
     ];
     
     for (const url of testimonialUrls) {
-      const response = await fetch(url, {
-        headers: { 'User-Agent': 'Swissalytics/1.0 (+https://swissalytics.com)' },
-      });
-      
+      // C-1: these URLs are derived from the (validated) origin, but guard
+      // defensively before every fetch. I-2: per-fetch abort so a slow host
+      // can't outlive the analyzer budget. M-3: reuse the shared UA constant.
+      try {
+        await assertSafeUrl(url);
+      } catch {
+        continue;
+      }
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          headers: { 'User-Agent': UA },
+          signal: controller.signal,
+        });
+      } catch {
+        continue;
+      } finally {
+        clearTimeout(timer);
+      }
+
       if (response.ok) {
         const html = await response.text();
         const $ = cheerio.load(html);
