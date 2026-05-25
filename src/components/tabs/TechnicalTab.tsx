@@ -418,8 +418,7 @@ export default function TechnicalTab({ data, cwvLoading }: { data: TechnicalAnal
                 background: 'var(--sa-cream-2)',
                 border: '1px solid var(--sa-rule)',
                 whiteSpace: 'pre-wrap',
-                maxHeight: 256,
-                overflowY: 'auto',
+                wordBreak: 'break-word',
               }}
             >
               {data.robotsTxt.content}

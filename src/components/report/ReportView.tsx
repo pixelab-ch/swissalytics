@@ -215,8 +215,8 @@ export default function ReportView({
   const mainNavStyle: CSSProperties = isNarrow
     ? {
         display: 'flex',
+        flexWrap: 'wrap',
         gap: 0,
-        overflowX: 'auto',
         borderBottom: '1px solid var(--sa-rule)',
       }
     : {
