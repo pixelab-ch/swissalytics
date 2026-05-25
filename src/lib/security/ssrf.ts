@@ -68,10 +68,19 @@ function isPrivateV6(ip: string): boolean {
   if (lc.startsWith('fc') || lc.startsWith('fd')) return true;
   // fe80::/10 link local
   if (lc.startsWith('fe8') || lc.startsWith('fe9') || lc.startsWith('fea') || lc.startsWith('feb')) return true;
-  // IPv4-mapped (::ffff:a.b.c.d)
+  // IPv4-mapped (::ffff:a.b.c.d) — dotted form.
   if (lc.startsWith('::ffff:')) {
-    const v4 = lc.slice(7);
-    if (net.isIPv4(v4)) return isPrivateV4(v4);
+    const tail = lc.slice(7);
+    if (net.isIPv4(tail)) return isPrivateV4(tail);
+    // Node normalises ::ffff:127.0.0.1 to the hex-group form
+    // ::ffff:7f00:1, so reconstruct the dotted v4 from the two hex groups.
+    const groups = tail.split(':');
+    if (groups.length === 2 && groups.every((g) => /^[0-9a-f]{1,4}$/.test(g))) {
+      const hi = parseInt(groups[0], 16);
+      const lo = parseInt(groups[1], 16);
+      const v4 = `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+      return isPrivateV4(v4);
+    }
   }
   return false;
 }
@@ -88,6 +97,13 @@ const BLOCKED_HOSTS = new Set([
   'ip6-loopback',
   'broadcasthost',
 ]);
+
+/**
+ * Hostname suffixes that always denote internal / non-public names and must
+ * never be fetched, regardless of how (or whether) they resolve. Folded in
+ * from the legacy `validateUrl` guard so consolidation loses no protection.
+ */
+const BLOCKED_HOST_SUFFIXES = ['.local', '.internal', '.localhost'];
 
 export interface SsrfValidatedUrl {
   url: URL;
@@ -113,16 +129,23 @@ export async function assertSafeUrl(input: string): Promise<SsrfValidatedUrl> {
 
   const hostname = url.hostname.toLowerCase();
 
-  if (BLOCKED_HOSTS.has(hostname)) {
+  if (
+    BLOCKED_HOSTS.has(hostname) ||
+    BLOCKED_HOST_SUFFIXES.some((suffix) => hostname.endsWith(suffix))
+  ) {
     throw new SsrfError('Hôte bloqué', 'blocked-host');
   }
 
-  // If hostname is already a literal IP, check it directly
-  if (net.isIP(hostname)) {
-    if (isPrivateIp(hostname)) {
+  // If hostname is already a literal IP, check it directly. `URL.hostname`
+  // keeps the brackets around IPv6 literals ("[::1]"), which `net.isIP`
+  // rejects — strip them so bracketed IPv6 literals can't slip past the
+  // literal-IP check into the DNS path.
+  const ipLiteral = hostname.replace(/^\[|\]$/g, '');
+  if (net.isIP(ipLiteral)) {
+    if (isPrivateIp(ipLiteral)) {
       throw new SsrfError('IP privée ou réservée', 'private-ip');
     }
-    return { url, hostname, resolvedIp: hostname };
+    return { url, hostname, resolvedIp: ipLiteral };
   }
 
   // Resolve and check every A/AAAA answer
