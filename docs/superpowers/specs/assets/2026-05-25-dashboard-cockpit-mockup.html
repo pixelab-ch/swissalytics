@@ -1,0 +1,163 @@
+<!doctype html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maquette G — Tableau de bord cockpit</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Newsreader:ital,wght@1,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sa-cream:#F5F2EA;--sa-cream-2:#EDEAE0;--sa-cream-3:#E3DFD2;
+  --sa-ink:#0A0A0A;--sa-ink-3:#3A3A3A;--sa-ink-4:#6B6B6B;
+  --sa-rule:#CFCABE;--sa-red:#E5241A;--sa-ok:#2F6B3F;--sa-warn:#B87B00;
+  --sans:'Inter Tight','Helvetica Neue',Arial,sans-serif;--mono:'JetBrains Mono',Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--sa-cream);color:var(--sa-ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--mono);font-feature-settings:"tnum" 1}
+.banner{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:#143;color:var(--sa-cream);padding:8px 16px;text-align:center;font-weight:600}.banner b{color:#ffd}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 24px 80px}
+.frame{border:2px solid var(--sa-ink);background:var(--sa-cream)}
+.capbar{display:flex;justify-content:space-between;align-items:center;padding:10px 24px;background:var(--sa-ink);color:var(--sa-cream);font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.capbar .r{opacity:.8;display:inline-flex;gap:14px;align-items:center}.share{border:1px solid var(--sa-cream);padding:2px 8px}
+.strip{display:grid;grid-template-columns:auto 1fr}
+.left{padding:30px 38px;border-right:2px solid var(--sa-ink);display:flex;align-items:center;gap:26px}
+.gauge{position:relative;width:104px;height:104px;flex:none}.gauge svg{transform:rotate(-90deg)}
+.gauge .n{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}.gauge .n b{font-size:30px;font-weight:800;letter-spacing:-.04em;line-height:1}.gauge .n s{font-family:var(--mono);font-size:9px;color:var(--sa-ink-4);letter-spacing:.1em}
+.vstate{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;display:inline-flex;align-items:center;gap:6px;color:var(--sa-warn)}
+.vbig{font-size:18px;font-weight:700;letter-spacing:-.01em;margin-top:8px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr)}
+.card{padding:20px 18px;border-right:1px solid var(--sa-rule);display:flex;flex-direction:column;gap:8px}.card:last-child{border-right:none}
+.card .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--sa-ink-4);font-weight:700;display:flex;gap:5px;align-items:center}
+.card .lbl .i{width:13px;height:13px;border:1px solid var(--sa-rule);border-radius:50%;font-size:8px;display:inline-flex;align-items:center;justify-content:center}
+.card .big{display:flex;align-items:baseline;gap:5px}.card .big b{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1}.card .big s{font-family:var(--mono);font-size:11px;color:var(--sa-ink-4);font-weight:700}
+.card .bar{height:3px;background:rgba(10,10,10,.1);position:relative}.card .bar i{position:absolute;top:-1px;left:0;height:5px}
+.card .q{font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.good b,.good .q{color:var(--sa-ok)}.good .bar i{background:var(--sa-ok)}
+.mid b,.mid .q{color:var(--sa-warn)}.mid .bar i{background:var(--sa-warn)}
+.bad b,.bad .q{color:var(--sa-red)}.bad .bar i{background:var(--sa-red)}
+.verdict{padding:16px 28px;border-left:2px solid var(--sa-ink);border-right:2px solid var(--sa-ink);border-bottom:2px solid var(--sa-ink)}
+.verdict p{font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:19px;line-height:1.45;margin:0;font-weight:500}.verdict a{color:var(--sa-red);font-weight:600}
+.layout{display:grid;grid-template-columns:236px 1fr;gap:24px;margin-top:26px}
+.mainnav{align-self:start;border-right:1px solid var(--sa-rule);display:flex;flex-direction:column}
+.mnav{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:14px 16px;border:none;border-left:3px solid transparent;background:transparent;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--sa-ink)}
+.mnav .nn{color:var(--sa-ink-4)}.mnav.on{border-left-color:var(--sa-red);background:var(--sa-cream-2)}.mnav.on .nn{color:var(--sa-red)}
+
+/* dashboard cockpit */
+.dash{display:flex;flex-direction:column;gap:22px}
+.sec{display:flex;align-items:baseline;gap:10px;margin:0 0 -6px}
+.sec .mk{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--sa-red)}
+.sec h2{font-size:17px;font-weight:700;letter-spacing:-.01em;margin:0}
+.sec .more{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--sa-ink);text-decoration:none;border-bottom:1px solid var(--sa-ink)}
+/* priority */
+.prio{border:2px solid var(--sa-ink)}
+.prio .row{display:flex;gap:14px;align-items:flex-start;padding:13px 16px;border-bottom:1px solid var(--sa-rule)}.prio .row:last-child{border-bottom:none}
+.prio .nb{font-family:var(--mono);font-size:13px;font-weight:700;width:22px;flex:none}
+.prio .t{font-size:15px;font-weight:600;margin:0 0 2px}.prio .d{font-size:13px;color:var(--sa-ink-3);margin:0}
+.sev{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.1em;padding:3px 6px;border:1px solid var(--sa-ink);text-transform:uppercase;flex:none;margin-top:2px}
+.sev.crit{background:var(--sa-red);color:#fff;border-color:var(--sa-red)}.sev.warn{color:var(--sa-warn);border-color:var(--sa-warn)}
+.planbar{display:block;text-align:center;padding:11px;font-family:var(--mono);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;background:var(--sa-ink);color:var(--sa-cream);text-decoration:none}
+/* two-column cockpit row */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:760px){.row2{grid-template-columns:1fr}}
+/* IA visibility card */
+.iacard{border:2px solid var(--sa-ink);padding:18px}
+.iacard .hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.iacard .hd b{font-size:30px;font-weight:800;letter-spacing:-.03em}
+.iacard .hd b span{color:var(--sa-ink-4);font-size:18px}
+.iacard .hd .t{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--sa-ink-4);font-weight:700;max-width:11ch;text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{font-family:var(--mono);font-size:11px;font-weight:600;padding:4px 8px;border:1px solid var(--sa-rule);display:inline-flex;gap:5px;align-items:center}
+.chip.y{color:var(--sa-ok);border-color:var(--sa-ok)}.chip.n{color:var(--sa-red);border-color:var(--sa-red)}
+.robotline{font-family:var(--mono);font-size:11px;color:var(--sa-ink-3);border-top:1px solid var(--sa-rule);padding-top:10px;line-height:1.6}
+.robotline .y{color:var(--sa-ok);font-weight:700}.robotline .n{color:var(--sa-red);font-weight:700}
+.warn{display:flex;gap:8px;align-items:center;background:var(--sa-red);color:#fff;font-size:12px;font-weight:600;padding:8px 12px;margin-top:10px}
+/* strengths */
+.strengths{border:2px solid var(--sa-ink);padding:18px;display:flex;flex-direction:column;gap:10px}
+.spill{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.4}
+.spill .ck{color:var(--sa-ok);font-weight:800;flex:none}
+.spill b{font-weight:600}.spill span{color:var(--sa-ink-3)}
+/* detail preview grid */
+.dgrid{display:grid;grid-template-columns:repeat(4,1fr);border:2px solid var(--sa-ink)}
+.dcell{padding:16px 16px;border-right:1px solid var(--sa-rule)}.dcell:last-child{border-right:none}
+.dcell .l{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--sa-ink-4);font-weight:700}
+.dcell .v{font-size:26px;font-weight:800;letter-spacing:-.03em;margin:6px 0 2px}
+.dcell .s{font-family:var(--mono);font-size:11px;color:var(--sa-ink-3)}
+.dcell .s.flag{color:var(--sa-red)}
+</style></head><body>
+<div class="banner">MAQUETTE <b>G</b> — TABLEAU DE BORD « COCKPIT » · synthèse de chaque onglet + liens · données d'exemple</div>
+<div class="wrap">
+
+  <div class="frame">
+    <div class="capbar"><span>§01 — Score global</span><span class="r"><span>https://pixelab.ch</span><span class="share">Partager</span></span></div>
+    <div class="strip">
+      <div class="left">
+        <div class="gauge"><svg width="104" height="104" viewBox="0 0 104 104"><circle cx="52" cy="52" r="46" fill="none" stroke="#E3DFD2" stroke-width="7"/><circle cx="52" cy="52" r="46" fill="none" stroke="#0A0A0A" stroke-width="7" stroke-dasharray="289" stroke-dashoffset="81"/></svg><div class="n"><b>72</b><s>/100</s></div></div>
+        <div><span class="vstate"><span>●</span> Moyen</span><div class="vbig">7 problèmes à traiter</div></div>
+      </div>
+      <div class="cards">
+        <div class="card good"><div class="lbl">§02 · SEO Technique</div><div class="big"><b>81</b><s>/100</s></div><div class="bar"><i style="width:81%"></i></div><div class="q">Solide</div></div>
+        <div class="card mid"><div class="lbl">§03 · Contenu</div><div class="big"><b>74</b><s>/100</s></div><div class="bar"><i style="width:74%"></i></div><div class="q">Correct</div></div>
+        <div class="card bad"><div class="lbl">§04 · IA-Ready</div><div class="big"><b>58</b><s>/100</s></div><div class="bar"><i style="width:58%"></i></div><div class="q">À renforcer</div></div>
+        <div class="card mid"><div class="lbl">§05 · Visib. locale</div><div class="big"><b>63</b><s>/100</s></div><div class="bar"><i style="width:63%"></i></div><div class="q">Correct</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="verdict"><p>«&nbsp;Solide côté technique. Reste à te rendre lisible pour l'IA — un terrain où <a href="#">Pixelab</a> peut accélérer les choses.&nbsp;»</p></div>
+
+  <div class="layout">
+    <nav class="mainnav">
+      <button class="mnav on"><span class="nn">§01</span> Tableau de bord</button>
+      <button class="mnav"><span class="nn">§02</span> Détails</button>
+      <button class="mnav"><span class="nn">§03</span> Plan d'action</button>
+      <button class="mnav"><span class="nn">§04</span> Indexation IA / GEO</button>
+    </nav>
+
+    <div class="dash">
+
+      <!-- 1. PRIORITÉS (teaser du Plan) -->
+      <div>
+        <div class="sec"><span class="mk">§01</span><h2>À corriger en priorité</h2><a class="more" href="#">Plan complet (7) →</a></div>
+        <div class="prio" style="margin-top:12px">
+          <div class="row"><span class="nb">01</span><div><p class="t">Aucun sitemap.xml détecté</p><p class="d">Les moteurs ne savent pas quelles pages explorer.</p></div><span class="sev crit">Crit</span></div>
+          <div class="row"><span class="nb">02</span><div><p class="t">3 images sans texte alternatif</p><p class="d">Invisible pour Google Images et les lecteurs d'écran.</p></div><span class="sev crit">Crit</span></div>
+          <div class="row"><span class="nb">03</span><div><p class="t">Méta-description trop courte (78 car.)</p><p class="d">Vise 140–160 caractères.</p></div><span class="sev warn">Warn</span></div>
+        </div>
+      </div>
+
+      <!-- 2. ligne à 2 colonnes : Visibilité IA + Points forts -->
+      <div class="row2">
+        <div>
+          <div class="sec"><span class="mk">§02</span><h2>Visibilité IA</h2><a class="more" href="#">Détail IA →</a></div>
+          <div class="iacard" style="margin-top:12px">
+            <div class="hd"><b>3<span> / 4</span></b><span class="t">moteurs IA te citent</span></div>
+            <div class="chips">
+              <span class="chip y">ChatGPT ✓</span><span class="chip y">Gemini ✓</span><span class="chip y">Claude ✓</span><span class="chip n">Mistral ✗</span>
+            </div>
+            <div class="robotline">Robots IA · <span class="y">GPTBot ✓</span> · <span class="y">ClaudeBot ✓</span> · <span class="n">PerplexityBot ✗</span> · <span class="y">Google-Extended ✓</span></div>
+            <div class="warn">⚠️ PerplexityBot est bloqué — Perplexity ne pourra pas te citer.</div>
+          </div>
+        </div>
+        <div>
+          <div class="sec"><span class="mk">§03</span><h2>Points forts</h2></div>
+          <div class="strengths" style="margin-top:12px">
+            <div class="spill"><span class="ck">✓</span><span><b>HTTPS actif</b>, aucun contenu mixte.</span></div>
+            <div class="spill"><span class="ck">✓</span><span><b>Schema Organization + WebSite</b> détectés.</span></div>
+            <div class="spill"><span class="ck">✓</span><span><b>LCP 1,8 s</b> — chargement rapide.</span></div>
+            <div class="spill"><span class="ck">✓</span><span><b>21 / 24 images</b> ont un texte alternatif.</span></div>
+            <div class="spill"><span class="ck">✓</span><span><b>Lisibilité Flesch 62</b> — correcte pour le grand public.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Aperçu technique (teaser des Détails) -->
+      <div>
+        <div class="sec"><span class="mk">§04</span><h2>Aperçu technique</h2><a class="more" href="#">Tous les détails →</a></div>
+        <div class="dgrid" style="margin-top:12px">
+          <div class="dcell"><div class="l">Titres &amp; hiérarchie</div><div class="v">10</div><div class="s">H1 3 · H2 4 · H3 3</div></div>
+          <div class="dcell"><div class="l">Images</div><div class="v">24</div><div class="s flag">3 sans alt</div></div>
+          <div class="dcell"><div class="l">Liens</div><div class="v">45</div><div class="s">30 internes · 15 ext</div></div>
+          <div class="dcell"><div class="l">Lisibilité</div><div class="v">62</div><div class="s">Flesch · correct</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div></body></html>

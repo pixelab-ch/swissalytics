@@ -17,6 +17,10 @@ import { notFound } from 'next/navigation';
 import ReportView from '@/components/report/ReportView';
 import type { AnalysisResult } from '@/lib/types';
 
+interface E2EReportPageProps {
+  searchParams?: Promise<{ state?: string }>;
+}
+
 /** Minimal but realistic AnalysisResult fixture covering all e2e assertions. */
 const FIXTURE: AnalysisResult = {
   url: 'https://e2e-fixture.swissalytics.test',
@@ -133,6 +137,11 @@ const FIXTURE: AnalysisResult = {
       strictTransportSecurity: true,
     },
     manifest: { exists: false },
+    /** Fast LCP (1800ms ≤ 2500ms) so the cockpit "LCP rapide" strength renders. */
+    coreWebVitals: {
+      mobile: { performance: 82, fcp: 1200, lcp: 1800, cls: 0.04, tbt: 90, si: 2100 },
+      desktop: { performance: 95, fcp: 700, lcp: 1100, cls: 0.02, tbt: 30, si: 1200 },
+    },
     /** Mix: GPTBot blocked, CCBot blocked, others unmentioned/allowed */
     botCoverage: [
       { name: 'Googlebot', status: 'allowed' },
@@ -291,14 +300,29 @@ const FIXTURE: AnalysisResult = {
   },
 };
 
-export default function E2EReportPage() {
+export default async function E2EReportPage({ searchParams }: E2EReportPageProps) {
   // Guard: in production without E2E=1, return 404.
   if (process.env.NODE_ENV === 'production' && process.env.E2E !== '1') {
     notFound();
   }
+
+  const resolved = await searchParams;
+  const loading = resolved?.state === 'loading';
+
+  // ?state=loading simulates the moment right after /analyze when the async
+  // payloads (geoAnalysis = AI engines, coreWebVitals = LCP) haven't arrived
+  // yet, so the cockpit renders its calm skeletons.
+  const report: AnalysisResult = loading
+    ? {
+        ...FIXTURE,
+        geoAnalysis: undefined,
+        technical: { ...FIXTURE.technical, coreWebVitals: undefined },
+      }
+    : FIXTURE;
+
   return (
     <Suspense fallback={<div>Loading…</div>}>
-      <ReportView report={FIXTURE} />
+      <ReportView report={report} cwvLoading={loading} />
     </Suspense>
   );
 }

@@ -2,51 +2,108 @@
  * E3a — Result view e2e tests.
  *
  * Asserts on the rendered ReportView fixture:
- * - Overview leads with Critique/Important/Bonus grouping ABOVE the raw stat cards
+ * - Overview is the "cockpit": top-3 priorities, AI visibility, strengths,
+ *   technical preview — each block teasing one tab. NOT the full plan list.
+ * - The full grouped Crit/Important/Bonus list lives on the Plan tab, with
+ *   explicit effort labels.
  * - Scorecards show a qualifier word and no stuck "···"
  * - Bot-coverage panel visible in the GEO tab
+ * - Async cockpit blocks (AI engines, LCP) show calm skeletons (?state=loading)
  */
 import { test, expect } from '@playwright/test';
 
 const FIXTURE_URL = '/e2e/report';
 
-test.describe('Overview — plan grouping above stat cards', () => {
-  test('Critique / Important / Bonus buckets are present and above stat cards', async ({ page }) => {
+test.describe('Overview — cockpit dashboard', () => {
+  test.beforeEach(async ({ page }) => {
     await page.goto(FIXTURE_URL);
     await page.waitForSelector('[role="tablist"]');
-
-    // The overview is the default tab — check bucket sections are visible.
-    // The label uses a typographic apostrophe (U+2019) in "d'abord" so we
-    // match the word "abord" directly to avoid any encoding ambiguity.
-    // All three bucket headers are rendered as "§NN · <label> · <count>" in a
-    // single span, so we match on the label word appearing anywhere in the text.
-    await expect(page.getByText(/Critique\s*·\s*à faire d.abord|Critical\s*·\s*do this first/i)).toBeVisible();
-    await expect(page.getByText(/§02\s*·\s*Important/i).first()).toBeVisible();
-    await expect(page.getByText(/§03\s*·\s*Bonus/i).first()).toBeVisible();
-
-    // The "Pour info — chiffres bruts" label must exist and come AFTER the plan buckets
-    await expect(page.getByText(/Pour info — chiffres bruts|For info — raw figures/i)).toBeVisible();
-
-    // Verify DOM order: the plan bucket section appears before the stat cards section
-    const pageContent = await page.content();
-    const critIndex = pageContent.search(/Critique/i);
-    const statCardIndex = pageContent.search(/Pour info — chiffres bruts|For info — raw figures/i);
-    expect(critIndex).toBeGreaterThan(0);
-    expect(statCardIndex).toBeGreaterThan(0);
-    expect(critIndex).toBeLessThan(statCardIndex);
   });
 
-  test('"Voir le plan" button is visible and switches to plan tab when clicked', async ({ page }) => {
-    await page.goto(FIXTURE_URL);
-    await page.waitForSelector('[role="tablist"]');
+  test('§01 — top-3 priority block with severity badges (not the full list)', async ({ page }) => {
+    // The cockpit priority section header.
+    await expect(page.getByText(/À corriger en priorité|Fix first/i)).toBeVisible();
 
-    // Match both straight and typographic apostrophes in "plan d'action"
-    const planBtn = page.getByRole('button', { name: /plan d.action|action plan/i });
+    // The cockpit shows ONLY the top 3 — numbered 01/02/03 in the priority
+    // frame. The grouped bucket headers ("§NN · Critique · N") must NOT appear
+    // on the overview (those moved to the Plan tab).
+    await expect(page.getByText(/Critique\s*·\s*à faire/i)).toHaveCount(0);
+
+    // A severity badge (Crit) is present in the priority rows.
+    await expect(page.getByText(/^Crit$/i).first()).toBeVisible();
+  });
+
+  test('§02 — AI visibility block: "X / 4" + engine chips + robots-IA line', async ({ page }) => {
+    await expect(page.getByText(/Visibilité IA|AI visibility/i)).toBeVisible();
+
+    // geoAnalysis is present in the fixture → "X / 4" count renders.
+    await expect(page.getByText(/\/\s*4/).first()).toBeVisible();
+    await expect(page.getByText(/moteurs IA te citent|AI engines cite you/i)).toBeVisible();
+
+    // Engine chips (fixture: gemini+claude indexed, chatgpt+mistral not).
+    await expect(page.getByText(/ChatGPT/).first()).toBeVisible();
+    await expect(page.getByText(/Mistral/).first()).toBeVisible();
+
+    // Robots-IA line reuses bot-coverage; GPTBot is blocked in the fixture.
+    await expect(page.getByText(/Robots IA|AI robots/i)).toBeVisible();
+    // Blocked AI bot warning.
+    await expect(page.getByText(/GPTBot.*bloqué|GPTBot.*blocked/i).first()).toBeVisible();
+  });
+
+  test('§03 — Strengths block with green-check signals', async ({ page }) => {
+    await expect(page.getByText(/Points forts|Strengths/i)).toBeVisible();
+    // HTTPS is active + no mixed content in the fixture → a strength.
+    await expect(page.getByText(/HTTPS actif|HTTPS active/i)).toBeVisible();
+  });
+
+  test('§04 — Technical overview block with 4 stat cells + "all details" link', async ({ page }) => {
+    await expect(page.getByText(/Aperçu technique|Technical overview/i)).toBeVisible();
+    // Images cell flags "8 sans alt" (fixture withoutAlt=8) in red.
+    await expect(page.getByText(/8 sans alt|8 without alt/i)).toBeVisible();
+  });
+
+  test('"Voir le plan complet (N)" link switches to the plan tab', async ({ page }) => {
+    const planBtn = page.getByRole('button', { name: /plan d.action complet|full action plan/i });
     await expect(planBtn).toBeVisible();
     await planBtn.click();
-
-    // Should now show plan tab content
     await expect(page).toHaveURL(/[?&]tab=plan/);
+  });
+
+  test('"Détail IA →" link switches to the geo tab', async ({ page }) => {
+    const geoBtn = page.getByRole('button', { name: /Détail IA|AI detail/i });
+    await expect(geoBtn).toBeVisible();
+    await geoBtn.click();
+    await expect(page).toHaveURL(/[?&]tab=geo/);
+  });
+});
+
+test.describe('Plan tab — full grouped list with explicit effort labels', () => {
+  test('shows Crit/Important/Bonus buckets and a localized effort label', async ({ page }) => {
+    await page.goto(`${FIXTURE_URL}?tab=plan`);
+    await page.waitForSelector('[role="tablist"]');
+
+    // The full grouped list lives here (bucket headers "§NN · <label> · N").
+    await expect(page.getByText(/Critique|Critical/i).first()).toBeVisible();
+
+    // Explicit effort labels replace the bare S/M/L codes.
+    await expect(
+      page.getByText(/Effort faible|Effort moyen|Effort élevé|Low effort|Medium effort|High effort/i).first(),
+    ).toBeVisible();
+  });
+});
+
+test.describe('Overview — async cockpit loading skeletons', () => {
+  test('AI engines + LCP show calm skeletons while data is in flight', async ({ page }) => {
+    await page.goto(`${FIXTURE_URL}?state=loading`);
+    await page.waitForSelector('[role="tablist"]');
+
+    // §02 engine chips skeleton (geoAnalysis omitted).
+    await expect(page.getByText(/Interrogation des moteurs IA|Querying AI engines/i)).toBeVisible();
+    // §03 LCP skeleton (coreWebVitals omitted + cwvLoading=true).
+    await expect(page.getByText(/Mesure de la vitesse|Measuring speed/i)).toBeVisible();
+
+    // The robots-IA line is synchronous → still shown immediately.
+    await expect(page.getByText(/Robots IA|AI robots/i)).toBeVisible();
   });
 });
 

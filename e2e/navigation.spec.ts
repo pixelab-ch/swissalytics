@@ -22,8 +22,8 @@ test.describe('Left-rail main tab navigation', () => {
   test('default tab is overview — no ?tab= in URL', async ({ page }) => {
     const url = new URL(page.url());
     expect(url.searchParams.get('tab')).toBeNull();
-    // Overview content: "Pour info" stat cards section is visible
-    await expect(page.getByText(/Pour info — chiffres bruts/i)).toBeVisible();
+    // Overview = cockpit: the §01 priority section is the first block.
+    await expect(page.getByText(/À corriger en priorité|Fix first/i)).toBeVisible();
   });
 
   test('clicking Détails tab sets ?tab=details and shows sub-section bar', async ({ page }) => {

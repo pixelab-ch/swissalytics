@@ -78,6 +78,28 @@ Swissalytics livré le 2026-05-11. Google publie sa doctrine officielle sur l'op
 
 ---
 
+## ADDENDUM 2026-05-25 — Tableau de bord « cockpit » (révision validée)
+
+Révision de §2.3 après revue visuelle : le Tableau de bord et le Plan d'action étaient quasi-identiques (tous deux la liste groupée complète). Résolution validée (mockup `assets/2026-05-25-dashboard-cockpit-mockup.html`) :
+
+- **Tableau de bord = cockpit** (synthèse, chaque bloc tease un onglet) :
+  - §01 **À corriger en priorité** : top **3** actions seulement + lien « Plan complet (N) → » vers l'onglet Plan.
+  - §02 **Visibilité IA** : « X/4 moteurs te citent » + puces moteurs (ChatGPT/Gemini/Claude/Mistral) + ligne robots IA (bot-coverage) + alerte si bot bloqué + lien « Détail IA → ».
+  - §03 **Points forts** : 4-5 signaux positifs dérivés des données (HTTPS, Schema présent, LCP rapide, ratio alt, Flesch).
+  - §04 **Aperçu technique** : 4 chiffres clés (titres/images/liens/lisibilité, anomalies en rouge) + lien « Tous les détails → ».
+- **Plan d'action = liste complète** groupée Crit/Important/Bonus (inchangé). Plus de doublon avec l'accueil.
+
+### Chargement interactif (async)
+Certaines données arrivent après l'analyse principale (geoAnalysis = moteurs IA ; CWV = LCP). Les blocs concernés doivent **« arriver »** avec un skeleton/état de chargement, pas pop ni rester vides :
+- §02 puces moteurs : skeleton tant que `report.geoAnalysis` est absent (le bot-coverage, lui, est synchrone → affiché tout de suite).
+- §03 point fort LCP : skeleton tant que `cwvLoading` (les autres points forts sont synchrones).
+Réutiliser l'esprit « état calme » du Scorecard (pas d'animation agressive).
+
+### Clarté de l'effort (S/M/L)
+`PlanBucket.tsx:118` affiche `S`/`M`/`L` brut (incompréhensible). Le rendre explicite : mot complet localisé — FR « Effort faible / moyen / élevé », EN « Low / Medium / High effort ». `PlanBucket` reçoit `isFr`.
+
+---
+
 ## Stratégie de test
 
 ### Tests unitaires (obligatoires, cf. politique projet)
