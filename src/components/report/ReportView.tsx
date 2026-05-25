@@ -434,6 +434,9 @@ export default function ReportView({
               infoItems={infoItems}
               isFr={isFr}
               onGoToPlan={() => changeTab('plan')}
+              onGoToGeo={() => changeTab('geo')}
+              onGoToDetails={() => changeTab('details')}
+              cwvLoading={cwvLoading}
             />
           )}
 
@@ -454,6 +457,7 @@ export default function ReportView({
               critItems={critItems}
               warnItems={warnItems}
               infoItems={infoItems}
+              isFr={isFr}
             />
           )}
 
