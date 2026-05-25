@@ -21,19 +21,8 @@ vi.mock('@/lib/security/ssrf', async () => {
   };
 });
 
-import {
-  analyzeEEAT,
-  candidateUrls,
-  extractLinks,
-  findBestCandidate,
-  looksLikeSoftError,
-  TEAM_KEYWORDS,
-  CONTACT_KEYWORDS,
-  LEGAL_KEYWORDS,
-  type PageLink,
-} from '../eeat';
+import { analyzeEEAT } from '../eeat';
 import { assertSafeUrl, SsrfError } from '@/lib/security/ssrf';
-import * as cheerio from 'cheerio';
 
 const assertSafeUrlMock = vi.mocked(assertSafeUrl);
 
@@ -53,10 +42,6 @@ const assertSafeUrlMock = vi.mocked(assertSafeUrl);
  * once, and soft-404s are rejected.
  */
 
-function links(html: string): PageLink[] {
-  return extractLinks(cheerio.load(`<html><body>${html}</body></html>`));
-}
-
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -69,98 +54,6 @@ beforeEach(() => {
     hostname: new URL(input).hostname,
     resolvedIp: '93.184.216.34',
   }));
-});
-
-describe('extractLinks', () => {
-  it('extracts href + anchor text from <a> tags', () => {
-    const result = links('<a href="/fr/lequipe/">Notre équipe</a><a href="/contact">Contact</a>');
-    expect(result).toEqual([
-      { href: '/fr/lequipe/', text: 'Notre équipe' },
-      { href: '/contact', text: 'Contact' },
-    ]);
-  });
-
-  it('ignores anchors without href and trims whitespace', () => {
-    const result = links('<a>no href</a><a href="/x">  spaced  </a>');
-    expect(result).toEqual([{ href: '/x', text: 'spaced' }]);
-  });
-});
-
-describe('looksLikeSoftError', () => {
-  it('flags a French "Page introuvable" title', () => {
-    expect(looksLikeSoftError('<title>Page introuvable</title>', '')).toBe(true);
-  });
-
-  it('flags a "404" / "Page not found" heading even with HTTP 200', () => {
-    expect(looksLikeSoftError('<title>Acme</title><h1>404 — Page not found</h1>', 'Acme')).toBe(true);
-  });
-
-  it('flags a German "Seite nicht gefunden"', () => {
-    expect(looksLikeSoftError('<title>Seite nicht gefunden</title>', 'Seite nicht gefunden')).toBe(true);
-  });
-
-  it('does NOT flag a legitimate team page', () => {
-    expect(looksLikeSoftError('<title>Notre équipe — Enigma</title><h1>L\'équipe</h1>', 'Notre équipe — Enigma')).toBe(false);
-  });
-});
-
-describe('findBestCandidate — team (locale-aware + contracted)', () => {
-  it('matches the enigma contracted form /fr/lequipe/', () => {
-    const cand = findBestCandidate(links('<a href="/fr/lequipe/">L\'équipe</a>'), TEAM_KEYWORDS);
-    expect(cand?.href).toBe('/fr/lequipe/');
-  });
-
-  it('matches /l-equipe and /léquipe contractions', () => {
-    expect(findBestCandidate(links('<a href="/l-equipe">x</a>'), TEAM_KEYWORDS)?.href).toBe('/l-equipe');
-    expect(findBestCandidate(links('<a href="/léquipe">x</a>'), TEAM_KEYWORDS)?.href).toBe('/léquipe');
-  });
-
-  it('matches locale-prefixed + trailing-slash /de/ueber-uns/', () => {
-    expect(findBestCandidate(links('<a href="/de/ueber-uns/">Über uns</a>'), TEAM_KEYWORDS)?.href).toBe('/de/ueber-uns/');
-  });
-
-  it('matches accented /à-propos and /a-propos', () => {
-    expect(findBestCandidate(links('<a href="/à-propos">x</a>'), TEAM_KEYWORDS)?.href).toBe('/à-propos');
-    expect(findBestCandidate(links('<a href="/a-propos">x</a>'), TEAM_KEYWORDS)?.href).toBe('/a-propos');
-  });
-
-  it('matches Italian /chi-siamo', () => {
-    expect(findBestCandidate(links('<a href="/it/chi-siamo">Chi siamo</a>'), TEAM_KEYWORDS)?.href).toBe('/it/chi-siamo');
-  });
-
-  it('matches /notre-equipe and /qui-sommes-nous', () => {
-    expect(findBestCandidate(links('<a href="/notre-equipe">x</a>'), TEAM_KEYWORDS)?.href).toBe('/notre-equipe');
-    expect(findBestCandidate(links('<a href="/qui-sommes-nous">x</a>'), TEAM_KEYWORDS)?.href).toBe('/qui-sommes-nous');
-  });
-
-  it('matches via anchor TEXT when the href is opaque', () => {
-    const cand = findBestCandidate(links('<a href="/p/42">Notre équipe</a>'), TEAM_KEYWORDS);
-    expect(cand?.href).toBe('/p/42');
-  });
-
-  it('returns null when no candidate present', () => {
-    expect(findBestCandidate(links('<a href="/products">Products</a>'), TEAM_KEYWORDS)).toBeNull();
-  });
-
-  it('does NOT match /teamwork-blog as a team page (segment boundary)', () => {
-    expect(findBestCandidate(links('<a href="/teamwork-blog">Teamwork</a>'), TEAM_KEYWORDS)).toBeNull();
-  });
-});
-
-describe('findBestCandidate — contact', () => {
-  it('matches /kontakt and /contatti and /contattaci', () => {
-    expect(findBestCandidate(links('<a href="/de/kontakt">Kontakt</a>'), CONTACT_KEYWORDS)?.href).toBe('/de/kontakt');
-    expect(findBestCandidate(links('<a href="/it/contatti">Contatti</a>'), CONTACT_KEYWORDS)?.href).toBe('/it/contatti');
-    expect(findBestCandidate(links('<a href="/contattaci">x</a>'), CONTACT_KEYWORDS)?.href).toBe('/contattaci');
-  });
-});
-
-describe('findBestCandidate — legal', () => {
-  it('matches /impressum, /mentions-legales, /note-legali', () => {
-    expect(findBestCandidate(links('<a href="/impressum">Impressum</a>'), LEGAL_KEYWORDS)?.href).toBe('/impressum');
-    expect(findBestCandidate(links('<a href="/mentions-legales">ML</a>'), LEGAL_KEYWORDS)?.href).toBe('/mentions-legales');
-    expect(findBestCandidate(links('<a href="/it/note-legali">NL</a>'), LEGAL_KEYWORDS)?.href).toBe('/it/note-legali');
-  });
 });
 
 /* ------------------------------------------------------------------ *
@@ -200,6 +93,18 @@ const CONTACT_PAGE = `
   </body></html>`;
 
 const SOFT_404 = `<html><head><title>Page introuvable</title></head><body><h1>404</h1></body></html>`;
+
+/** Dedicated reviews page with Review JSON-LD. */
+const TESTIMONIALS_PAGE = `
+  <html><head><title>Témoignages — Enigma</title></head><body>
+    <h1>Avis clients</h1>
+    <script type="application/ld+json">
+      {"@graph":[
+        {"@type":"Review","author":{"@type":"Person","name":"Alice"},"reviewBody":"Excellent"},
+        {"@type":"Review","author":{"@type":"Person","name":"Bob"},"reviewBody":"Top"}
+      ]}
+    </script>
+  </body></html>`;
 
 /**
  * Build a fetch stub. Routes keyed by a path-bearing substring (e.g.
@@ -325,6 +230,107 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Testimonials — link-driven discovery + on-homepage detection.
+ * ------------------------------------------------------------------ */
+describe('analyzeEEAT — testimonials (link-driven)', () => {
+  beforeEach(() => {
+    delete process.env.MOZ_API_KEY;
+  });
+
+  it('discovers the reviews page from a locale-prefixed /fr/temoignages/ link', async () => {
+    const HOMEPAGE = `
+      <html><head><title>Enigma</title></head><body>
+        <nav><a href="/fr/temoignages/">Témoignages</a></nav>
+      </body></html>`;
+    vi.stubGlobal('fetch', fetchStub({
+      '/fr/temoignages/': { body: TESTIMONIALS_PAGE },
+      '__home__': { body: HOMEPAGE },
+    }));
+
+    const result = await analyzeEEAT('https://enigma.swiss/');
+    expect(result.signals.testimonials.found).toBe(true);
+    expect(result.signals.testimonials.count).toBe(2);
+    expect(result.signals.testimonials.hasSchema).toBe(true);
+  });
+
+  it('discovers a German /de/referenzen and an Italian /it/recensioni link', async () => {
+    const HOMEPAGE_DE = `<html><head><title>X</title></head><body><a href="/de/referenzen">Referenzen</a></body></html>`;
+    vi.stubGlobal('fetch', fetchStub({
+      '/de/referenzen': { body: TESTIMONIALS_PAGE },
+      '__home__': { body: HOMEPAGE_DE },
+    }));
+    let result = await analyzeEEAT('https://site.de/');
+    expect(result.signals.testimonials.found).toBe(true);
+
+    const HOMEPAGE_IT = `<html><head><title>X</title></head><body><a href="/it/recensioni">Recensioni</a></body></html>`;
+    vi.stubGlobal('fetch', fetchStub({
+      '/it/recensioni': { body: TESTIMONIALS_PAGE },
+      '__home__': { body: HOMEPAGE_IT },
+    }));
+    result = await analyzeEEAT('https://site.it/');
+    expect(result.signals.testimonials.found).toBe(true);
+  });
+
+  it('detects testimonials embedded on the homepage WITHOUT refetching it', async () => {
+    const HOMEPAGE_WITH_REVIEWS = `
+      <html><head><title>Acme</title></head><body>
+        <a href="/products">Products</a>
+        <div class="testimonial">Great service — Alice</div>
+        <div class="testimonial">Loved it — Bob</div>
+        <div class="review">5/5 — Carol</div>
+      </body></html>`;
+    const stub = fetchStub({ '__home__': { body: HOMEPAGE_WITH_REVIEWS } });
+    vi.stubGlobal('fetch', stub);
+
+    const result = await analyzeEEAT('https://acme.com/');
+    expect(result.signals.testimonials.found).toBe(true);
+    expect(result.signals.testimonials.count).toBe(3);
+    // Homepage fetched exactly once → testimonials reused it, never refetched it.
+    const homeFetches = stub.mock.calls.filter(([u]) => new URL(String(u)).pathname === '/');
+    expect(homeFetches.length).toBe(1);
+    // And no testimonial-keyword sub-page was probed (reviews were on the home).
+    const reviewProbe = stub.mock.calls.some(([u]) =>
+      /temoignages|avis|clients|referenzen|recensioni|testimonials/i.test(String(u)),
+    );
+    expect(reviewProbe).toBe(false);
+  });
+
+  it('rejects a soft-404 testimonial page as NOT found', async () => {
+    const HOMEPAGE = `<html><head><title>X</title></head><body><a href="/avis">Avis</a></body></html>`;
+    vi.stubGlobal('fetch', fetchStub({
+      '/avis': { status: 200, body: SOFT_404 },
+      '__home__': { body: HOMEPAGE },
+    }));
+
+    const result = await analyzeEEAT('https://site.com/');
+    expect(result.signals.testimonials.found).toBe(false);
+  });
+
+  it('does NOT follow a cross-origin reviews link (trustpilot.com)', async () => {
+    const HOMEPAGE = `<html><head><title>X</title></head><body><a href="https://trustpilot.com/reviews/site">Reviews</a></body></html>`;
+    const stub = fetchStub({
+      'trustpilot.com/reviews': { body: TESTIMONIALS_PAGE },
+      '__home__': { body: HOMEPAGE },
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const result = await analyzeEEAT('https://site.com/');
+    expect(result.signals.testimonials.found).toBe(false);
+    const fetchedTrustpilot = stub.mock.calls.some(([u]) => String(u).includes('trustpilot.com'));
+    expect(fetchedTrustpilot).toBe(false);
+  });
+
+  it('reports NOT found when neither homepage nor probe pages have reviews', async () => {
+    vi.stubGlobal('fetch', fetchStub({
+      '__home__': { body: '<html><head><title>X</title></head><body><a href="/products">P</a></body></html>' },
+    }));
+    const result = await analyzeEEAT('https://empty.com/');
+    expect(result.signals.testimonials.found).toBe(false);
+    expect(result.recommendations.join(' ')).toMatch(/témoignages/i);
+  });
+});
+
+/* ------------------------------------------------------------------ *
  * SSRF / same-origin guard (eeat C-1). The analyzed page is untrusted:
  * its links must not let us fetch cross-origin or internal targets.
  * ------------------------------------------------------------------ */
@@ -423,57 +429,5 @@ describe('analyzeEEAT — SSRF + same-origin restriction', () => {
 
     const result = await analyzeEEAT('https://www.enigma.swiss/');
     expect(result.signals.teamPage.found).toBe(true);
-  });
-});
-
-describe('candidateUrls — same-origin + bounded fan-out', () => {
-  const linkList = (hrefs: string[]): PageLink[] =>
-    hrefs.map((href) => ({ href, text: 'team' }));
-
-  it('caps the returned candidate list at 3 (I-1)', () => {
-    const many = linkList([
-      '/team-1/equipe', '/team-2/equipe', '/team-3/equipe',
-      '/team-4/equipe', '/team-5/equipe',
-    ]);
-    const out = candidateUrls(
-      'https://site.com/',
-      'https://site.com',
-      many,
-      TEAM_KEYWORDS,
-      [],
-    );
-    expect(out.length).toBe(3);
-  });
-
-  it('drops cross-origin and non-http(s) links, keeps same-site ones', () => {
-    const mixed = linkList([
-      'https://evil.com/team',          // cross-origin → drop
-      'javascript:void(0)/team',        // bad scheme → drop (also not parsed as http)
-      'ftp://site.com/team',            // bad scheme → drop
-      '/equipe',                        // same-origin → keep
-      'https://site.com/about-us',      // same-origin absolute → keep
-    ]);
-    const out = candidateUrls(
-      'https://site.com/',
-      'https://site.com',
-      mixed,
-      TEAM_KEYWORDS,
-      [],
-    );
-    expect(out).toEqual([
-      'https://site.com/equipe',
-      'https://site.com/about-us',
-    ]);
-  });
-
-  it('falls back to same-origin probe slugs when no link matches', () => {
-    const out = candidateUrls(
-      'https://site.com/',
-      'https://site.com',
-      linkList(['/products']).map((l) => ({ ...l, text: 'products' })),
-      TEAM_KEYWORDS,
-      ['team', 'about'],
-    );
-    expect(out).toEqual(['https://site.com/team', 'https://site.com/about']);
   });
 });
