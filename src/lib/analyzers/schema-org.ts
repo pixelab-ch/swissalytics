@@ -16,6 +16,10 @@ import {
   extractLinks,
   fetchRealPage,
   candidateUrls,
+  TEAM_KEYWORDS,
+  CONTACT_KEYWORDS,
+  LEGAL_KEYWORDS,
+  TESTIMONIAL_KEYWORDS,
 } from './page-discovery';
 
 type Schema = Record<string, unknown>;
@@ -314,27 +318,22 @@ function generateSchemaRecommendations(schemas: Record<string, boolean>): string
  *  - portfolio/services → BreadcrumbList (+ VideoObject etc.)
  *  - contact → ContactPage / BreadcrumbList
  *  - legal   → BreadcrumbList
+ *  - testimonials → Review / AggregateRating
  * Matched accent-tolerant on path segments + anchor text (see page-discovery).
+ *
+ * The team / contact / legal / testimonials groups REUSE the shared keyword
+ * sets from page-discovery (single source of truth — no drift). Schema-only
+ * page types (blog/article, portfolio/projects, services) stay local since no
+ * other analyzer probes them.
  */
 const SCHEMA_PAGE_KEYWORDS: Record<string, string[]> = {
-  team: [
-    'team', 'equipe', 'équipe', 'lequipe', 'l-equipe', 'léquipe', 'a-propos',
-    'à-propos', 'apropos', 'qui-sommes-nous', 'about', 'about-us', 'ueber-uns',
-    'über-uns', 'chi-siamo',
-  ],
+  team: TEAM_KEYWORDS,
   blog: ['blog', 'article', 'articles', 'actualites', 'actualités', 'news', 'magazine'],
   portfolio: ['portfolio', 'projets', 'projects', 'realisations', 'réalisations', 'cases', 'work'],
   services: ['services', 'service', 'prestations', 'solutions', 'leistungen', 'servizi'],
-  contact: ['contact', 'contactez-nous', 'nous-contacter', 'kontakt', 'contatti', 'contattaci'],
-  legal: [
-    'mentions-legales', 'mentions-légales', 'impressum', 'datenschutz', 'agb',
-    'privacy', 'privacy-policy', 'cgu', 'cgv', 'legal', 'legal-notice',
-    'note-legali', 'imprint',
-  ],
-  testimonials: [
-    'temoignages', 'témoignages', 'avis', 'references', 'références', 'testimonials',
-    'reviews', 'referenzen', 'kundenstimmen', 'testimonianze', 'recensioni',
-  ],
+  contact: CONTACT_KEYWORDS,
+  legal: LEGAL_KEYWORDS,
+  testimonials: TESTIMONIAL_KEYWORDS,
 };
 
 /** Cap total candidate sub-pages fetched per analysis (homepage excluded). */

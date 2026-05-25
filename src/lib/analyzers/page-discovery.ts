@@ -24,6 +24,57 @@ export interface PageLink {
   text: string;
 }
 
+/**
+ * Shared page-type keyword sets — the SINGLE source of truth for link-driven
+ * page discovery across analyzers (eeat, schema-org). Matched accent-tolerant
+ * against link PATH SEGMENTS and anchor text (see `matchesKeyword`). Locale
+ * prefixes (`/fr/`, `/de/`, …) and trailing slashes are handled by the segment
+ * regex, so keywords here are bare slugs only.
+ *
+ * These previously lived (and drifted) in eeat.ts and schema-org.ts; both now
+ * import from here so a slug added once is seen by every analyzer.
+ *
+ * Team includes the contracted French forms enigma.swiss uses (`lequipe`,
+ * `l-equipe`, `léquipe`) on top of `equipe`/`équipe`.
+ */
+export const TEAM_KEYWORDS = [
+  // FR
+  'team', 'equipe', 'équipe', 'lequipe', 'l-equipe', 'léquipe',
+  'notre-equipe', 'notre-équipe', 'a-propos', 'à-propos', 'apropos',
+  'qui-sommes-nous', 'about', 'about-us',
+  // DE
+  'ueber-uns', 'über-uns', 'unternehmen',
+  // IT
+  'chi-siamo',
+];
+
+export const CONTACT_KEYWORDS = [
+  'contact', 'contactez-nous', 'nous-contacter',
+  'kontakt', 'contatti', 'contattaci',
+];
+
+export const LEGAL_KEYWORDS = [
+  'mentions-legales', 'mentions-légales', 'impressum', 'datenschutz',
+  'agb', 'privacy', 'privacy-policy', 'cgu', 'cgv', 'legal', 'legal-notice',
+  'note-legali', 'imprint',
+];
+
+/**
+ * Review / testimonial page slugs across the four CH locales (+ EN, which many
+ * Swiss sites also serve). Matched the same way as the other signals:
+ * accent-tolerant, on path segments and anchor text.
+ */
+export const TESTIMONIAL_KEYWORDS = [
+  // FR
+  'temoignages', 'témoignages', 'avis', 'references', 'références', 'clients',
+  // EN
+  'testimonials', 'reviews', 'case-studies', 'case-study',
+  // DE
+  'referenzen', 'kundenstimmen', 'bewertungen',
+  // IT
+  'testimonianze', 'recensioni',
+];
+
 const UA = 'Swissalytics/1.0 (+https://swissalytics.com)';
 
 /** Per-fetch hard timeout (ms). Keeps sockets from outliving the analyzer's

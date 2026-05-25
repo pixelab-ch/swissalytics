@@ -19,11 +19,15 @@ import {
   looksLikeSoftError,
   fetchRealPage,
   candidateUrls,
+  TEAM_KEYWORDS,
+  CONTACT_KEYWORDS,
+  LEGAL_KEYWORDS,
+  TESTIMONIAL_KEYWORDS,
 } from './page-discovery';
 
-// Re-export the shared discovery helpers so existing importers (and tests)
-// that pull them from '../eeat' keep working. The canonical home is now
-// page-discovery.ts.
+// Re-export the shared discovery helpers + keyword sets so existing importers
+// (and tests) that pull them from '../eeat' keep working. The canonical home
+// is now page-discovery.ts.
 export {
   type PageLink,
   extractLinks,
@@ -31,6 +35,10 @@ export {
   findBestCandidate,
   looksLikeSoftError,
   candidateUrls,
+  TEAM_KEYWORDS,
+  CONTACT_KEYWORDS,
+  LEGAL_KEYWORDS,
+  TESTIMONIAL_KEYWORDS,
 };
 
 export interface EEATResult {
@@ -65,50 +73,6 @@ export interface EEATResult {
   };
   recommendations: string[];
 }
-
-/**
- * Keyword sets for the page-based trust signals. Matched (accent-tolerant)
- * against link PATH SEGMENTS and anchor text. Locale prefixes (`/fr/`,
- * `/de/`, …) and trailing slashes are handled by the segment regex, so
- * keywords here are bare slugs only.
- *
- * Team includes the contracted French forms enigma.swiss uses
- * (`lequipe`, `l-equipe`, `léquipe`) on top of `equipe`/`équipe`.
- */
-export const TEAM_KEYWORDS = [
-  // FR
-  'team', 'equipe', 'équipe', 'lequipe', 'l-equipe', 'léquipe',
-  'notre-equipe', 'notre-équipe', 'a-propos', 'à-propos', 'apropos',
-  'qui-sommes-nous', 'about', 'about-us',
-  // DE
-  'ueber-uns', 'über-uns', 'unternehmen',
-  // IT
-  'chi-siamo',
-];
-export const CONTACT_KEYWORDS = [
-  'contact', 'contactez-nous', 'nous-contacter',
-  'kontakt', 'contatti', 'contattaci',
-];
-export const LEGAL_KEYWORDS = [
-  'mentions-legales', 'mentions-légales', 'impressum', 'datenschutz',
-  'agb', 'privacy', 'privacy-policy', 'cgu', 'cgv', 'legal', 'legal-notice',
-  'note-legali', 'imprint',
-];
-/**
- * Review / testimonial page slugs across the four CH locales (+ EN, which
- * many Swiss sites also serve). Matched the same way as the other signals:
- * accent-tolerant, on path segments and anchor text.
- */
-export const TESTIMONIAL_KEYWORDS = [
-  // FR
-  'temoignages', 'témoignages', 'avis', 'references', 'références', 'clients',
-  // EN
-  'testimonials', 'reviews', 'case-studies', 'case-study',
-  // DE
-  'referenzen', 'kundenstimmen', 'bewertungen',
-  // IT
-  'testimonianze', 'recensioni',
-];
 
 export async function analyzeEEAT(url: string): Promise<EEATResult> {
   console.log(`[E-E-A-T] Démarrage analyse de ${url}...`);
