@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from '@/components/design-system/ThemeProvider';
 import { COPY } from '@/lib/i18n/copy';
@@ -10,6 +10,7 @@ import { pickVerdictIndex } from '@/lib/engine/verdictPicker';
 import type { AnalysisResult, Issue } from '@/lib/types';
 import DegradedBanner from './DegradedBanner';
 import { Gauge } from './Gauge';
+import { NavEntry } from './NavEntry';
 import { Scorecard } from './Scorecard';
 import { ShareButton } from './ShareButton';
 import { OverviewContent } from './OverviewContent';
@@ -22,6 +23,8 @@ interface ReportViewProps {
   reportId?: string;
   readOnly?: boolean;
   cwvLoading?: boolean;
+  /** True while the GEO/AI-engines analysis is still being fetched async. */
+  geoLoading?: boolean;
   /** P18.B — surface "Suggestions IA en cours…" skeleton in HeadingsTab. */
   keywordSuggestionsLoading?: boolean;
   degraded?: boolean;
@@ -83,6 +86,7 @@ export default function ReportView({
   reportId,
   readOnly,
   cwvLoading,
+  geoLoading,
   keywordSuggestionsLoading,
   degraded = false,
 }: ReportViewProps) {
@@ -141,6 +145,18 @@ export default function ReportView({
   // Details section
   const [section, setSection] = useState<DetailsSectionKey>('headings');
 
+  // Responsive: under 768px the main rail collapses to a horizontal
+  // scrollable bar (same approach as DetailsContent's sub-section nav).
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    function handler() {
+      setIsNarrow(window.innerWidth < 768);
+    }
+    handler();
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
   // Verdict — re-added after P7.2 with editorial copy (3 phrases per
   // tier, picked deterministically by report seed) + inline Pixelab
   // link. Same URL = same phrase across refreshes/shares.
@@ -191,6 +207,28 @@ export default function ReportView({
   const tabsMono = copy.tabsMono; // [OVERVIEW, DETAILS, ACTION PLAN, AI INDEXATION / GEO]
   const tabKeys: TabKey[] = ['overview', 'details', 'plan', 'geo'];
 
+  // Main-tab rail entries: §NN number + i18n label.
+  const tabDefs: Array<{ key: TabKey; num: string; label: string }> = tabKeys.map(
+    (k, i) => ({ key: k, num: String(i + 1).padStart(2, '0'), label: tabsMono[i] }),
+  );
+
+  const mainNavStyle: CSSProperties = isNarrow
+    ? {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 0,
+        borderBottom: '1px solid var(--sa-rule)',
+      }
+    : {
+        position: 'sticky',
+        top: 16,
+        alignSelf: 'start',
+        borderRight: '1px solid var(--sa-rule)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0,
+      };
+
   const showShare = !!reportId && !readOnly;
 
   // Stat cards (overview)
@@ -203,7 +241,7 @@ export default function ReportView({
     report.headings.h6.length;
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px 80px' }}>
+    <div style={{ maxWidth: 1340, margin: '0 auto', padding: '32px 24px 80px' }}>
       {degraded && <DegradedBanner isFr={isFr} />}
       {/* 1. MetricStrip */}
       <div className="frame sa-rise" style={{ background: 'var(--sa-cream)', position: 'relative' }}>
@@ -275,10 +313,46 @@ export default function ReportView({
 
           {/* RIGHT CELL — 4 scorecards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
-            <Scorecard num="02" label={scorecardLabels[0]} score={seoTechScore} isLast={false} />
-            <Scorecard num="03" label={scorecardLabels[1]} score={contentScore} isLast={false} />
-            <Scorecard num="04" label={scorecardLabels[2]} score={aiReadyScore} isLast={false} />
-            <Scorecard num="05" label={scorecardLabels[3]} score={localScore} isLast={true} />
+            <Scorecard
+              num="02"
+              label={scorecardLabels[0]}
+              score={seoTechScore}
+              isLast={false}
+              isFr={isFr}
+              hint={isFr
+                ? "Vitesse, HTTPS, crawlabilité, balises meta, sitemap — les fondations techniques qu'un moteur exige."
+                : 'Speed, HTTPS, crawlability, meta tags, sitemap — the technical foundations search engines require.'}
+            />
+            <Scorecard
+              num="03"
+              label={scorecardLabels[1]}
+              score={contentScore}
+              isLast={false}
+              isFr={isFr}
+              hint={isFr
+                ? 'Lisibilité Flesch, structure H1-H6, densité des mots-clés — est-ce que le contenu est clair et bien structuré ?'
+                : 'Flesch readability, H1-H6 structure, keyword density — is the content clear and well-structured?'}
+            />
+            <Scorecard
+              num="04"
+              label={scorecardLabels[2]}
+              score={aiReadyScore}
+              isLast={false}
+              isFr={isFr}
+              hint={isFr
+                ? "Est-ce que ChatGPT, Gemini, Claude, Mistral peuvent t'identifier et te citer."
+                : 'Whether ChatGPT, Gemini, Claude, Mistral can identify and cite you.'}
+            />
+            <Scorecard
+              num="05"
+              label={scorecardLabels[3]}
+              score={localScore}
+              isLast={true}
+              isFr={isFr}
+              hint={isFr
+                ? 'Signaux géographiques : adresse, NAP, Schema LocalBusiness.'
+                : 'Geographic signals: address, NAP consistency, Schema LocalBusiness.'}
+            />
           </div>
         </div>
       </div>
@@ -328,81 +402,72 @@ export default function ReportView({
         </p>
       </div>
 
-      {/* 3. Tab bar */}
+      {/* 3. Main rail (left) + tab content. The rail reuses the
+          SectionNavEntry pattern; below 768px it collapses to a
+          horizontal scrollable bar. */}
       <div
-        role="tablist"
-        className="mono"
         style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 40,
-          borderBottom: '1px solid var(--sa-rule)',
-          padding: '24px 24px 0',
-          flexWrap: 'wrap',
+          display: 'grid',
+          gridTemplateColumns: isNarrow ? '1fr' : '240px 1fr',
+          gap: 24,
+          marginTop: 26,
         }}
       >
-        {tabKeys.map((k, i) => {
-          const active = tab === k;
-          return (
-            <button
-              key={k}
-              role="tab"
-              aria-selected={active}
-              onClick={() => changeTab(k)}
-              className="mono"
-              style={{
-                appearance: 'none',
-                background: 'transparent',
-                border: 'none',
-                padding: '10px 0',
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: active ? 'var(--sa-ink)' : 'var(--sa-ink-4)',
-                borderBottom: `2px solid ${active ? 'var(--sa-ink)' : 'transparent'}`,
-                marginBottom: -1,
-                cursor: 'pointer',
-              }}
-            >
-              {tabsMono[i]}
-            </button>
-          );
-        })}
-      </div>
+        <nav role="tablist" style={mainNavStyle}>
+          {tabDefs.map((t) => (
+            <NavEntry
+              key={t.key}
+              variant="rail"
+              num={t.num}
+              label={t.label}
+              active={tab === t.key}
+              onClick={() => changeTab(t.key)}
+            />
+          ))}
+        </nav>
 
-      {/* 4. Tab content */}
-      <div style={{ paddingTop: 32 }}>
-        {tab === 'overview' && (
-          <OverviewContent
-            report={report}
-            headingsTotal={headingsTotal}
-            allIssues={allIssues}
-            isFr={isFr}
-          />
-        )}
+        {/* Tab content – min-width:0 prevents the 1fr grid track from
+            expanding to fit nowrap children (e.g. the Détails section bar). */}
+        <div style={{ minWidth: 0 }}>
+          {tab === 'overview' && (
+            <OverviewContent
+              report={report}
+              headingsTotal={headingsTotal}
+              critItems={critItems}
+              warnItems={warnItems}
+              infoItems={infoItems}
+              isFr={isFr}
+              onGoToPlan={() => changeTab('plan')}
+              onGoToGeo={() => changeTab('geo')}
+              onGoToDetails={() => changeTab('details')}
+              cwvLoading={cwvLoading}
+              geoLoading={geoLoading}
+            />
+          )}
 
-        {tab === 'details' && (
-          <DetailsContent
-            report={report}
-            cwvLoading={cwvLoading}
-            keywordSuggestionsLoading={keywordSuggestionsLoading}
-            section={section}
-            setSection={setSection}
-            sectionDefs={sectionDefs}
-          />
-        )}
+          {tab === 'details' && (
+            <DetailsContent
+              report={report}
+              cwvLoading={cwvLoading}
+              keywordSuggestionsLoading={keywordSuggestionsLoading}
+              section={section}
+              setSection={setSection}
+              sectionDefs={sectionDefs}
+            />
+          )}
 
-        {tab === 'plan' && (
-          <PlanContent
-            copy={copy}
-            critItems={critItems}
-            warnItems={warnItems}
-            infoItems={infoItems}
-          />
-        )}
+          {tab === 'plan' && (
+            <PlanContent
+              copy={copy}
+              critItems={critItems}
+              warnItems={warnItems}
+              infoItems={infoItems}
+              isFr={isFr}
+            />
+          )}
 
-        {tab === 'geo' && <GeoTabContent report={report} isFr={isFr} />}
+          {tab === 'geo' && <GeoTabContent report={report} isFr={isFr} />}
+        </div>
       </div>
     </div>
   );

@@ -62,7 +62,7 @@ export default function TechnicalTab({ data, cwvLoading }: { data: TechnicalAnal
               items={[
                 { term: 'robots.txt', definition: "Un fichier à la racine de votre site qui indique aux moteurs de recherche quelles pages explorer ou ignorer. Son absence n'est pas bloquante mais sa présence permet un contrôle précis du crawl." },
                 { term: 'Sitemap XML', definition: 'Un fichier qui liste toutes les pages importantes de votre site. Il aide Google à découvrir vos pages plus rapidement.' },
-                { term: 'llms.txt', definition: "Un fichier émergent qui aide les IA (ChatGPT, Perplexity, etc.) à comprendre votre site. C'est l'équivalent du robots.txt pour les moteurs IA — un avantage compétitif en GEO." },
+                { term: 'llms.txt', definition: "Fichier émergent censé aider certaines IA à comprendre un site. Google (mai 2026) ne le considère pas comme un facteur déterminant — à voir comme un bonus optionnel, pas une priorité." },
                 { term: 'HTTPS', definition: 'Protocole sécurisé obligatoire. Google pénalise les sites HTTP depuis 2014.' },
                 { term: 'Contenu mixte', definition: 'Ressources HTTP chargées sur une page HTTPS — déclenche des avertissements navigateurs.' },
               ]}
@@ -418,8 +418,7 @@ export default function TechnicalTab({ data, cwvLoading }: { data: TechnicalAnal
                 background: 'var(--sa-cream-2)',
                 border: '1px solid var(--sa-rule)',
                 whiteSpace: 'pre-wrap',
-                maxHeight: 256,
-                overflowY: 'auto',
+                wordBreak: 'break-word',
               }}
             >
               {data.robotsTxt.content}

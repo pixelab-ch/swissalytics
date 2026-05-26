@@ -1,6 +1,7 @@
 'use client';
 
 import type { PlanItem } from '@/lib/engine/plan';
+import { effortLabel } from './cockpitData';
 
 interface PlanBucketProps {
   captionNum: string;
@@ -8,6 +9,7 @@ interface PlanBucketProps {
   items: PlanItem[];
   /** CSS color for the leading dot in the caption bar (red/warn/grey). */
   dotColor: string;
+  isFr: boolean;
 }
 
 /**
@@ -15,7 +17,7 @@ interface PlanBucketProps {
  * from `lib/engine/plan.buildPlan(report)`. Returns null when empty so
  * absent buckets don't take vertical space.
  */
-export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketProps) {
+export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBucketProps) {
   if (items.length === 0) return null;
   return (
     <div className="frame" style={{ background: 'var(--sa-cream)' }}>
@@ -45,7 +47,7 @@ export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketPro
             key={`${item.n}-${i}`}
             style={{
               display: 'grid',
-              gridTemplateColumns: '56px 1fr 80px',
+              gridTemplateColumns: '56px 1fr auto',
               gap: 16,
               padding: '20px 24px',
               borderBottom:
@@ -70,7 +72,7 @@ export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketPro
                 style={{
                   fontWeight: 600,
                   color: 'var(--sa-ink)',
-                  fontSize: 15,
+                  fontSize: 18,
                   marginBottom: 4,
                   lineHeight: 1.35,
                 }}
@@ -80,7 +82,7 @@ export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketPro
               <div
                 style={{
                   color: 'var(--sa-ink-3)',
-                  fontSize: 14,
+                  fontSize: 16,
                   lineHeight: 1.5,
                 }}
               >
@@ -90,7 +92,7 @@ export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketPro
                 className="mono"
                 style={{
                   marginTop: 6,
-                  fontSize: 10,
+                  fontSize: 11,
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
                   color: 'var(--sa-ink-4)',
@@ -104,7 +106,7 @@ export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketPro
               <span
                 className="mono"
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
                   fontWeight: 700,
@@ -115,7 +117,7 @@ export function PlanBucket({ captionNum, label, items, dotColor }: PlanBucketPro
                   whiteSpace: 'nowrap',
                 }}
               >
-                {item.effort}
+                {effortLabel(item.effort, isFr)}
               </span>
             </div>
           </div>

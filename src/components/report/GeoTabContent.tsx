@@ -10,6 +10,8 @@ import type {
 import SpaWarning from './SpaWarning';
 import GeoDegradedBanner from './GeoDegradedBanner';
 import InfoBox from '../InfoBox';
+import { BotCoverage } from './BotCoverage';
+import { engineState } from './cockpitData';
 
 /**
  * P18.A — descriptions par LLM affichées dans le tooltip "i" sur chaque
@@ -169,6 +171,7 @@ export function GeoTabContent({ report, isFr }: GeoTabContentProps) {
       {report.spa && <SpaWarning spa={report.spa} />}
       {geo.degraded && <GeoDegradedBanner degraded={geo.degraded} />}
       <IndexationPanel indexation={geo.geo.indexation} isFr={isFr} />
+      <BotCoverage bots={report.technical.botCoverage} isFr={isFr} num="07" />
       <LighthousePanel lighthouse={geo.seo.lighthouse} isFr={isFr} />
       <SchemaPanel schema={geo.geo.schema} isFr={isFr} />
       <EeatPanel
@@ -188,9 +191,10 @@ function GeoEmptyState({ isFr }: { isFr: boolean }) {
   // Réutilise sa-flash + sa-scorecard-scan déjà utilisés par le Scorecard IA-Ready.
   const placeholders = [
     { num: '06', label_fr: 'Indexation IA', label_en: 'AI indexation' },
-    { num: '07', label_fr: 'Lighthouse', label_en: 'Lighthouse' },
-    { num: '08', label_fr: 'Schema.org', label_en: 'Schema.org' },
-    { num: '09', label_fr: 'E-E-A-T', label_en: 'E-E-A-T' },
+    { num: '07', label_fr: 'Robots IA (robots.txt)', label_en: 'AI Robots (robots.txt)' },
+    { num: '08', label_fr: 'Lighthouse', label_en: 'Lighthouse' },
+    { num: '09', label_fr: 'Schema.org', label_en: 'Schema.org' },
+    { num: '10', label_fr: 'E-E-A-T', label_en: 'E-E-A-T' },
   ];
 
   return (
@@ -341,13 +345,12 @@ function IndexationPanel({
             gap: 0,
           }}
         >
-          {engineEntries.map(([id, engine], i) => (
+          {engineEntries.map(([id, engine]) => (
             <EngineCard
               key={id}
               id={id}
               engine={engine}
               isFr={isFr}
-              isLastRow={i >= engineEntries.length - (engineEntries.length % 4 || 4)}
             />
           ))}
         </div>
@@ -364,11 +367,19 @@ function EngineCard({
   id: string;
   engine: GeoIndexationEngineResult;
   isFr: boolean;
-  isLastRow: boolean;
 }) {
   const displayName = engine.name || id.charAt(0).toUpperCase() + id.slice(1);
-  const hasError = !!engine.error;
   const confidenceLabel = formatConfidence(engine.confidence, isFr);
+
+  // SINGLE SOURCE OF TRUTH: derive the engine's honest state from the same
+  // engineState() helper the cockpit uses, so the GEO tab and the overview
+  // can never report the same engine differently (errored vs not-indexed vs
+  // untested). The card is rendered per existing engine entry, so 'untested'
+  // does not occur here in practice; it is mapped to the same neutral visual
+  // as 'not-indexed' for safety.
+  const state = engineState({ [id]: engine }, id);
+  const hasError = state === 'error';
+  const isIndexed = state === 'indexed';
 
   // Trois états visuels distincts :
   //   - error (orange) : l'API du moteur a échoué (404 modèle déprécié, 401 clé révoquée…).
@@ -377,13 +388,13 @@ function EngineCard({
   //   - not indexed (gris) : le moteur a répondu mais ne connaît pas la marque
   const badgeColor = hasError
     ? 'var(--sa-amber-ink, #b88600)'
-    : engine.indexed
+    : isIndexed
     ? 'var(--sa-green, #2d8e4f)'
     : 'var(--sa-ink-4)';
-  const badgeIcon = hasError ? '!' : engine.indexed ? '✓' : '×';
+  const badgeIcon = hasError ? '!' : isIndexed ? '✓' : '×';
   const badgeLabel = hasError
     ? (isFr ? 'Moteur indisponible' : 'Engine unavailable')
-    : engine.indexed
+    : isIndexed
     ? (isFr ? 'Indexé' : 'Indexed')
     : (isFr ? 'Non indexé' : 'Not indexed');
 
@@ -549,7 +560,7 @@ function SchemaPanel({ schema, isFr }: { schema: { score: number; totalFound: nu
   return (
     <section className="frame" style={{ background: 'var(--sa-cream)' }}>
       <PanelHeader
-        num="08"
+        num="09"
         label={isFr ? 'Schema.org' : 'Schema.org'}
         score={schema.score}
         right={
@@ -754,7 +765,7 @@ function EeatPanel({
   return (
     <section className="frame" style={{ background: 'var(--sa-cream)' }}>
       <PanelHeader
-        num="09"
+        num="10"
         label="E-E-A-T"
         score={eeat.score}
         right={
@@ -857,7 +868,7 @@ function LighthousePanel({ lighthouse, isFr }: { lighthouse: LighthouseScores; i
   return (
     <section className="frame" style={{ background: 'var(--sa-cream)' }}>
       <PanelHeader
-        num="07"
+        num="08"
         label="Lighthouse"
         score={avg}
         right={

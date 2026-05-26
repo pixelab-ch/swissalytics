@@ -25,6 +25,10 @@ export default function ReportPage({
   const isFr = lang === 'fr';
 
   const [state, setState] = useState<FetchState>({ status: 'loading' });
+  // Mirrors cwvLoading: true only while a missing geoAnalysis is being fetched.
+  // Lets the cockpit §02 show a TERMINAL degraded state on fetch failure
+  // instead of an animated skeleton that would never resolve.
+  const [geoLoading, setGeoLoading] = useState(false);
   // P18.B — separate loader so HeadingsTab shows the « Suggestions IA en cours » skeleton
   const [keywordSuggestionsLoading, setKeywordSuggestionsLoading] = useState(false);
 
@@ -62,15 +66,20 @@ export default function ReportPage({
           r.technical?.coreWebVitals?.desktop;
 
         if (!r.geoAnalysis) {
-          fetchGeo(r.url, buildPageContext(r)).then((geo) => {
-            if (cancelled || !geo) return;
-            setState((s) =>
-              s.status === 'ok'
-                ? { status: 'ok', report: { ...s.report, geoAnalysis: geo } }
-                : s,
-            );
-            persistEnrichment(id, { geoAnalysis: geo });
-          });
+          setGeoLoading(true);
+          fetchGeo(r.url, buildPageContext(r))
+            .then((geo) => {
+              if (cancelled || !geo) return;
+              setState((s) =>
+                s.status === 'ok'
+                  ? { status: 'ok', report: { ...s.report, geoAnalysis: geo } }
+                  : s,
+              );
+              persistEnrichment(id, { geoAnalysis: geo });
+            })
+            .finally(() => {
+              if (!cancelled) setGeoLoading(false);
+            });
         }
 
         // P18.B — fetch keyword suggestions if missing in stored report.
@@ -269,7 +278,7 @@ export default function ReportPage({
 
   return (
     <Shell>
-      <ReportView report={state.report} reportId={id} keywordSuggestionsLoading={keywordSuggestionsLoading} />
+      <ReportView report={state.report} reportId={id} geoLoading={geoLoading} keywordSuggestionsLoading={keywordSuggestionsLoading} />
     </Shell>
   );
 }

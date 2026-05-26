@@ -1,232 +1,262 @@
 'use client';
 
-import { useMemo } from 'react';
-import type { AnalysisResult, Issue } from '@/lib/types';
+import type { CSSProperties } from 'react';
+import type { AnalysisResult } from '@/lib/types';
+import type { PlanItem } from '@/lib/engine/plan';
+import { SectionHead } from './SectionHead';
+import { IAVisibilityBlock } from './IAVisibilityBlock';
+import { StrengthsBlock } from './StrengthsBlock';
+import { TechPreviewBlock } from './TechPreviewBlock';
 
 interface OverviewContentProps {
   report: AnalysisResult;
   headingsTotal: number;
-  allIssues: Array<Issue & { category: string }>;
+  /** Plan buckets from buildPlan, computed once in ReportView. Used here only
+   *  for the top-3 priority teaser + the total count on the "full plan" link.
+   *  The Plan tab renders the full grouped list (these same items). */
+  critItems: PlanItem[];
+  warnItems: PlanItem[];
+  infoItems: PlanItem[];
   isFr: boolean;
+  /** Switches the main rail to the Plan tab (changeTab('plan')). */
+  onGoToPlan: () => void;
+  /** Switches the main rail to the GEO/AI tab. */
+  onGoToGeo: () => void;
+  /** Switches the main rail to the Details tab. */
+  onGoToDetails: () => void;
+  /** True while Core Web Vitals (LCP) is still being fetched async. */
+  cwvLoading?: boolean;
+  /** True while the GEO/AI-engines analysis is still being fetched async. */
+  geoLoading?: boolean;
 }
 
-/* ---------------- private helpers (only used here) ---------------- */
+/* ===================================================================== */
+/* §01 — À corriger en priorité : top-3 of the combined prioritized plan. */
+/* ===================================================================== */
 
-function OverviewStatCard({
-  num,
-  label,
-  value,
-  sub,
-}: {
-  num: string;
-  label: string;
-  value: string | number;
-  sub?: string;
-}) {
-  return (
-    <div
-      className="frame"
-      style={{
-        padding: '24px 24px 22px',
-        background: 'var(--sa-cream)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-      }}
-    >
-      <div
-        className="mono"
-        style={{
-          fontSize: 10,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          color: 'var(--sa-ink-4)',
-          fontWeight: 700,
-        }}
-      >
-        §{num} · {label}
-      </div>
-      <div
-        className="display tnum"
-        style={{
-          fontSize: 44,
-          fontWeight: 800,
-          letterSpacing: '-0.03em',
-          color: 'var(--sa-ink)',
-          lineHeight: 1,
-        }}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div
-          className="mono"
-          style={{
-            fontSize: 11,
-            letterSpacing: '0.06em',
-            color: 'var(--sa-ink-3)',
-          }}
-        >
-          {sub}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function OverviewIssues({
-  issues,
+function PriorityBlock({
+  topItems,
+  totalCount,
   isFr,
+  onGoToPlan,
 }: {
-  issues: Array<Issue & { category: string }>;
+  topItems: PlanItem[];
+  totalCount: number;
   isFr: boolean;
+  onGoToPlan: () => void;
 }) {
-  const top = issues.slice(0, 7);
   return (
-    <div className="frame" style={{ background: 'var(--sa-cream)' }}>
-      <div
-        className="ink-b mono"
-        style={{
-          padding: '10px 20px',
-          background: 'var(--sa-ink)',
-          color: 'var(--sa-cream)',
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-        }}
-      >
-        §06 · {isFr ? 'Problèmes prioritaires' : 'Top issues'} · {issues.length}
-      </div>
-      {top.length === 0 ? (
-        <div
-          style={{
-            padding: '24px',
-            color: 'var(--sa-ink-3)',
-            fontSize: 14,
-          }}
-        >
-          {isFr ? 'Aucun problème détecté.' : 'No issues detected.'}
-        </div>
-      ) : (
-        <div>
-          {top.map((iss, i) => {
-            const pillBg =
-              iss.type === 'error'
-                ? 'var(--sa-red)'
-                : iss.type === 'warning'
-                ? 'var(--sa-warn)'
-                : 'var(--sa-ink-4)';
-            const pillLabel =
-              iss.type === 'error' ? 'CRIT' : iss.type === 'warning' ? 'WARN' : 'INFO';
+    <div>
+      <SectionHead
+        num="01"
+        title={isFr ? 'À corriger en priorité' : 'Fix first'}
+      />
+      <div className="frame" style={{ background: 'var(--sa-cream)' }}>
+        {topItems.length === 0 ? (
+          <div
+            style={{
+              padding: '20px 16px',
+              color: 'var(--sa-ink-3)',
+              fontSize: 14,
+            }}
+          >
+            {isFr ? 'Aucun problème détecté.' : 'No issues detected.'}
+          </div>
+        ) : (
+          topItems.map((item, i) => {
+            const sev =
+              item.bucket === 'crit'
+                ? { label: isFr ? 'Crit.' : 'Crit', cls: 'crit' as const }
+                : item.bucket === 'warn'
+                ? { label: isFr ? 'Imp.' : 'Warn', cls: 'warn' as const }
+                : { label: isFr ? 'Bonus' : 'Info', cls: 'info' as const };
+            const sevStyle: CSSProperties =
+              sev.cls === 'crit'
+                ? {
+                    background: 'var(--sa-red)',
+                    color: 'var(--sa-cream)',
+                    borderColor: 'var(--sa-red)',
+                  }
+                : sev.cls === 'warn'
+                ? { color: 'var(--sa-warn)', borderColor: 'var(--sa-warn)' }
+                : { color: 'var(--sa-ink-4)', borderColor: 'var(--sa-ink-4)' };
             return (
               <div
-                key={`${iss.message}-${i}`}
+                key={`${item.n}-${i}`}
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: '72px 1fr auto',
-                  gap: 16,
-                  padding: '14px 20px',
+                  display: 'flex',
+                  gap: 14,
+                  alignItems: 'flex-start',
+                  padding: '13px 16px',
                   borderBottom:
-                    i < top.length - 1 ? '1px solid var(--sa-rule)' : 'none',
-                  alignItems: 'center',
+                    i < topItems.length - 1
+                      ? '1px solid var(--sa-rule)'
+                      : 'none',
                 }}
               >
                 <span
-                  className="mono"
+                  className="mono tnum"
                   style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    letterSpacing: '0.12em',
-                    padding: '4px 8px',
-                    background: pillBg,
-                    color: 'var(--sa-cream)',
-                    textAlign: 'center',
-                  }}
-                >
-                  {pillLabel}
-                </span>
-                <span
-                  style={{
-                    color: 'var(--sa-ink)',
-                    fontSize: 14,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {iss.message}
-                </span>
-                <span
-                  className="mono"
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: 'var(--sa-ink-4)',
+                    fontSize: 13,
                     fontWeight: 700,
+                    width: 22,
+                    flex: 'none',
+                    color: 'var(--sa-ink)',
                   }}
                 >
-                  {iss.category}
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 600,
+                      margin: '0 0 2px',
+                      color: 'var(--sa-ink)',
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {item.title}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 14,
+                      color: 'var(--sa-ink-3)',
+                      margin: 0,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {item.body}
+                  </p>
+                </div>
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    padding: '3px 6px',
+                    border: '1px solid var(--sa-ink)',
+                    flex: 'none',
+                    marginTop: 2,
+                    whiteSpace: 'nowrap',
+                    ...sevStyle,
+                  }}
+                >
+                  {sev.label}
                 </span>
               </div>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
+      {/* Full-plan link/button → plan tab. */}
+      <button
+        type="button"
+        onClick={onGoToPlan}
+        className="mono"
+        style={{
+          display: 'block',
+          width: '100%',
+          marginTop: 12,
+          textAlign: 'center',
+          appearance: 'none',
+          padding: 11,
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          background: 'var(--sa-ink)',
+          color: 'var(--sa-cream)',
+          border: '2px solid var(--sa-ink)',
+          cursor: 'pointer',
+        }}
+      >
+        {isFr
+          ? `Voir le plan d’action complet (${totalCount}) →`
+          : `See the full action plan (${totalCount}) →`}
+      </button>
     </div>
   );
 }
 
-/* ---------------- exported tab content ---------------- */
+/* ===================================================================== */
+/* Exported cockpit dashboard.                                            */
+/* ===================================================================== */
 
+/**
+ * Dashboard / overview = "cockpit": a synthesis where each block teases one
+ * tab. §01 top-3 priorities → Plan tab; §02 AI visibility → GEO tab; §03
+ * strengths; §04 technical preview → Details tab. The full grouped plan
+ * lives only on the Plan tab now (no more duplication).
+ *
+ * Slim composition root: §01 PriorityBlock lives here (cockpit-only), while
+ * §02/§03/§04 are extracted into their own files consuming cockpitData helpers.
+ *
+ * Async data (geoAnalysis engines, CWV/LCP) arrives after the main analyze:
+ * those blocks show a calm skeleton while loading and fill in on re-render. If
+ * a fetch terminally fails (geoLoading/cwvLoading flip to false with no data),
+ * they degrade gracefully instead of animating forever.
+ */
 export function OverviewContent({
   report,
   headingsTotal,
-  allIssues,
+  critItems,
+  warnItems,
+  infoItems,
   isFr,
+  onGoToPlan,
+  onGoToGeo,
+  onGoToDetails,
+  cwvLoading,
+  geoLoading,
 }: OverviewContentProps) {
-  const sortedIssues = useMemo(() => {
-    const weight = (t: Issue['type']) => (t === 'error' ? 0 : t === 'warning' ? 1 : 2);
-    return [...allIssues].sort((a, b) => weight(a.type) - weight(b.type));
-  }, [allIssues]);
+  // Combined prioritized plan — crit first, then warn, then info. buildPlan
+  // already numbers globally and sorts within each bucket, so concatenation
+  // gives the right priority order for the top-3 teaser.
+  const prioritized = [...critItems, ...warnItems, ...infoItems];
+  const topItems = prioritized.slice(0, 3);
+  const totalCount = prioritized.length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-        }}
-      >
-        <OverviewStatCard
-          num="03"
-          label={isFr ? 'Titres & hiérarchie' : 'Headings'}
-          value={headingsTotal}
-          sub={`H1 ${report.headings.h1.length} · H2 ${report.headings.h2.length} · H3 ${report.headings.h3.length}`}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <PriorityBlock
+        topItems={topItems}
+        totalCount={totalCount}
+        isFr={isFr}
+        onGoToPlan={onGoToPlan}
+      />
+
+      {/* Two-column row: AI visibility + Strengths. */}
+      <div className="overview-row2">
+        <IAVisibilityBlock
+          report={report}
+          isFr={isFr}
+          onGoToGeo={onGoToGeo}
+          geoLoading={geoLoading}
         />
-        <OverviewStatCard
-          num="04"
-          label={isFr ? 'Images' : 'Images'}
-          value={report.images.total}
-          sub={
-            isFr
-              ? `${report.images.withAlt} avec alt · ${report.images.withoutAlt} sans alt`
-              : `${report.images.withAlt} with alt · ${report.images.withoutAlt} without alt`
-          }
-        />
-        <OverviewStatCard
-          num="05"
-          label={isFr ? 'Liens' : 'Links'}
-          value={report.links.total}
-          sub={
-            isFr
-              ? `${report.links.internal.length} internes · ${report.links.external.length} externes`
-              : `${report.links.internal.length} internal · ${report.links.external.length} external`
-          }
-        />
+        <StrengthsBlock report={report} isFr={isFr} cwvLoading={cwvLoading} />
       </div>
 
-      <OverviewIssues issues={sortedIssues} isFr={isFr} />
+      <TechPreviewBlock
+        report={report}
+        headingsTotal={headingsTotal}
+        isFr={isFr}
+        onGoToDetails={onGoToDetails}
+      />
+
+      {/* Two-column row collapses to one column under 760px. */}
+      <style>{`
+        .overview-row2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 22px;
+        }
+        @media (max-width: 760px) {
+          .overview-row2 { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   );
 }

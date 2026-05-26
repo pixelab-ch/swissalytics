@@ -47,7 +47,7 @@ const tips: [RegExp | string, string][] = [
   ['robots.txt introuvable', 'Le fichier robots.txt guide Google sur les pages à explorer. Son absence n\'est pas bloquante mais il aide à contrôler le référencement.'],
   ['Sitemap non référencé dans robots.txt', 'Votre sitemap existe mais Google ne sait pas où le trouver. Ajoutez la ligne "Sitemap: https://votresite.com/sitemap.xml" dans robots.txt.'],
   ['sitemap.xml introuvable', 'Le sitemap liste toutes vos pages importantes. Sans lui, Google peut manquer certaines pages, surtout sur les grands sites.'],
-  ['llms.txt introuvable', 'Le fichier llms.txt aide les IA (ChatGPT, Perplexity) à comprendre votre site. C\'est un avantage compétitif émergent.'],
+  ['llms.txt absent', 'Le fichier llms.txt est un bonus optionnel censé aider certaines IA à lire votre site. Google (mai 2026) ne le considère pas comme un facteur déterminant — non requis par Google.'],
   ['canonical manquante', 'La balise canonical indique à Google quelle est la "vraie" version de la page. Sans elle, Google peut considérer des pages similaires comme du contenu dupliqué.'],
   ['lang manquant', 'Google ne sait pas dans quelle langue est votre page. Ajoutez l\'attribut lang (ex: lang="fr") pour améliorer le référencement local.'],
   ['Meta viewport manquante', 'Votre site ne s\'adapte pas aux mobiles. Google pénalise fortement les sites non responsives depuis 2018.'],

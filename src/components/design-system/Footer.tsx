@@ -10,13 +10,11 @@ const LINKS: Record<string, { label: string; href?: string; external?: boolean }
     { label: 'Méthode', href: '/methode' },
     { label: 'Exemples', href: '/exemples' },
     { label: 'Comparatifs', href: '/compare' },
-    { label: 'API' },
-    { label: 'Changelog' },
   ],
   ressources: [
     { label: 'Journal', href: '/journal' },
-    { label: 'Glossaire SEO' },
-    { label: 'Guide GEO' },
+    { label: 'Glossaire SEO', href: '/glossaire' },
+    { label: 'Guide GEO', href: '/guide-geo' },
     { label: 'Mentions légales', href: '/mentions-legales' },
   ],
   agence: [

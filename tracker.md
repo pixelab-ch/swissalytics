@@ -350,3 +350,31 @@ Bug observé : sur enigma.swiss (site suisse réellement francophone mais qui d�
 - **MOZ_API_KEY** : optionnel, marquerait les backlinks réels au lieu de la simulation. Pas critique.
 - **Rapports legacy** créés avant P19 : leurs `keywordSuggestions` persistées sont peut-être en EN si le HTML lang du site ment. Une nouvelle analyse de la même URL régénère en FR (rétrocompat OK via `mergeEnrichment` hoist).
 - **Tests E2E navigateur** : actuellement absents (pas de Playwright). À envisager si churn UI s'accélère.
+
+---
+
+## Pattern : découverte de pages pilotée par les liens (`page-discovery.ts`)
+
+**Standard** : `src/lib/analyzers/page-discovery.ts` est le helper de référence pour
+toute analyse multi-pages. Au lieu de DEVINER des slugs en dur (`/team`, `/temoignages`,
+`/blog/automatisation-ia-suisse`…), on lit les VRAIS liens `<a href>` de la page d'accueil
+et on en dérive les pages candidates :
+- `extractLinks($)` — href + texte d'ancre.
+- `matchesKeyword` / `findBestCandidate` — match accent-tolérant sur segments de path ET
+  texte d'ancre (gère préfixes locale `/fr/`, `/de/`, formes contractées `lequipe`).
+- `candidateUrls(pageUrl, baseUrl, links, keywords, fallbackSlugs)` — restriction
+  same-origin + allowlist de schémas + cap `.slice(0,3)`. Le fallback hardcodé n'est
+  utilisé QUE si aucun lien ne matche.
+- `fetchRealPage(url)` — `assertSafeUrl` (anti-SSRF) + `AbortController` timeout +
+  rejet des soft-404 HTTP-200 (`looksLikeSoftError`).
+
+**Adopté par** : EEAT (équipe / contact / mentions légales), témoignages (EEAT), et
+schema-org multipage (`analyzeSchemaOrgMultiPage` — fini la liste enigma.swiss-spécifique ;
+score moyenné sur les pages réellement trouvées).
+
+**Dette connue restante** : chaque sous-analyseur GEO refetch la page d'accueil
+SÉPARÉMENT (eeat fetch l'accueil, schema-org refetch l'accueil, seo idem…). Idéalement,
+un `PageContext` partagé (HTML + liens de l'accueil) serait récupéré UNE fois dans la
+route `/api/geo-analyze` et passé à chaque analyseur, supprimant ces refetch redondants.
+Non bloquant — chaque fetch est budgété (`withTimeout`) et SSRF-guardé — mais c'est le
+prochain refactor naturel.

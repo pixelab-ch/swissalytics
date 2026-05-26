@@ -174,7 +174,7 @@ export default function ComparePage({
             style={{
               fontSize: 'clamp(32px, 4.4vw, 52px)',
               fontWeight: 800,
-              letterSpacing: '-0.03em',
+              letterSpacing: '-0.02em',
               lineHeight: 1.02,
               margin: 0,
               color: 'var(--sa-ink)',
@@ -437,7 +437,7 @@ export default function ComparePage({
               style={{
                 fontSize: 'clamp(36px, 5.4vw, 60px)',
                 fontWeight: 800,
-                letterSpacing: '-0.04em',
+                letterSpacing: '-0.02em',
                 lineHeight: 1,
                 margin: 0,
                 textWrap: 'balance',
@@ -529,7 +529,7 @@ export default function ComparePage({
             style={{
               fontSize: 'clamp(28px, 3.6vw, 40px)',
               fontWeight: 800,
-              letterSpacing: '-0.03em',
+              letterSpacing: '-0.02em',
               lineHeight: 1.05,
               margin: '0 0 28px 0',
               color: 'var(--sa-ink)',
@@ -916,7 +916,7 @@ export default function ComparePage({
             style={{
               fontSize: 'clamp(28px, 3.6vw, 40px)',
               fontWeight: 800,
-              letterSpacing: '-0.03em',
+              letterSpacing: '-0.02em',
               lineHeight: 1.05,
               margin: '0 0 28px 0',
               color: 'var(--sa-ink)',

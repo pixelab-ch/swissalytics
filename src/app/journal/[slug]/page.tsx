@@ -198,7 +198,7 @@ export default function ArticlePage({
             style={{
               fontSize: 'clamp(32px, 4.4vw, 52px)',
               fontWeight: 800,
-              letterSpacing: '-0.03em',
+              letterSpacing: '-0.02em',
               lineHeight: 1.02,
               margin: 0,
               color: 'var(--sa-ink)',
@@ -573,8 +573,8 @@ export default function ArticlePage({
               }}
             >
               {isFr
-                ? 'Votre URL, 40 secondes, gratuit.'
-                : 'Your URL, 40 seconds, free.'}
+                ? 'Votre URL, 30 secondes, gratuit.'
+                : 'Your URL, 30 seconds, free.'}
             </div>
           </div>
           <Link

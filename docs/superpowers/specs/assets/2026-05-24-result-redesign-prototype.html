@@ -1,0 +1,207 @@
+<!doctype html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prototype F — navigable</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Newsreader:ital,wght@1,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sa-cream:#F5F2EA;--sa-cream-2:#EDEAE0;--sa-cream-3:#E3DFD2;
+  --sa-ink:#0A0A0A;--sa-ink-3:#3A3A3A;--sa-ink-4:#6B6B6B;
+  --sa-rule:#CFCABE;--sa-red:#E5241A;--sa-ok:#2F6B3F;--sa-warn:#B87B00;
+  --sans:'Inter Tight','Helvetica Neue',Arial,sans-serif;--mono:'JetBrains Mono',Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--sa-cream);color:var(--sa-ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--mono);font-feature-settings:"tnum" 1}
+.banner{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:#143;color:var(--sa-cream);padding:8px 16px;text-align:center;font-weight:600}
+.banner b{color:#ffd}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 24px 80px}
+.frame{border:2px solid var(--sa-ink);background:var(--sa-cream)}
+.capbar{display:flex;justify-content:space-between;align-items:center;padding:10px 24px;background:var(--sa-ink);color:var(--sa-cream);font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.capbar .r{opacity:.8;display:inline-flex;gap:14px;align-items:center}.share{border:1px solid var(--sa-cream);padding:2px 8px;cursor:pointer}
+.strip{display:grid;grid-template-columns:auto 1fr}
+.left{padding:30px 38px;border-right:2px solid var(--sa-ink);display:flex;align-items:center;gap:26px}
+.gauge{position:relative;width:104px;height:104px;flex:none}.gauge svg{transform:rotate(-90deg)}
+.gauge .n{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge .n b{font-size:30px;font-weight:800;letter-spacing:-.04em;line-height:1}.gauge .n s{font-family:var(--mono);font-size:9px;color:var(--sa-ink-4);letter-spacing:.1em}
+.vstate{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;display:inline-flex;align-items:center;gap:6px;color:var(--sa-warn)}
+.vbig{font-size:18px;font-weight:700;letter-spacing:-.01em;margin-top:8px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr)}
+.card{padding:20px 18px;border-right:1px solid var(--sa-rule);display:flex;flex-direction:column;gap:8px}.card:last-child{border-right:none}
+.card .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--sa-ink-4);font-weight:700;display:flex;gap:5px;align-items:center}
+.card .lbl .i{width:13px;height:13px;border:1px solid var(--sa-rule);border-radius:50%;font-size:8px;display:inline-flex;align-items:center;justify-content:center;cursor:help}
+.card .big{display:flex;align-items:baseline;gap:5px}.card .big b{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1}.card .big s{font-family:var(--mono);font-size:11px;color:var(--sa-ink-4);font-weight:700}
+.card .bar{height:3px;background:rgba(10,10,10,.1);position:relative}.card .bar i{position:absolute;top:-1px;left:0;height:5px}
+.card .q{font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.good b,.good .q{color:var(--sa-ok)}.good .bar i{background:var(--sa-ok)}
+.mid b,.mid .q{color:var(--sa-warn)}.mid .bar i{background:var(--sa-warn)}
+.bad b,.bad .q{color:var(--sa-red)}.bad .bar i{background:var(--sa-red)}
+.verdict{padding:16px 28px;border-left:2px solid var(--sa-ink);border-right:2px solid var(--sa-ink);border-bottom:2px solid var(--sa-ink)}
+.verdict p{font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:19px;line-height:1.45;margin:0;font-weight:500}.verdict a{color:var(--sa-red);font-weight:600;cursor:pointer}
+
+.layout{display:grid;grid-template-columns:236px 1fr;gap:24px;margin-top:26px}
+.mainnav{align-self:start;border-right:1px solid var(--sa-rule);display:flex;flex-direction:column;position:sticky;top:16px}
+.mnav{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:14px 16px;border:none;border-left:3px solid transparent;background:transparent;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--sa-ink);cursor:pointer}
+.mnav .nn{color:var(--sa-ink-4)}
+.mnav:hover{background:var(--sa-cream-2)}
+.mnav.on{border-left-color:var(--sa-red);background:var(--sa-cream-2)}.mnav.on .nn{color:var(--sa-red)}
+
+.panel{display:none}.panel.show{display:block}
+.sec{display:flex;align-items:baseline;gap:10px;margin:0 0 12px}.sec:not(:first-child){margin-top:28px}
+.sec .mk{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--sa-red)}
+.sec h2{font-size:18px;font-weight:700;letter-spacing:-.01em;margin:0}
+.sec .hint{font-family:var(--mono);font-size:11px;color:var(--sa-ink-4);margin-left:auto}
+.prio{border:2px solid var(--sa-ink)}
+.prio .row{display:flex;gap:14px;align-items:flex-start;padding:13px 16px;border-bottom:1px solid var(--sa-rule)}.prio .row:last-child{border-bottom:none}
+.prio .nb{font-family:var(--mono);font-size:13px;font-weight:700;width:22px;flex:none}
+.prio .t{font-size:15px;font-weight:600;margin:0 0 3px}.prio .d{font-size:13px;color:var(--sa-ink-3);margin:0}
+.eff{font-family:var(--mono);font-size:10px;color:var(--sa-ink-4)}
+.sev{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.1em;padding:3px 6px;border:1px solid var(--sa-ink);text-transform:uppercase;flex:none;margin-top:2px}
+.sev.crit{background:var(--sa-red);color:#fff;border-color:var(--sa-red)}.sev.warn{color:var(--sa-warn);border-color:var(--sa-warn)}.sev.info{color:var(--sa-ink-4);border-color:var(--sa-rule)}
+.planbar{display:block;text-align:center;padding:12px;font-family:var(--mono);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:var(--sa-ink);color:var(--sa-cream);text-decoration:none;cursor:pointer}
+.cta{border:2px solid var(--sa-ink);background:var(--sa-cream-2);padding:18px 20px;margin-bottom:22px}
+.cta .h{font-size:15px;font-weight:700;margin:0 0 4px}.cta .p{font-size:13px;color:var(--sa-ink-3);margin:0 0 10px}
+.cta a{display:inline-block;background:var(--sa-red);color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:8px 14px;text-decoration:none;cursor:pointer}
+
+.subbar{display:flex;gap:26px;border-bottom:1px solid var(--sa-rule);flex-wrap:wrap;margin-bottom:20px}
+.sub{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sa-ink-4);padding:8px 0;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;cursor:pointer}
+.sub:hover{color:var(--sa-ink-3)}.sub.on{color:var(--sa-ink);border-bottom-color:var(--sa-red)}
+.subpanel{display:none}.subpanel.show{display:block}
+.kv{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--sa-ink-3)}.kv b{color:var(--sa-ink)}
+.h3{font-size:17px;font-weight:700;letter-spacing:-.01em;margin:0 0 12px}
+
+.engines{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.eng{border:2px solid var(--sa-ink);padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.eng .nmx{font-weight:700;font-size:15px}.eng .mx{font-family:var(--mono);font-size:11px;color:var(--sa-ink-4)}
+.dot{font-family:var(--mono);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.dot.y{color:var(--sa-ok)}.dot.n{color:var(--sa-red)}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:20px}
+.statcard{padding:18px 20px;display:flex;flex-direction:column;gap:6px}
+.statcard .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--sa-ink-4);font-weight:700}
+.statcard .v{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1}.statcard .s3{font-family:var(--mono);font-size:11px;color:var(--sa-ink-3)}
+.note{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:#143;text-transform:uppercase;margin-top:22px}
+</style>
+</head><body>
+<div class="banner">PROTOTYPE <b>F</b> — NAVIGABLE · clique les onglets à gauche + les sous-sections de Détails · données d'exemple</div>
+<div class="wrap">
+
+  <!-- persistent score header -->
+  <div class="frame">
+    <div class="capbar"><span>§01 — Score global</span><span class="r"><span>https://pixelab.ch</span><span class="share">Partager</span></span></div>
+    <div class="strip">
+      <div class="left">
+        <div class="gauge"><svg width="104" height="104" viewBox="0 0 104 104"><circle cx="52" cy="52" r="46" fill="none" stroke="#E3DFD2" stroke-width="7"/><circle cx="52" cy="52" r="46" fill="none" stroke="#0A0A0A" stroke-width="7" stroke-dasharray="289" stroke-dashoffset="81"/></svg><div class="n"><b>72</b><s>/100</s></div></div>
+        <div><span class="vstate"><span>●</span> Moyen</span><div class="vbig">7 problèmes à traiter</div></div>
+      </div>
+      <div class="cards">
+        <div class="card good"><div class="lbl">§02 · SEO Technique <span class="i" title="Crawlabilité, vitesse, HTML.">i</span></div><div class="big"><b>81</b><s>/100</s></div><div class="bar"><i style="width:81%"></i></div><div class="q">Solide</div></div>
+        <div class="card mid"><div class="lbl">§03 · Contenu <span class="i" title="Titres, lisibilité.">i</span></div><div class="big"><b>74</b><s>/100</s></div><div class="bar"><i style="width:74%"></i></div><div class="q">Correct</div></div>
+        <div class="card bad"><div class="lbl">§04 · IA-Ready <span class="i" title="ChatGPT, Gemini, Claude peuvent-ils t'identifier ?">i</span></div><div class="big"><b>58</b><s>/100</s></div><div class="bar"><i style="width:58%"></i></div><div class="q">À renforcer</div></div>
+        <div class="card mid"><div class="lbl">§05 · Visib. locale <span class="i" title="Adresse, NAP, Schema LocalBusiness.">i</span></div><div class="big"><b>63</b><s>/100</s></div><div class="bar"><i style="width:63%"></i></div><div class="q">Correct</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="verdict"><p>«&nbsp;Solide côté technique. Reste à te rendre lisible pour l'IA — un terrain où <a onclick="go('plan')">Pixelab</a> peut accélérer les choses.&nbsp;»</p></div>
+
+  <div class="layout">
+    <nav class="mainnav">
+      <button class="mnav on" data-tab="overview" onclick="go('overview')"><span class="nn">§01</span> Tableau de bord</button>
+      <button class="mnav" data-tab="details" onclick="go('details')"><span class="nn">§02</span> Détails</button>
+      <button class="mnav" data-tab="plan" onclick="go('plan')"><span class="nn">§03</span> Plan d'action</button>
+      <button class="mnav" data-tab="geo" onclick="go('geo')"><span class="nn">§04</span> Indexation IA / GEO</button>
+    </nav>
+
+    <div>
+      <!-- OVERVIEW = contenu B (plan groupé) -->
+      <section class="panel show" data-panel="overview">
+        <div class="sec"><span class="mk">§01</span><h2>Critique · à faire d'abord</h2><span class="hint">2 problèmes</span></div>
+        <div class="prio">
+          <div class="row"><span class="nb">01</span><div><p class="t">Aucun sitemap.xml détecté</p><p class="d">Les moteurs ne savent pas quelles pages explorer. <span class="eff">· effort faible</span></p></div><span class="sev crit">Crit</span></div>
+          <div class="row"><span class="nb">02</span><div><p class="t">3 images sans texte alternatif</p><p class="d">Invisible pour Google Images et les lecteurs d'écran. <span class="eff">· effort faible</span></p></div><span class="sev crit">Crit</span></div>
+        </div>
+        <div class="sec"><span class="mk">§02</span><h2>Important</h2><span class="hint">3 problèmes</span></div>
+        <div class="prio">
+          <div class="row"><span class="nb">03</span><div><p class="t">Méta-description trop courte (78 car.)</p><p class="d">Vise 140–160 caractères. <span class="eff">· effort faible</span></p></div><span class="sev warn">Warn</span></div>
+          <div class="row"><span class="nb">04</span><div><p class="t">Titre H1 absent sur 2 pages</p><p class="d">Chaque page a besoin d'un H1 unique et descriptif. <span class="eff">· effort moyen</span></p></div><span class="sev warn">Warn</span></div>
+          <div class="row"><span class="nb">05</span><div><p class="t">Schema LocalBusiness absent</p><p class="d">Renforce ta visibilité locale et l'identification par l'IA. <span class="eff">· effort moyen</span></p></div><span class="sev warn">Warn</span></div>
+        </div>
+        <div class="sec"><span class="mk">§03</span><h2>Bonus</h2><span class="hint">2 problèmes</span></div>
+        <div class="prio">
+          <div class="row"><span class="nb">06</span><div><p class="t">Resource hints (preconnect) absents</p><p class="d">Gain de vitesse marginal. <span class="eff">· effort faible</span></p></div><span class="sev info">Info</span></div>
+          <div class="row"><span class="nb">07</span><div><p class="t">llms.txt absent</p><p class="d">Fichier émergent. Google ne le considère pas comme déterminant — purement optionnel. <span class="eff">· effort faible</span></p></div><span class="sev info">Info</span></div>
+        </div>
+        <div class="note">▸ Pour info — chiffres bruts</div>
+        <div class="statgrid">
+          <div class="statcard frame"><div class="lbl">Titres &amp; hiérarchie</div><div class="v">10</div><div class="s3">H1 3 · H2 4 · H3 3</div></div>
+          <div class="statcard frame"><div class="lbl">Images</div><div class="v">24</div><div class="s3">21 alt · 3 sans</div></div>
+          <div class="statcard frame"><div class="lbl">Liens</div><div class="v">45</div><div class="s3">30 int · 15 ext</div></div>
+        </div>
+      </section>
+
+      <!-- DETAILS = sous-sections inversées en haut -->
+      <section class="panel" data-panel="details">
+        <div class="subbar">
+          <button class="sub on" data-sub="s1" onclick="goSub('s1')">§01 Structure sémantique</button>
+          <button class="sub" data-sub="s2" onclick="goSub('s2')">§02 Images &amp; médias</button>
+          <button class="sub" data-sub="s3" onclick="goSub('s3')">§03 Liens &amp; navigation</button>
+          <button class="sub" data-sub="s4" onclick="goSub('s4')">§04 Performance technique</button>
+          <button class="sub" data-sub="s5" onclick="goSub('s5')">§05 Métadonnées</button>
+          <button class="sub" data-sub="s6" onclick="goSub('s6')">§06 Lisibilité</button>
+        </div>
+        <div class="subpanel show" data-subpanel="s1"><div class="frame" style="padding:22px"><p class="h3">Structure sémantique</p><div class="kv"><span>H1 · <b>3</b></span><span>H2 · <b>4</b></span><span>H3 · <b>3</b></span><span>Mot-clé · <b>agence digitale</b></span></div></div></div>
+        <div class="subpanel" data-subpanel="s2"><div class="frame" style="padding:22px"><p class="h3">Images &amp; médias</p><div class="kv"><span>Total · <b>24</b></span><span>Avec alt · <b>21</b></span><span>Sans alt · <b>3</b></span></div></div></div>
+        <div class="subpanel" data-subpanel="s3"><div class="frame" style="padding:22px"><p class="h3">Liens &amp; navigation</p><div class="kv"><span>Total · <b>45</b></span><span>Internes · <b>30</b></span><span>Externes · <b>15</b></span></div></div></div>
+        <div class="subpanel" data-subpanel="s4"><div class="frame" style="padding:22px"><p class="h3">Performance technique</p><div class="kv"><span>LCP · <b>1,8 s</b></span><span>CLS · <b>0,04</b></span><span>TTFB · <b>120 ms</b></span></div></div></div>
+        <div class="subpanel" data-subpanel="s5"><div class="frame" style="padding:22px"><p class="h3">Métadonnées</p><div class="kv"><span>Title · <b>OK</b></span><span>Description · <b>78 car. (court)</b></span><span>OG · <b>présent</b></span></div></div></div>
+        <div class="subpanel" data-subpanel="s6"><div class="frame" style="padding:22px"><p class="h3">Lisibilité</p><div class="kv"><span>Flesch · <b>62</b></span><span>Mots/phrase · <b>18</b></span></div></div></div>
+      </section>
+
+      <!-- PLAN -->
+      <section class="panel" data-panel="plan">
+        <div class="cta"><p class="h">Cet audit gratuit couvre les fondamentaux.</p><p class="p">Besoin d'un accompagnement complet (refonte, contenu, suivi) ? Pixelab prend le relais.</p><a href="#">Demander un audit complet →</a></div>
+        <div class="sec"><span class="mk">§01</span><h2>Critique</h2><span class="hint">2</span></div>
+        <div class="prio">
+          <div class="row"><span class="nb">01</span><div><p class="t">Aucun sitemap.xml détecté</p><p class="d">Crée /sitemap.xml et déclare-le dans robots.txt. <span class="eff">· effort faible</span></p></div><span class="sev crit">Crit</span></div>
+          <div class="row"><span class="nb">02</span><div><p class="t">3 images sans texte alternatif</p><p class="d">Ajoute un attribut alt descriptif sur chaque image. <span class="eff">· effort faible</span></p></div><span class="sev crit">Crit</span></div>
+        </div>
+        <div class="sec"><span class="mk">§02</span><h2>Important</h2><span class="hint">3</span></div>
+        <div class="prio">
+          <div class="row"><span class="nb">03</span><div><p class="t">Méta-description trop courte</p><p class="d">Réécris en 140–160 caractères. <span class="eff">· effort faible</span></p></div><span class="sev warn">Warn</span></div>
+          <div class="row"><span class="nb">04</span><div><p class="t">Titre H1 absent sur 2 pages</p><p class="d">Ajoute un H1 unique par page. <span class="eff">· effort moyen</span></p></div><span class="sev warn">Warn</span></div>
+          <div class="row"><span class="nb">05</span><div><p class="t">Schema LocalBusiness absent</p><p class="d">Ajoute le balisage JSON-LD LocalBusiness. <span class="eff">· effort moyen</span></p></div><span class="sev warn">Warn</span></div>
+        </div>
+      </section>
+
+      <!-- GEO -->
+      <section class="panel" data-panel="geo">
+        <div class="sec"><span class="mk">§01</span><h2>Indexation par les moteurs IA</h2><span class="hint">2 / 4 te reconnaissent</span></div>
+        <div class="engines">
+          <div class="eng"><div><div class="nmx">ChatGPT</div><div class="mx">gpt-4o-mini</div></div><span class="dot y">● Indexé</span></div>
+          <div class="eng"><div><div class="nmx">Gemini</div><div class="mx">gemini-2.5-flash</div></div><span class="dot y">● Indexé</span></div>
+          <div class="eng"><div><div class="nmx">Claude</div><div class="mx">claude-haiku-4-5</div></div><span class="dot n">○ Non indexé</span></div>
+          <div class="eng"><div><div class="nmx">Mistral</div><div class="mx">mistral-small</div></div><span class="dot n">○ Non indexé</span></div>
+        </div>
+        <div class="sec"><span class="mk">§02</span><h2>Robots IA (robots.txt)</h2><span class="hint">nouveau</span></div>
+        <div class="engines">
+          <div class="eng"><div class="nmx">GPTBot</div><span class="dot y">● Autorisé</span></div>
+          <div class="eng"><div class="nmx">ClaudeBot</div><span class="dot y">● Autorisé</span></div>
+          <div class="eng"><div class="nmx">PerplexityBot</div><span class="dot n">○ Bloqué</span></div>
+          <div class="eng"><div class="nmx">Google-Extended</div><span class="dot y">● Autorisé</span></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function go(tab){
+  document.querySelectorAll('.mnav').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('show', p.dataset.panel===tab));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function goSub(s){
+  document.querySelectorAll('.sub').forEach(b=>b.classList.toggle('on', b.dataset.sub===s));
+  document.querySelectorAll('.subpanel').forEach(p=>p.classList.toggle('show', p.dataset.subpanel===s));
+}
+</script>
+</body></html>

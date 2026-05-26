@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
 import type { AnalysisResult } from '@/lib/types';
+import { NavEntry } from './NavEntry';
 import HeadingsTab from '../tabs/HeadingsTab';
 import ImagesTab from '../tabs/ImagesTab';
 import LinksTab from '../tabs/LinksTab';
@@ -27,56 +27,6 @@ interface DetailsContentProps {
   sectionDefs: Array<{ key: DetailsSectionKey; num: string; label: string }>;
 }
 
-/* ---------------- private helper (only used here) ---------------- */
-
-function SectionNavEntry({
-  num,
-  label,
-  active,
-  onClick,
-}: {
-  num: string;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="mono"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        width: '100%',
-        textAlign: 'left',
-        padding: '14px 16px',
-        borderLeft: `3px solid ${active ? 'var(--sa-red)' : 'transparent'}`,
-        borderTop: 'none',
-        borderRight: 'none',
-        borderBottom: 'none',
-        background: active ? 'var(--sa-cream-2)' : 'transparent',
-        color: 'var(--sa-ink)',
-        fontSize: 12,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        fontWeight: 700,
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <span
-        className="tnum"
-        style={{ color: active ? 'var(--sa-red)' : 'var(--sa-ink-4)' }}
-      >
-        §{num}
-      </span>
-      <span style={{ color: 'var(--sa-ink)' }}>{label}</span>
-    </button>
-  );
-}
-
 /* ---------------- exported tab content ---------------- */
 
 export function DetailsContent({
@@ -87,35 +37,6 @@ export function DetailsContent({
   setSection,
   sectionDefs,
 }: DetailsContentProps) {
-  const [isNarrow, setIsNarrow] = useState(false);
-
-  useEffect(() => {
-    function handler() {
-      setIsNarrow(window.innerWidth < 768);
-    }
-    handler();
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
-
-  const sidebarStyle: CSSProperties = isNarrow
-    ? {
-        display: 'flex',
-        gap: 0,
-        overflowX: 'auto',
-        borderBottom: '1px solid var(--sa-rule)',
-        marginBottom: 16,
-      }
-    : {
-        position: 'sticky',
-        top: 24,
-        alignSelf: 'start',
-        borderRight: '1px solid var(--sa-rule)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0,
-      };
-
   const content = (() => {
     switch (section) {
       case 'headings':
@@ -145,17 +66,26 @@ export function DetailsContent({
   })();
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: isNarrow ? '1fr' : '240px 1fr',
-        gap: 24,
-      }}
-    >
-      <nav style={sidebarStyle}>
+    <div>
+      {/* Underlined sub-section bar. Wraps onto multiple rows when the six
+          labels exceed the content column instead of opening an inner
+          horizontal scroll region (which also forced a stray vertical
+          scrollbar via the implicit overflow-y:auto). */}
+      <nav
+        role="tablist"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 26,
+          rowGap: 8,
+          borderBottom: '1px solid var(--sa-rule)',
+          marginBottom: 20,
+        }}
+      >
         {sectionDefs.map((s) => (
-          <SectionNavEntry
+          <NavEntry
             key={s.key}
+            variant="bar"
             num={s.num}
             label={s.label}
             active={section === s.key}

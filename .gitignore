@@ -48,3 +48,7 @@ data/
 *.sqlite-wal
 *.sqlite-shm
 .gstack/
+
+# Playwright artifacts
+test-results/
+playwright-report/
