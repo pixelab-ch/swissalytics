@@ -229,6 +229,63 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     expect(result.score).toBeGreaterThan(0);
   });
 
+  it('within a page-type group, falls through a soft-404 first candidate to the next valid one', async () => {
+    // Homepage has TWO team-keyword links: /about (first, soft-404) and
+    // /fr/lequipe/ (second, real with Person schema). Pre-fix schema took only
+    // the FIRST candidate per group and would have missed the author schema.
+    const HOMEPAGE_TWO_TEAM = `
+      <html><head><title>Acme</title></head><body>
+        <nav>
+          <a href="/about">About</a>
+          <a href="/fr/lequipe/">L'équipe</a>
+        </nav>
+        <script type="application/ld+json">{"@type":"Organization","name":"Acme","url":"https://acme.com","logo":"x","address":"y"}</script>
+      </body></html>`;
+    const stub = fetchStub({
+      '/about': { status: 200, body: SOFT_404 },   // first candidate soft-404
+      '/fr/lequipe/': { body: TEAM_PAGE },          // second candidate: real
+      '__home__': { body: HOMEPAGE_TWO_TEAM },
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const result = await runSchemaMultiPage('https://acme.com');
+    // Author/Person schema must be picked up from the SECOND team candidate.
+    expect(result.schemas.author).toBe(true);
+    const fetchedLequipe = stub.mock.calls.some(([u]) => String(u).includes('/fr/lequipe/'));
+    expect(fetchedLequipe).toBe(true);
+  });
+
+  it('fetches a group\'s candidates CONCURRENTLY (not serially)', async () => {
+    const HOMEPAGE_TWO_TEAM = `
+      <html><head><title>Acme</title></head><body>
+        <nav>
+          <a href="/about">About</a>
+          <a href="/equipe">Équipe</a>
+        </nav>
+        <script type="application/ld+json">{"@type":"Organization","name":"Acme","url":"https://acme.com","logo":"x","address":"y"}</script>
+      </body></html>`;
+    let inFlight = 0;
+    let maxConcurrent = 0;
+    const stub = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (new URL(url).pathname === '/') {
+        return new Response(HOMEPAGE_TWO_TEAM, { status: 200 });
+      }
+      inFlight++;
+      maxConcurrent = Math.max(maxConcurrent, inFlight);
+      await new Promise((r) => setTimeout(r, 20));
+      inFlight--;
+      if (url.endsWith('/equipe')) return new Response(TEAM_PAGE, { status: 200 });
+      return new Response(SOFT_404, { status: 200 });
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const result = await runSchemaMultiPage('https://acme.com');
+    expect(result.schemas.author).toBe(true);
+    // Both team candidates dispatched at once → serial would be 1.
+    expect(maxConcurrent).toBeGreaterThanOrEqual(2);
+  });
+
   // Keyword-consolidation regression (Refactor B): schema-org's `team` group
   // now reuses the shared TEAM_KEYWORDS, which include `notre-equipe`. The
   // pre-consolidation schema team group LACKED `notre-equipe`, so a homepage

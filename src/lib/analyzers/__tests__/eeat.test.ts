@@ -344,6 +344,85 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Parallel candidate fetch (false-timeout fix). With the per-fetch timeout
+ * raised to 8s, a signal's ≤3 candidates must be fetched CONCURRENTLY so the
+ * worst-case wall stays ≈ one timeout (not N×). A slow-but-valid candidate
+ * must still resolve rather than be falsely reported "not found".
+ * ------------------------------------------------------------------ */
+describe('analyzeEEAT — parallel candidate fetch + slow-but-valid resolution', () => {
+  beforeEach(() => {
+    delete process.env.MOZ_API_KEY;
+  });
+
+  it('fetches a signal\'s multiple candidates CONCURRENTLY (not serially)', async () => {
+    // Homepage links to THREE team-keyword candidates (capped at 3). All
+    // soft-404 except the last, forcing the loop to consider every candidate.
+    // We assert they were all in flight at once.
+    const HOMEPAGE_MULTI = `
+      <html><head><title>X</title></head><body>
+        <a href="/equipe">Équipe</a>
+        <a href="/about">About</a>
+        <a href="/qui-sommes-nous">Qui sommes-nous</a>
+      </body></html>`;
+
+    let inFlight = 0;
+    let maxConcurrent = 0;
+    const stub = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (new URL(url).pathname === '/') {
+        return new Response(HOMEPAGE_MULTI, { status: 200 });
+      }
+      // sub-page candidates: track concurrency, then resolve.
+      inFlight++;
+      maxConcurrent = Math.max(maxConcurrent, inFlight);
+      await new Promise((r) => setTimeout(r, 20));
+      inFlight--;
+      // only /qui-sommes-nous is a real team page; others soft-404
+      if (url.endsWith('/qui-sommes-nous')) return new Response(TEAM_PAGE, { status: 200 });
+      return new Response(SOFT_404, { status: 200 });
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const result = await runEEAT('https://site.com/');
+    expect(result.signals.teamPage.found).toBe(true);
+    // All 3 team candidates were dispatched at once → serial would be 1.
+    expect(maxConcurrent).toBeGreaterThanOrEqual(2);
+  });
+
+  it('still finds a slow-but-valid contact page (would have falsely timed out)', async () => {
+    // The enigma case: a cold ~3.4s contact fetch. With fake timers we simulate
+    // the delay; it stays under the 8s per-fetch timeout, so it must resolve.
+    vi.useFakeTimers();
+    const HOMEPAGE = `
+      <html><head><title>Enigma</title></head><body>
+        <a href="/fr/contact/">Contact</a>
+      </body></html>`;
+    const stub = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (new URL(url).pathname === '/') {
+        return new Response(HOMEPAGE, { status: 200 });
+      }
+      await new Promise((r) => setTimeout(r, 3_400)); // slow cold fetch
+      return new Response(CONTACT_PAGE, { status: 200 });
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const ctxPromise = (async () => {
+      const result = await runEEAT('https://enigma.swiss/');
+      return result;
+    })();
+    // advance past the homepage fetch + the slow contact fetch
+    await vi.advanceTimersByTimeAsync(3_400);
+    await vi.advanceTimersByTimeAsync(3_400);
+    const result = await ctxPromise;
+
+    expect(result.signals.contactPage.found).toBe(true);
+    expect(result.signals.contactPage.hasEmail).toBe(true);
+    vi.useRealTimers();
+  });
+});
+
+/* ------------------------------------------------------------------ *
  * SSRF / same-origin guard (eeat C-1). The analyzed page is untrusted:
  * its links must not let us fetch cross-origin or internal targets.
  * ------------------------------------------------------------------ */

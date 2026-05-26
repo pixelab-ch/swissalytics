@@ -15,6 +15,7 @@ import {
   type PageLink,
   type PageContext,
   fetchRealPage,
+  fetchFirstAvailable,
   candidateUrls,
   TEAM_KEYWORDS,
   CONTACT_KEYWORDS,
@@ -340,25 +341,32 @@ const SCHEMA_PAGE_KEYWORDS: Record<string, string[]> = {
 const SCHEMA_MAX_SUBPAGES = 8;
 
 /**
- * Discover relevant sub-page URLs from the homepage's REAL links — one best
- * candidate per page-type group — same-origin + scheme-allowlisted by
- * `candidateUrls`. Deduped and capped. Returns absolute URLs (homepage NOT
- * included; the caller analyzes the homepage HTML it already fetched).
+ * Resolve candidate sub-page URLs per page-type group from the homepage's REAL
+ * links — same-origin + scheme-allowlisted by `candidateUrls`. Each group keeps
+ * its ≤3 candidates (so a broken first link can fall through to the next), and
+ * we dedupe ACROSS groups so the same URL is never fetched twice. Returns one
+ * `string[]` of candidates per group that actually had any match.
+ *
+ * No hardcoded fallback slug: if a site has no link for a page type, we simply
+ * don't probe it (so we never penalize a site for lacking enigma's exact paths).
  */
-function discoverSchemaPages(pageUrl: string, baseUrl: string, links: PageLink[]): string[] {
+function discoverSchemaCandidateGroups(
+  pageUrl: string,
+  baseUrl: string,
+  links: PageLink[],
+): string[][] {
   const seen = new Set<string>();
-  const out: string[] = [];
+  const groups: string[][] = [];
   for (const keywords of Object.values(SCHEMA_PAGE_KEYWORDS)) {
-    // No hardcoded fallback slug: if a site has no link for a page type, we
-    // simply don't probe it (so we never penalize a site for lacking enigma's
-    // exact paths). Take the first (best) same-origin candidate per group.
-    const [best] = candidateUrls(pageUrl, baseUrl, links, keywords, []);
-    if (best && !seen.has(best)) {
-      seen.add(best);
-      out.push(best);
-    }
+    const candidates = candidateUrls(pageUrl, baseUrl, links, keywords, [])
+      .filter((u) => {
+        if (seen.has(u)) return false;
+        seen.add(u);
+        return true;
+      });
+    if (candidates.length > 0) groups.push(candidates);
   }
-  return out.slice(0, SCHEMA_MAX_SUBPAGES);
+  return groups.slice(0, SCHEMA_MAX_SUBPAGES);
 }
 
 /**
@@ -389,17 +397,21 @@ export async function analyzeSchemaOrgMultiPage(
 
   const homepageHtml = ctx.html;
   const links = ctx.links;
-  const subPages = discoverSchemaPages(baseUrl, baseUrl, links);
+  const candidateGroups = discoverSchemaCandidateGroups(baseUrl, baseUrl, links);
 
-  console.log(`[Schema.org Multi-Page] ${subPages.length} sous-pages découvertes via liens réels`);
+  console.log(`[Schema.org Multi-Page] ${candidateGroups.length} groupes de pages découverts via liens réels`);
 
-  // Homepage result is from the HTML we already have (no refetch). Sub-pages
-  // are fetched through fetchRealPage (SSRF-guarded + soft-404-aware); pages
-  // that 404 / soft-404 / get rejected simply yield no result and are skipped.
+  // Homepage result is from the HTML we already have (no refetch). For each
+  // page-type group we fetch its (≤3) candidates CONCURRENTLY and take the
+  // first successful page in candidate order (fetchFirstAvailable: SSRF-guarded
+  // + soft-404-aware). All groups also run in parallel, so the worst-case wall
+  // for sub-page discovery is ≈ ONE per-fetch timeout (8s) regardless of how
+  // many groups/candidates — not the sum. A group whose every candidate
+  // 404s / soft-404s simply yields no result and is skipped.
   const subResults = await Promise.all(
-    subPages.map(async (url): Promise<SchemaOrgResult | null> => {
-      const html = await fetchRealPage(url);
-      return html ? analyzeSchemaHtml(html) : null;
+    candidateGroups.map(async (urls): Promise<SchemaOrgResult | null> => {
+      const hit = await fetchFirstAvailable(urls);
+      return hit ? analyzeSchemaHtml(hit.html) : null;
     }),
   );
 

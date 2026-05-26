@@ -77,9 +77,22 @@ export const TESTIMONIAL_KEYWORDS = [
 
 const UA = 'Swissalytics/1.0 (+https://swissalytics.com)';
 
-/** Per-fetch hard timeout (ms). Keeps sockets from outliving the analyzer's
- *  overall `withTimeout` budget — see eeat I-2. */
-export const FETCH_TIMEOUT_MS = 4_000;
+/**
+ * Per-fetch hard timeout (ms). Keeps sockets from outliving the analyzer's
+ * overall `withTimeout` budget — see eeat I-2.
+ *
+ * Raised 4_000 → 8_000: small, valid sites (e.g. enigma.swiss) intermittently
+ * take ~3.4s on a COLD first request — dangerously close to the old 4s abort.
+ * Under the parallel-analyzer burst (lighthouse+seo+geo+schema+eeat hitting the
+ * site at once, plus PageSpeed's headless browser warming it) those cold fetches
+ * could exceed 4s and get aborted → reported as "page not found" / false
+ * negatives (enigma's real `/fr/contact/`, `/fr/lequipe/`, even the homepage).
+ * 8s gives ~2.3x margin over the 3.4s cold case while still bounding a truly
+ * dead socket. The candidate-fetch parallelization (see `fetchFirstAvailable`)
+ * keeps the worst-case wall per signal at ~one timeout, not N×, so raising this
+ * does NOT blow the analyzer budget.
+ */
+export const FETCH_TIMEOUT_MS = 8_000;
 
 /** Max candidate URLs fetched per signal — see eeat I-1 (route promises ≤3). */
 export const MAX_CANDIDATES = 3;
@@ -214,6 +227,40 @@ export async function fetchRealPage(url: string): Promise<string | null> {
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Fetch a list of candidate URLs CONCURRENTLY and return the FIRST successful
+ * (non-null, non-soft-404) page **in original candidate order**, together with
+ * the URL it came from — or null when none resolved.
+ *
+ * Why concurrent: consumers used to fetch candidates SEQUENTIALLY, short-
+ * circuiting on the first hit. With the per-fetch timeout raised to 8s, a
+ * sequential loop over ≤3 candidates could take up to 3×8s = 24s in the worst
+ * case (every earlier candidate slow / dead) — over the analyzer's 12s budget.
+ * Fetching all candidates in one `Promise.all` burst makes the worst-case wall
+ * ≈ ONE timeout (8s) regardless of how many candidates there are.
+ *
+ * Order semantics preserved: we still pick the EARLIEST matching candidate
+ * (best = first link by document order), so behaviour is identical to the old
+ * sequential "first success wins" — only faster. We deliberately do NOT race
+ * (first-to-resolve), because that would let a fast soft-404-free secondary
+ * page win over an equally valid but slightly slower primary candidate,
+ * changing which page we attribute to the signal.
+ *
+ * Each fetch goes through the SSRF-guarded `fetchRealPage`, so all the safety
+ * guarantees (assertSafeUrl, per-fetch abort, soft-404 filter) still hold.
+ */
+export async function fetchFirstAvailable(
+  urls: string[],
+): Promise<{ url: string; html: string } | null> {
+  if (urls.length === 0) return null;
+  const results = await Promise.all(urls.map((u) => fetchRealPage(u)));
+  for (let i = 0; i < results.length; i++) {
+    const html = results[i];
+    if (html !== null) return { url: urls[i], html };
+  }
+  return null;
 }
 
 /**

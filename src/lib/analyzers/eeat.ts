@@ -19,6 +19,7 @@ import {
   findBestCandidate,
   looksLikeSoftError,
   fetchRealPage,
+  fetchFirstAvailable,
   candidateUrls,
   TEAM_KEYWORDS,
   CONTACT_KEYWORDS,
@@ -154,10 +155,12 @@ async function analyzeTeamPage(
       'team', 'about', 'a-propos', 'qui-sommes-nous', 'equipe',
     ]);
 
-    for (const url of urls) {
-      const html = await fetchRealPage(url);
-      if (!html) continue;
-
+    // Fetch all (≤3) candidates concurrently; take the first successful one in
+    // original candidate order (best = earliest matching link). Worst-case wall
+    // ≈ one 8s timeout, not N×8s — see fetchFirstAvailable.
+    const hit = await fetchFirstAvailable(urls);
+    if (hit) {
+      const { url, html } = hit;
       const $ = cheerio.load(html);
 
       // Chercher Schema.org Person dans JSON-LD
@@ -229,12 +232,10 @@ async function checkLegalMentions(
       'mentions-legales', 'legal', 'legal-notice', 'imprint', 'impressum',
     ]);
 
-    for (const url of urls) {
-      const html = await fetchRealPage(url);
-      if (html) return true;
-    }
-
-    return false;
+    // Concurrent fetch of the (≤3) candidates; legal mentions exist if ANY
+    // resolves to a real (non-soft-404) page. Worst-case wall ≈ one timeout.
+    const hit = await fetchFirstAvailable(urls);
+    return hit !== null;
 
   } catch {
     return false;
@@ -259,11 +260,11 @@ async function analyzeContactPage(
       'contact', 'contactez-nous', 'kontakt', 'contatti',
     ]);
 
-    for (const url of urls) {
-      const html = await fetchRealPage(url);
-      if (!html) continue;
-
-      const $ = cheerio.load(html);
+    // Concurrent fetch of the (≤3) candidates; analyze the first successful one
+    // in original candidate order. Worst-case wall ≈ one timeout, not N×.
+    const hit = await fetchFirstAvailable(urls);
+    if (hit) {
+      const $ = cheerio.load(hit.html);
       const text = $('body').text().toLowerCase();
 
       const hasEmail = /@/.test(text) || $('a[href^="mailto:"]').length > 0;
@@ -374,13 +375,19 @@ async function analyzeTestimonials(
       'testimonials', 'temoignages', 'avis', 'clients', 'referenzen', 'recensioni',
     ]);
 
-    for (const url of urls) {
-      const html = await fetchRealPage(url);
+    // Fetch all (≤3) candidates concurrently (worst-case wall ≈ one timeout,
+    // not N×), then scan in original candidate order for the FIRST page that
+    // actually carries testimonials. Unlike the other signals, a page that
+    // fetches OK but has zero reviews is NOT a hit — so we cannot use
+    // `fetchFirstAvailable` (first-fetchable); we keep the per-page predicate.
+    const htmls = await Promise.all(urls.map((url) => fetchRealPage(url)));
+    for (let i = 0; i < urls.length; i++) {
+      const html = htmls[i];
       if (!html) continue;
 
       const { count, hasSchema } = detectTestimonials(cheerio.load(html));
       if (count > 0) {
-        console.log(`[E-E-A-T] Témoignages trouvés: ${url}, ${count} avis, Schema: ${hasSchema}`);
+        console.log(`[E-E-A-T] Témoignages trouvés: ${urls[i]}, ${count} avis, Schema: ${hasSchema}`);
         return { found: true, count, hasSchema };
       }
     }

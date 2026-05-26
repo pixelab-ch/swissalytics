@@ -1,8 +1,29 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+
+/**
+ * Stub the SSRF guard so the `fetchFirstAvailable` integration tests are
+ * deterministic (no real DNS). Default: every URL is "safe". Mirrors the
+ * eeat / schema-org test setup — `fetchRealPage` (called by
+ * `fetchFirstAvailable`) calls `assertSafeUrl` first.
+ */
+vi.mock('@/lib/security/ssrf', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/security/ssrf')>(
+    '@/lib/security/ssrf',
+  );
+  return {
+    ...actual,
+    assertSafeUrl: vi.fn(async (input: string) => ({
+      url: new URL(input),
+      hostname: new URL(input).hostname,
+      resolvedIp: '93.184.216.34',
+    })),
+  };
+});
 
 import {
   candidateUrls,
   extractLinks,
+  fetchFirstAvailable,
   findBestCandidate,
   looksLikeSoftError,
   matchesKeyword,
@@ -220,5 +241,147 @@ describe('candidateUrls — same-origin + bounded fan-out', () => {
       [],
     );
     expect(out).toEqual(['https://team.enigma.swiss/equipe']);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * fetchFirstAvailable — concurrent candidate fetch, first-success-by-order.
+ *
+ * Pins the false-timeout fix: raising the per-fetch timeout to 8s without
+ * blowing the analyzer budget requires fetching a signal's ≤3 candidates
+ * CONCURRENTLY (worst-case wall ≈ one timeout, not N×). These tests prove:
+ *   - all candidates are dispatched in one burst (concurrency, not serial);
+ *   - the FIRST successful candidate IN ORIGINAL ORDER wins (not first-to-
+ *     respond), preserving "best = earliest matching link" semantics;
+ *   - a slow-but-valid candidate still resolves (the bug we're fixing);
+ *   - soft-404 / HTTP-error candidates are skipped, falling through in order.
+ * ------------------------------------------------------------------ */
+describe('fetchFirstAvailable — concurrent, first-success-by-order', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  beforeEach(() => {
+    vi.useRealTimers();
+  });
+
+  const PAGE_A = '<html><head><title>A</title></head><body>A</body></html>';
+  const PAGE_B = '<html><head><title>B</title></head><body>B</body></html>';
+  const SOFT_404 = '<html><head><title>Page introuvable</title></head><body><h1>404</h1></body></html>';
+
+  it('returns null for an empty candidate list (no fetch)', async () => {
+    const stub = vi.fn();
+    vi.stubGlobal('fetch', stub);
+    expect(await fetchFirstAvailable([])).toBeNull();
+    expect(stub).not.toHaveBeenCalled();
+  });
+
+  it('dispatches ALL candidates concurrently (one burst, not serial)', async () => {
+    let inFlight = 0;
+    let maxConcurrent = 0;
+    const stub = vi.fn(async () => {
+      inFlight++;
+      maxConcurrent = Math.max(maxConcurrent, inFlight);
+      await new Promise((r) => setTimeout(r, 20));
+      inFlight--;
+      return new Response(PAGE_A, { status: 200 });
+    });
+    vi.stubGlobal('fetch', stub);
+
+    await fetchFirstAvailable([
+      'https://site.com/a',
+      'https://site.com/b',
+      'https://site.com/c',
+    ]);
+
+    // If fetches were sequential, max concurrency would be 1.
+    expect(maxConcurrent).toBe(3);
+    expect(stub).toHaveBeenCalledTimes(3);
+  });
+
+  it('picks the FIRST candidate by ORDER, not the first to respond', async () => {
+    // First candidate is SLOW (but valid); second is fast. Order must win.
+    const stub = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/slow-first')) {
+        await new Promise((r) => setTimeout(r, 40));
+        return new Response(PAGE_A, { status: 200 });
+      }
+      // fast second candidate
+      return new Response(PAGE_B, { status: 200 });
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const hit = await fetchFirstAvailable([
+      'https://site.com/slow-first',
+      'https://site.com/fast-second',
+    ]);
+    expect(hit?.url).toBe('https://site.com/slow-first');
+    expect(hit?.html).toContain('A');
+  });
+
+  it('resolves a slow-but-valid candidate that stays UNDER the 8s timeout', async () => {
+    // The exact bug: a small site's cold ~3.4s fetch must still resolve, not
+    // be aborted as "not found". Simulate ~3.4s (well under 8s) with fake
+    // timers so the test is instant.
+    vi.useFakeTimers();
+    const stub = vi.fn(async () => {
+      await new Promise((r) => setTimeout(r, 3_400));
+      return new Response(PAGE_A, { status: 200 });
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const promise = fetchFirstAvailable(['https://enigma.swiss/fr/contact/']);
+    await vi.advanceTimersByTimeAsync(3_400);
+    const hit = await promise;
+    expect(hit?.url).toBe('https://enigma.swiss/fr/contact/');
+    expect(hit?.html).toContain('A');
+  });
+
+  it('skips a soft-404 first candidate and falls through to the next valid one (in order)', async () => {
+    const stub = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/soft404')) return new Response(SOFT_404, { status: 200 });
+      return new Response(PAGE_B, { status: 200 });
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const hit = await fetchFirstAvailable([
+      'https://site.com/soft404',
+      'https://site.com/real',
+    ]);
+    expect(hit?.url).toBe('https://site.com/real');
+    expect(hit?.html).toContain('B');
+  });
+
+  it('skips an HTTP-error first candidate and returns the next', async () => {
+    const stub = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/broken')) return new Response('err', { status: 500 });
+      return new Response(PAGE_A, { status: 200 });
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const hit = await fetchFirstAvailable([
+      'https://site.com/broken',
+      'https://site.com/ok',
+    ]);
+    expect(hit?.url).toBe('https://site.com/ok');
+  });
+
+  it('returns null when EVERY candidate fails (all 404 / soft-404)', async () => {
+    const stub = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/soft')) return new Response(SOFT_404, { status: 200 });
+      return new Response('not found', { status: 404 });
+    });
+    vi.stubGlobal('fetch', stub);
+
+    const hit = await fetchFirstAvailable([
+      'https://site.com/soft',
+      'https://site.com/missing',
+    ]);
+    expect(hit).toBeNull();
   });
 });
