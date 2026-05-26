@@ -39,7 +39,8 @@ import type { GeoAnalysisResult } from '@/lib/analyzers/types';
  *
  * Schema uses `analyzeSchemaOrgMultiPage` which reuses the SHARED
  * homepage PageContext (fetched once upstream) then fetches up to 8
- * sub-pages in parallel (each capped ~4s by FETCH_TIMEOUT_MS) —
+ * sub-pages in parallel (each capped ~8s by FETCH_TIMEOUT_MS, fetched
+ * concurrently via fetchFirstAvailable so the wall ≈ one timeout) —
  * worst-case ~8s on a slow CMS. 5s was clipping legit sites. 12s
  * matches the EEAT budget for the identical sub-page-fetch pattern.
  * Analyzers run in parallel via Promise.allSettled so the budget hit
