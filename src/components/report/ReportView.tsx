@@ -241,7 +241,7 @@ export default function ReportView({
     report.headings.h6.length;
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px 80px' }}>
+    <div style={{ maxWidth: 1340, margin: '0 auto', padding: '32px 24px 80px' }}>
       {degraded && <DegradedBanner isFr={isFr} />}
       {/* 1. MetricStrip */}
       <div className="frame sa-rise" style={{ background: 'var(--sa-cream)', position: 'relative' }}>
