@@ -20,8 +20,6 @@ import {
   matchesKeyword,
   findBestCandidate,
   looksLikeSoftError,
-  fetchRealPage,
-  fetchFirstAvailable,
   fetchPageOutcome,
   candidateUrls,
   probeSignal,
