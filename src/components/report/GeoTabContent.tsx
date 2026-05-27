@@ -585,7 +585,7 @@ function SchemaPanel({ schema, isFr }: { schema: { score: number; totalFound: nu
                 borderTop: i === 0 ? '2px solid var(--sa-ink)' : '1px solid var(--sa-rule)',
               }}
             >
-              <StatusBadge ok={found} isFr={isFr} />
+              <StatusBadge state={found ? 'present' : 'absent'} isFr={isFr} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--sa-ink)' }}>
                   {isFr ? item.fr : item.en}
@@ -613,6 +613,7 @@ interface EeatSignal {
   hint_fr: string;
   hint_en: string;
   ok: boolean;
+  state?: BadgeState;
   detail?: string | null;
 }
 
@@ -659,6 +660,7 @@ function buildEeatGroups(
           hint_fr: 'Présente les humains derrière le site (Expertise + Trust).',
           hint_en: 'Shows the humans behind the site.',
           ok: geoSignals.teamPage.found,
+          state: geoSignals.teamPage.state,
         },
       ],
     },
@@ -700,6 +702,7 @@ function buildEeatGroups(
           hint_en: 'Verifiable contact point — increases AI-citability.',
           // OR: either source counts as a contact signal.
           ok: geoSignals.contactPage.found || !!metaEeat?.hasContactLink,
+          state: metaEeat?.hasContactLink ? 'present' : geoSignals.contactPage.state,
         },
       ],
     },
@@ -723,7 +726,8 @@ function buildEeatGroups(
           hint_fr: "Obligation légale CH/EU + signal de fiabilité pour Google et IA.",
           hint_en: 'CH/EU legal requirement + trust signal for Google and AI.',
           // OR: either GEO's "legalMentions" content scan or Metadata's terms link counts.
-          ok: geoSignals.legalMentions || !!metaEeat?.hasTermsOfService,
+          ok: geoSignals.legalMentions.found || !!metaEeat?.hasTermsOfService,
+          state: metaEeat?.hasTermsOfService ? 'present' : geoSignals.legalMentions.state,
         },
       ],
     },
@@ -739,6 +743,7 @@ function buildEeatGroups(
           hint_fr: "Reviews et avis renforcent l'autorité et la crédibilité de la marque.",
           hint_en: 'Reviews and testimonials reinforce brand authority and credibility.',
           ok: geoSignals.testimonials.found,
+          state: geoSignals.testimonials.state,
           detail:
             geoSignals.testimonials.count > 0
               ? `${geoSignals.testimonials.count} détecté(s)`
@@ -760,7 +765,10 @@ function EeatPanel({
 }) {
   const groups = buildEeatGroups(eeat.signals, metaEeat);
   const allSignals = groups.flatMap((g) => g.signals);
-  const okCount = allSignals.filter((s) => s.ok).length;
+  const getBadgeState = (s: EeatSignal): BadgeState =>
+    s.state ?? (s.ok ? 'present' : 'absent');
+  const presentCount = allSignals.filter((s) => getBadgeState(s) === 'present').length;
+  const unverifiedCount = allSignals.filter((s) => getBadgeState(s) === 'unverified').length;
 
   return (
     <section className="frame" style={{ background: 'var(--sa-cream)' }}>
@@ -770,8 +778,16 @@ function EeatPanel({
         score={eeat.score}
         right={
           <span>
-            {okCount}/{allSignals.length}{' '}
+            {presentCount}/{allSignals.length}{' '}
             {isFr ? 'signaux présents' : 'signals present'}
+            {unverifiedCount > 0 && (
+              <span
+                className="mono"
+                style={{ marginLeft: 8, color: 'var(--sa-amber-ink, #b88600)', fontSize: 11 }}
+              >
+                · {unverifiedCount} {isFr ? 'non vérifié(s)' : 'not verified'}
+              </span>
+            )}
           </span>
         }
       />
@@ -804,46 +820,60 @@ function EeatPanel({
                 gap: 12,
               }}
             >
-              {group.signals.map((s) => (
-                <div
-                  key={s.key}
-                  style={{
-                    padding: '14px 16px',
-                    border: `1px solid ${s.ok ? 'var(--sa-ok)' : 'var(--sa-rule)'}`,
-                    background: s.ok ? 'rgba(47, 107, 63, 0.04)' : 'var(--sa-cream-2)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--sa-ink)', lineHeight: 1.3 }}>
-                      {isFr ? s.label_fr : s.label_en}
+              {group.signals.map((s) => {
+                const badgeState = getBadgeState(s);
+                return (
+                  <div
+                    key={s.key}
+                    style={{
+                      padding: '14px 16px',
+                      border: `1px solid ${
+                        badgeState === 'present'
+                          ? 'var(--sa-ok)'
+                          : badgeState === 'unverified'
+                          ? 'var(--sa-amber-ink, #b88600)'
+                          : 'var(--sa-rule)'
+                      }`,
+                      background:
+                        badgeState === 'present'
+                          ? 'rgba(47, 107, 63, 0.04)'
+                          : badgeState === 'unverified'
+                          ? 'rgba(184, 134, 0, 0.04)'
+                          : 'var(--sa-cream-2)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--sa-ink)', lineHeight: 1.3 }}>
+                        {isFr ? s.label_fr : s.label_en}
+                      </span>
+                      <StatusBadge state={badgeState} isFr={isFr} />
+                    </div>
+                    <span style={{ fontSize: 12, color: 'var(--sa-ink-3)', lineHeight: 1.45 }}>
+                      {isFr ? s.hint_fr : s.hint_en}
                     </span>
-                    <StatusBadge ok={s.ok} isFr={isFr} />
+                    {s.detail && (
+                      <span
+                        className="mono"
+                        style={{
+                          fontSize: 10,
+                          letterSpacing: '0.06em',
+                          color: 'var(--sa-ink-4)',
+                          marginTop: 2,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={s.detail}
+                      >
+                        {s.detail}
+                      </span>
+                    )}
                   </div>
-                  <span style={{ fontSize: 12, color: 'var(--sa-ink-3)', lineHeight: 1.45 }}>
-                    {isFr ? s.hint_fr : s.hint_en}
-                  </span>
-                  {s.detail && (
-                    <span
-                      className="mono"
-                      style={{
-                        fontSize: 10,
-                        letterSpacing: '0.06em',
-                        color: 'var(--sa-ink-4)',
-                        marginTop: 2,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                      title={s.detail}
-                    >
-                      {s.detail}
-                    </span>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
@@ -964,25 +994,46 @@ function LighthousePanel({ lighthouse, isFr }: { lighthouse: LighthouseScores; i
 
 /* ---------------- shared status badge ---------------- */
 
-function StatusBadge({ ok, isFr }: { ok: boolean; isFr: boolean }) {
+type BadgeState = 'present' | 'absent' | 'unverified';
+
+function StatusBadge({ state, isFr }: { state: BadgeState; isFr: boolean }) {
+  const cfg = {
+    present: {
+      bg: 'var(--sa-green, #2d8e4f)',
+      icon: '✓',
+      label: isFr ? 'Présent' : 'Present',
+    },
+    absent: {
+      bg: 'var(--sa-ink-4)',
+      icon: '×',
+      label: isFr ? 'Absent' : 'Absent',
+    },
+    unverified: {
+      bg: 'var(--sa-amber-ink, #b88600)',
+      icon: '?',
+      label: isFr
+        ? 'Non vérifié — page inaccessible pendant l\'analyse'
+        : 'Not verified — page unreachable during analysis',
+    },
+  }[state];
   return (
     <span
-      aria-label={ok ? (isFr ? 'Présent' : 'Present') : (isFr ? 'Absent' : 'Absent')}
-      title={ok ? (isFr ? 'Présent' : 'Present') : (isFr ? 'Absent' : 'Absent')}
+      aria-label={cfg.label}
+      title={cfg.label}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
         width: 28,
         height: 28,
-        background: ok ? 'var(--sa-green, #2d8e4f)' : 'var(--sa-ink-4)',
+        background: cfg.bg,
         color: 'var(--sa-cream)',
         fontSize: 16,
         fontWeight: 700,
         borderRadius: 0,
       }}
     >
-      {ok ? '✓' : '×'}
+      {cfg.icon}
     </span>
   );
 }

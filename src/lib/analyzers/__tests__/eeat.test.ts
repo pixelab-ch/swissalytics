@@ -175,7 +175,7 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
     expect(result.signals.contactPage.hasEmail).toBe(true);
     expect(result.signals.contactPage.hasPhone).toBe(true);
     expect(result.signals.contactPage.hasAddress).toBe(true);
-    expect(result.signals.legalMentions).toBe(true);
+    expect(result.signals.legalMentions).toEqual({ found: true, state: 'present' });
   });
 
   it('rejects a soft-404 (HTTP 200 "Page introuvable") as NOT found', async () => {
@@ -344,6 +344,61 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Testimonials — verified-absent vs unverified custom path (FIX 3).
+ *
+ * A candidate that fetches HTTP 200 but has 0 reviews → verified-absent
+ * (not present, not unverified). An unknown outcome for any candidate
+ * means we can't confirm absence → unverified.
+ * ------------------------------------------------------------------ */
+describe('analyzeEEAT — testimonials verified-absent vs unverified', () => {
+  beforeEach(() => {
+    delete process.env.MOZ_API_KEY;
+  });
+
+  /** A real testimonials page that exists but has zero review markup. */
+  const REVIEWS_PAGE_NO_REVIEWS = `
+    <html><head><title>Avis clients — Acme</title></head><body>
+      <h1>Avis clients</h1>
+      <p>Aucun avis pour l'instant. Revenez bientôt !</p>
+    </body></html>`;
+
+  it('verified-absent: candidate page is HTTP 200 but contains NO reviews', async () => {
+    // Homepage links to a real /avis page; the page fetches ok but has 0 reviews.
+    const HOMEPAGE = `<html><head><title>Acme</title></head><body>
+      <a href="/avis">Avis clients</a>
+    </body></html>`;
+    vi.stubGlobal('fetch', fetchStub({
+      '/avis': { status: 200, body: REVIEWS_PAGE_NO_REVIEWS },
+      '__home__': { body: HOMEPAGE },
+    }));
+
+    const result = await runEEAT('https://acme.com/');
+    // The page was reachable but had no reviews — we are CERTAIN there are none.
+    expect(result.signals.testimonials.state).toBe('absent');
+    expect(result.signals.testimonials.found).toBe(false);
+  });
+
+  it('unverified: one candidate is 200-no-reviews, another is 5xx (indeterminate)', async () => {
+    // Homepage links to two candidates: first fetches ok with no reviews, second
+    // returns 503 (unknown). Because at least one outcome was unknown, we can NOT
+    // claim absence.
+    const HOMEPAGE = `<html><head><title>Acme</title></head><body>
+      <a href="/avis">Avis</a>
+      <a href="/testimonials">Testimonials</a>
+    </body></html>`;
+    vi.stubGlobal('fetch', fetchStub({
+      '/avis': { status: 200, body: REVIEWS_PAGE_NO_REVIEWS },
+      '/testimonials': { status: 503, body: 'Service Unavailable' },
+      '__home__': { body: HOMEPAGE },
+    }));
+
+    const result = await runEEAT('https://acme.com/');
+    expect(result.signals.testimonials.state).toBe('unverified');
+    expect(result.signals.testimonials.found).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ *
  * Parallel candidate fetch (false-timeout fix). With the per-fetch timeout
  * raised to 8s, a signal's ≤3 candidates must be fetched CONCURRENTLY so the
  * worst-case wall stays ≈ one timeout (not N×). A slow-but-valid candidate
@@ -392,6 +447,10 @@ describe('analyzeEEAT — parallel candidate fetch + slow-but-valid resolution',
   it('still finds a slow-but-valid contact page (would have falsely timed out)', async () => {
     // The enigma case: a cold ~3.4s contact fetch. With fake timers we simulate
     // the delay; it stays under the 8s per-fetch timeout, so it must resolve.
+    // Note: buildPageContext now also fetches sitemap.xml (Option C) after the
+    // homepage, adding one more 3.4s slow fetch before the signal probes start.
+    // The signal probes fire concurrently but the per-origin semaphore (cap 6)
+    // means some queue behind others and need multiple timer advances to drain.
     vi.useFakeTimers();
     const HOMEPAGE = `
       <html><head><title>Enigma</title></head><body>
@@ -411,7 +470,9 @@ describe('analyzeEEAT — parallel candidate fetch + slow-but-valid resolution',
       const result = await runEEAT('https://enigma.swiss/');
       return result;
     })();
-    // advance past the homepage fetch + the slow contact fetch
+    // Advance past: sitemap fetch (3.4s) + first batch of concurrent signal
+    // probes (3.4s) + any queued probes (3.4s). Three rounds cover all stages.
+    await vi.advanceTimersByTimeAsync(3_400);
     await vi.advanceTimersByTimeAsync(3_400);
     await vi.advanceTimersByTimeAsync(3_400);
     const result = await ctxPromise;
@@ -521,5 +582,57 @@ describe('analyzeEEAT — SSRF + same-origin restriction', () => {
 
     const result = await runEEAT('https://www.enigma.swiss/');
     expect(result.signals.teamPage.found).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Option B — Honest 3-state (present / absent / unverified) per signal.
+ * ------------------------------------------------------------------ */
+describe('analyzeEEAT — signal 3-state (Option B)', () => {
+  beforeEach(() => {
+    delete process.env.MOZ_API_KEY;
+  });
+
+  it('teamPage.state = unverified (not absent) when the team link times out (5xx)', async () => {
+    // homepage links include /fr/lequipe/ ; fetch of it → 503 (unknown)
+    vi.stubGlobal('fetch', fetchStub({
+      '/fr/lequipe/': { status: 503, body: 'Service Unavailable' },
+      '__home__': { body: HOMEPAGE_ENIGMA },
+    }));
+    const result = await runEEAT('https://enigma.swiss/');
+    // unverified: we had a candidate URL but couldn't read it
+    expect(result.signals.teamPage.state).toBe('unverified');
+    expect(result.signals.teamPage.found).toBe(false);
+  });
+
+  it('teamPage.state = absent when no team link AND no sitemap match', async () => {
+    // Homepage has no team-keyword links; all fallback probes → 404
+    vi.stubGlobal('fetch', fetchStub({
+      '__home__': { body: '<html><head><title>X</title></head><body><a href="/products">Products</a></body></html>' },
+    }));
+    const result = await runEEAT('https://noteam.com/');
+    expect(result.signals.teamPage.state).toBe('absent');
+    expect(result.signals.teamPage.found).toBe(false);
+  });
+
+  it('teamPage.state = present when the team page fetches ok', async () => {
+    vi.stubGlobal('fetch', fetchStub({
+      '/fr/lequipe/': { body: TEAM_PAGE },
+      '__home__': { body: HOMEPAGE_ENIGMA },
+    }));
+    const result = await runEEAT('https://enigma.swiss/');
+    expect(result.signals.teamPage.state).toBe('present');
+    expect(result.signals.teamPage.found).toBe(true);
+  });
+
+  it('legalMentions is now an object { found, state }', async () => {
+    vi.stubGlobal('fetch', fetchStub({
+      '/fr/mentions-legales/': { body: '<title>Mentions légales — Enigma</title><p>Mentions</p>' },
+      '__home__': { body: HOMEPAGE_ENIGMA },
+    }));
+    const result = await runEEAT('https://enigma.swiss/');
+    expect(typeof result.signals.legalMentions).toBe('object');
+    expect(result.signals.legalMentions).toHaveProperty('found');
+    expect(result.signals.legalMentions).toHaveProperty('state');
   });
 });

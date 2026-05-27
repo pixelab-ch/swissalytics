@@ -261,8 +261,9 @@ function generateTopRecommendations(
     });
   }
   
-  // E-E-A-T: Pas de page équipe
-  if (!data.eeat.signals.teamPage.found) {
+  // E-E-A-T: Pas de page équipe — only when CONFIDENTLY absent (not unverified:
+  // the page may exist but be unreachable). Decision 3 locked.
+  if (data.eeat.signals.teamPage.state === 'absent') {
     recs.push({
       priority: 'critical',
       title: 'Créer page équipe détaillée',
@@ -273,9 +274,9 @@ function generateTopRecommendations(
       timeframe: '2-4 semaines',
     });
   }
-  
-  // E-E-A-T: Pas de testimonials
-  if (!data.eeat.signals.testimonials.found) {
+
+  // E-E-A-T: Pas de testimonials — only when CONFIDENTLY absent. Decision 3 locked.
+  if (data.eeat.signals.testimonials.state === 'absent') {
     recs.push({
       priority: 'high',
       title: 'Publier témoignages clients avec Review Schema',

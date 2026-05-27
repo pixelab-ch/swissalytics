@@ -199,10 +199,10 @@ export async function POST(request: NextRequest) {
         eeat: {
           score: eeat.score,
           signals: {
-            teamPage: { found: eeat.signals.teamPage.found },
-            legalMentions: eeat.signals.legalMentions,
-            contactPage: { found: eeat.signals.contactPage.found },
-            testimonials: { found: eeat.signals.testimonials.found, count: eeat.signals.testimonials.count },
+            teamPage:      { found: eeat.signals.teamPage.found,      state: eeat.signals.teamPage.state },
+            legalMentions: { found: eeat.signals.legalMentions.found, state: eeat.signals.legalMentions.state },
+            contactPage:   { found: eeat.signals.contactPage.found,   state: eeat.signals.contactPage.state },
+            testimonials:  { found: eeat.signals.testimonials.found,  count: eeat.signals.testimonials.count, state: eeat.signals.testimonials.state },
           },
         },
       },

@@ -24,9 +24,16 @@ import {
   candidateUrls,
   extractLinks,
   fetchFirstAvailable,
+  fetchPageOutcome,
+  fetchRealPage,
   findBestCandidate,
   looksLikeSoftError,
   matchesKeyword,
+  parseSitemapLocs,
+  probeSignal,
+  MAX_PER_ORIGIN,
+  SITEMAP_MAX_LOCS,
+  __originSemaphoreCount,
   type PageLink,
 } from '../page-discovery';
 import {
@@ -383,5 +390,234 @@ describe('fetchFirstAvailable — concurrent, first-success-by-order', () => {
       'https://site.com/missing',
     ]);
     expect(hit).toBeNull();
+  });
+});
+
+describe('fetchPageOutcome — classification', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  const PAGE = '<html><head><title>Real</title></head><body>ok</body></html>';
+  const SOFT_404 = '<html><head><title>Page introuvable</title></head><body><h1>404</h1></body></html>';
+
+  it('returns ok with html for a 200 real page', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(PAGE, { status: 200 })));
+    const o = await fetchPageOutcome('https://site.com/x');
+    expect(o.kind).toBe('ok');
+    if (o.kind === 'ok') expect(o.html).toContain('ok');
+  });
+
+  it('returns absent for a 200 soft-404', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(SOFT_404, { status: 200 })));
+    expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('absent');
+  });
+
+  it('returns absent for HTTP 404 and 410', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nf', { status: 404 })));
+    expect((await fetchPageOutcome('https://site.com/a')).kind).toBe('absent');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('gone', { status: 410 })));
+    expect((await fetchPageOutcome('https://site.com/b')).kind).toBe('absent');
+  });
+
+  it('returns unknown for 403, 429 and 5xx (blocked / server error, page may exist)', async () => {
+    for (const status of [403, 429, 500, 503]) {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status })));
+      expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('unknown');
+    }
+  });
+
+  it('returns unknown when fetch throws (abort / network error)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('aborted'); }));
+    expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('unknown');
+  });
+});
+
+describe('fetchRealPage — wrapper preserves string|null', () => {
+  afterEach(() => vi.restoreAllMocks());
+  it('returns html on ok, null on absent and unknown', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<title>x</title><body>hi</body>', { status: 200 })));
+    expect(await fetchRealPage('https://site.com/x')).toContain('hi');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nf', { status: 404 })));
+    expect(await fetchRealPage('https://site.com/x')).toBeNull();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 500 })));
+    expect(await fetchRealPage('https://site.com/x')).toBeNull();
+  });
+});
+
+describe('fetchPageOutcome — retry once on transient (Option D)', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  it('retries ONCE when the first attempt is unknown, succeeding on retry', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new Error('transient network blip');
+      return new Response('<title>x</title><body>ok</body>', { status: 200 });
+    }));
+    const o = await fetchPageOutcome('https://site.com/x');
+    expect(o.kind).toBe('ok');
+    expect(calls).toBe(2);
+  });
+
+  it('does NOT retry an absent (404) outcome', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => { calls++; return new Response('nf', { status: 404 }); }));
+    expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('absent');
+    expect(calls).toBe(1);
+  });
+
+  it('gives up after exactly one retry (2 attempts) and returns unknown', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => { calls++; throw new Error('still down'); }));
+    expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('unknown');
+    expect(calls).toBe(2);
+  });
+});
+
+describe('fetchPageOutcome — per-origin concurrency limiter (Option A)', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  it('caps concurrent fetches to the SAME origin at MAX_PER_ORIGIN', async () => {
+    let inFlight = 0;
+    let maxConcurrent = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      inFlight++; maxConcurrent = Math.max(maxConcurrent, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      inFlight--;
+      return new Response('<title>x</title><body>ok</body>', { status: 200 });
+    }));
+
+    const urls = Array.from({ length: 20 }, (_, i) => `https://same.com/p${i}`);
+    await Promise.all(urls.map((u) => fetchPageOutcome(u)));
+
+    expect(maxConcurrent).toBeLessThanOrEqual(MAX_PER_ORIGIN);
+    expect(maxConcurrent).toBeGreaterThan(1); // not serialized
+  });
+
+  it('does NOT throttle across DIFFERENT origins', async () => {
+    let inFlight = 0;
+    let maxConcurrent = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      inFlight++; maxConcurrent = Math.max(maxConcurrent, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      inFlight--;
+      return new Response('<title>x</title><body>ok</body>', { status: 200 });
+    }));
+
+    // 8 distinct origins → all should run at once (limiter is per-origin).
+    const urls = Array.from({ length: 8 }, (_, i) => `https://host${i}.com/p`);
+    await Promise.all(urls.map((u) => fetchPageOutcome(u)));
+    expect(maxConcurrent).toBe(8);
+  });
+});
+
+describe('parseSitemapLocs', () => {
+  it('extracts <loc> URLs from a urlset', () => {
+    const xml = `<?xml version="1.0"?><urlset><url><loc>https://site.com/fr/lequipe/</loc></url>` +
+      `<url><loc>https://site.com/contact</loc></url></urlset>`;
+    expect(parseSitemapLocs(xml)).toEqual(['https://site.com/fr/lequipe/', 'https://site.com/contact']);
+  });
+  it('caps at SITEMAP_MAX_LOCS and ignores junk', () => {
+    const many = Array.from({ length: 2000 }, (_, i) => `<url><loc>https://site.com/p${i}</loc></url>`).join('');
+    const out = parseSitemapLocs(`<urlset>${many}</urlset>`);
+    expect(out.length).toBe(SITEMAP_MAX_LOCS);
+  });
+  it('returns [] for empty / unparseable input', () => {
+    expect(parseSitemapLocs('')).toEqual([]);
+    expect(parseSitemapLocs('not xml')).toEqual([]);
+  });
+});
+
+describe('candidateUrls — sitemap as a second source (Option C)', () => {
+  const linkList = (hrefs: string[]): PageLink[] => hrefs.map((href) => ({ href, text: '' }));
+  it('matches a keyworded sitemap URL when no homepage link matched', () => {
+    const out = candidateUrls(
+      'https://site.com/', 'https://site.com',
+      linkList(['/products']),                       // no team link on homepage
+      TEAM_KEYWORDS, [],
+      ['https://site.com/fr/lequipe/', 'https://site.com/blog/x'], // sitemap locs
+    );
+    expect(out).toContain('https://site.com/fr/lequipe/');
+  });
+  it('keeps homepage links FIRST, sitemap matches appended, deduped, capped at 3', () => {
+    const out = candidateUrls(
+      'https://site.com/', 'https://site.com',
+      linkList(['/equipe']),
+      TEAM_KEYWORDS, [],
+      ['https://site.com/equipe', 'https://site.com/about-us', 'https://site.com/team', 'https://site.com/ueber-uns'],
+    );
+    expect(out[0]).toBe('https://site.com/equipe'); // homepage link wins order
+    expect(out.length).toBe(3);                     // MAX_CANDIDATES
+    expect(new Set(out).size).toBe(out.length);     // deduped
+  });
+  it('drops cross-origin sitemap locs (same-origin guard still applies)', () => {
+    const out = candidateUrls(
+      'https://site.com/', 'https://site.com',
+      [], TEAM_KEYWORDS, [],
+      ['https://evil.com/equipe', 'https://site.com/equipe'],
+    );
+    expect(out).toEqual(['https://site.com/equipe']);
+  });
+});
+
+describe('probeSignal — found / absent / unverified (Option B)', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const PAGE = '<html><head><title>x</title></head><body>ok</body></html>';
+
+  it('absent when there are no candidate URLs (nothing references such a page)', async () => {
+    const stub = vi.fn();
+    vi.stubGlobal('fetch', stub);
+    expect(await probeSignal([])).toEqual({ state: 'absent' });
+    expect(stub).not.toHaveBeenCalled();
+  });
+
+  it('present (with url+html) when a candidate fetches ok — first in order', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(PAGE, { status: 200 })));
+    const r = await probeSignal(['https://site.com/a', 'https://site.com/b']);
+    expect(r.state).toBe('present');
+    if (r.state === 'present') expect(r.url).toBe('https://site.com/a');
+  });
+
+  it('absent when every candidate is a definitive 404 / soft-404', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nf', { status: 404 })));
+    expect(await probeSignal(['https://site.com/a'])).toEqual({ state: 'absent' });
+  });
+
+  it('unverified when candidates exist but all are indeterminate (timeout/5xx)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 503 })));
+    expect(await probeSignal(['https://site.com/a', 'https://site.com/b'])).toEqual({ state: 'unverified' });
+  });
+
+  it('unverified when mixing absent + unknown with no ok (can not conclude absent)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) =>
+      String(input).endsWith('/a')
+        ? new Response('nf', { status: 404 })     // absent
+        : new Response('x', { status: 500 })));   // unknown
+    expect(await probeSignal(['https://site.com/a', 'https://site.com/b'])).toEqual({ state: 'unverified' });
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Per-origin semaphore eviction (memory-leak fix for long-lived VPS).
+ *
+ * `originSemaphores` is a module-level map. Without eviction it grows
+ * for the entire process lifetime — one entry per analyzed origin.
+ * The fix: `release()` deletes the map entry when the semaphore becomes
+ * fully idle (active === 0 && queue.length === 0).
+ * ------------------------------------------------------------------ */
+describe('per-origin semaphore — evicted from map when idle', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  it('does NOT retain a map entry for an origin after all its fetches complete', async () => {
+    const PAGE = '<html><head><title>x</title></head><body>ok</body></html>';
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(PAGE, { status: 200 })));
+
+    const origin = 'https://evict-test-origin.com';
+    const urls = Array.from({ length: 4 }, (_, i) => `${origin}/p${i}`);
+
+    // Run all fetches and wait for completion.
+    await Promise.all(urls.map((u) => fetchPageOutcome(u)));
+
+    // All fetches done → the semaphore must have self-evicted.
+    expect(__originSemaphoreCount()).toBe(0);
   });
 });

@@ -71,11 +71,13 @@ export interface GeoSchema {
   schemas: SchemaSignals;
 }
 
+export type SignalState = 'present' | 'absent' | 'unverified';
+
 export interface EeatSignals {
-  teamPage: { found: boolean };
-  legalMentions: boolean;
-  contactPage: { found: boolean };
-  testimonials: { found: boolean; count: number };
+  teamPage: { found: boolean; state: SignalState };
+  legalMentions: { found: boolean; state: SignalState };
+  contactPage: { found: boolean; state: SignalState };
+  testimonials: { found: boolean; count: number; state: SignalState };
 }
 
 export interface GeoEeat {

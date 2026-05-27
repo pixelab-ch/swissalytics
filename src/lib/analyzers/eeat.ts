@@ -14,13 +14,15 @@ import * as cheerio from 'cheerio';
 import {
   type PageLink,
   type PageContext,
+  type SignalState,
+  type ProbeResult,
   extractLinks,
   matchesKeyword,
   findBestCandidate,
   looksLikeSoftError,
-  fetchRealPage,
-  fetchFirstAvailable,
+  fetchPageOutcome,
   candidateUrls,
+  probeSignal,
   TEAM_KEYWORDS,
   CONTACT_KEYWORDS,
   LEGAL_KEYWORDS,
@@ -33,6 +35,8 @@ import {
 export {
   type PageLink,
   type PageContext,
+  type SignalState,
+  type ProbeResult,
   extractLinks,
   matchesKeyword,
   findBestCandidate,
@@ -49,18 +53,21 @@ export interface EEATResult {
   signals: {
     teamPage: {
       found: boolean;
+      state: SignalState;
       quality: 'high' | 'medium' | 'low' | 'none';
       authorsCount: number;
     };
-    legalMentions: boolean;
+    legalMentions: { found: boolean; state: SignalState };
     contactPage: {
       found: boolean;
+      state: SignalState;
       hasEmail: boolean;
       hasPhone: boolean;
       hasAddress: boolean;
     };
     testimonials: {
       found: boolean;
+      state: SignalState;
       count: number;
       hasSchema: boolean;
     };
@@ -97,14 +104,15 @@ export async function analyzeEEAT(url: string, ctx: PageContext | null): Promise
     const homepageHtml = ctx?.html ?? '';
     const $home = ctx?.$ ?? cheerio.load('');
     const pageLinks = ctx?.links ?? [];
+    const sitemapUrls = ctx?.sitemapUrls ?? [];
 
     // All signal probes run in ONE Promise.all batch (incl. author bios,
     // which reuses the already-fetched homepage HTML — no refetch).
     const [teamPage, legalMentions, contactPage, testimonials, backlinks, authorBios] = await Promise.all([
-      analyzeTeamPage(url, baseUrl, pageLinks),
-      checkLegalMentions(url, baseUrl, pageLinks),
-      analyzeContactPage(url, baseUrl, pageLinks),
-      analyzeTestimonials(url, baseUrl, pageLinks, homepageHtml),
+      analyzeTeamPage(url, baseUrl, pageLinks, sitemapUrls),
+      checkLegalMentions(url, baseUrl, pageLinks, sitemapUrls),
+      analyzeContactPage(url, baseUrl, pageLinks, sitemapUrls),
+      analyzeTestimonials(url, baseUrl, pageLinks, homepageHtml, sitemapUrls),
       analyzeBacklinks(url),
       analyzeAuthorBios($home),
     ]);
@@ -145,22 +153,21 @@ async function analyzeTeamPage(
   pageUrl: string,
   baseUrl: string,
   pageLinks: PageLink[],
+  sitemapUrls: string[] = [],
 ): Promise<{
   found: boolean;
+  state: SignalState;
   quality: 'high' | 'medium' | 'low' | 'none';
   authorsCount: number;
 }> {
   try {
     const urls = candidateUrls(pageUrl, baseUrl, pageLinks, TEAM_KEYWORDS, [
       'team', 'about', 'a-propos', 'qui-sommes-nous', 'equipe',
-    ]);
+    ], sitemapUrls);
 
-    // Fetch all (≤3) candidates concurrently; take the first successful one in
-    // original candidate order (best = earliest matching link). Worst-case wall
-    // ≈ one 8s timeout, not N×8s — see fetchFirstAvailable.
-    const hit = await fetchFirstAvailable(urls);
-    if (hit) {
-      const { url, html } = hit;
+    const probe = await probeSignal(urls);
+    if (probe.state === 'present') {
+      const { url, html } = probe;
       const $ = cheerio.load(html);
 
       // Chercher Schema.org Person dans JSON-LD
@@ -204,18 +211,14 @@ async function analyzeTeamPage(
 
       console.log(`[E-E-A-T] Page équipe trouvée: ${url}, ${authorElements} auteurs, qualité: ${quality}`);
 
-      return {
-        found: true,
-        quality,
-        authorsCount: authorElements,
-      };
+      return { found: true, state: 'present', quality, authorsCount: authorElements };
     }
 
-    return { found: false, quality: 'none', authorsCount: 0 };
+    return { found: false, state: probe.state, quality: 'none', authorsCount: 0 };
 
   } catch (error) {
     console.error('[E-E-A-T] Erreur Team Page:', error);
-    return { found: false, quality: 'none', authorsCount: 0 };
+    return { found: false, state: 'unverified', quality: 'none', authorsCount: 0 };
   }
 }
 
@@ -226,19 +229,18 @@ async function checkLegalMentions(
   pageUrl: string,
   baseUrl: string,
   pageLinks: PageLink[],
-): Promise<boolean> {
+  sitemapUrls: string[] = [],
+): Promise<{ found: boolean; state: SignalState }> {
   try {
     const urls = candidateUrls(pageUrl, baseUrl, pageLinks, LEGAL_KEYWORDS, [
       'mentions-legales', 'legal', 'legal-notice', 'imprint', 'impressum',
-    ]);
+    ], sitemapUrls);
 
-    // Concurrent fetch of the (≤3) candidates; legal mentions exist if ANY
-    // resolves to a real (non-soft-404) page. Worst-case wall ≈ one timeout.
-    const hit = await fetchFirstAvailable(urls);
-    return hit !== null;
+    const probe = await probeSignal(urls);
+    return { found: probe.state === 'present', state: probe.state };
 
   } catch {
-    return false;
+    return { found: false, state: 'unverified' };
   }
 }
 
@@ -249,8 +251,10 @@ async function analyzeContactPage(
   pageUrl: string,
   baseUrl: string,
   pageLinks: PageLink[],
+  sitemapUrls: string[] = [],
 ): Promise<{
   found: boolean;
+  state: SignalState;
   hasEmail: boolean;
   hasPhone: boolean;
   hasAddress: boolean;
@@ -258,42 +262,25 @@ async function analyzeContactPage(
   try {
     const urls = candidateUrls(pageUrl, baseUrl, pageLinks, CONTACT_KEYWORDS, [
       'contact', 'contactez-nous', 'kontakt', 'contatti',
-    ]);
+    ], sitemapUrls);
 
-    // Concurrent fetch of the (≤3) candidates; analyze the first successful one
-    // in original candidate order. Worst-case wall ≈ one timeout, not N×.
-    const hit = await fetchFirstAvailable(urls);
-    if (hit) {
-      const $ = cheerio.load(hit.html);
+    const probe = await probeSignal(urls);
+    if (probe.state === 'present') {
+      const $ = cheerio.load(probe.html);
       const text = $('body').text().toLowerCase();
 
       const hasEmail = /@/.test(text) || $('a[href^="mailto:"]').length > 0;
       const hasPhone = /\+?\d{2,3}[\s-]?\d{2,3}[\s-]?\d{2,3}/.test(text) || $('a[href^="tel:"]').length > 0;
       const hasAddress = /adresse|address|rue|street|avenue/i.test(text);
 
-      return {
-        found: true,
-        hasEmail,
-        hasPhone,
-        hasAddress,
-      };
+      return { found: true, state: 'present', hasEmail, hasPhone, hasAddress };
     }
 
-    return {
-      found: false,
-      hasEmail: false,
-      hasPhone: false,
-      hasAddress: false,
-    };
+    return { found: false, state: probe.state, hasEmail: false, hasPhone: false, hasAddress: false };
 
   } catch (error) {
     console.error('[E-E-A-T] Erreur Contact Page:', error);
-    return {
-      found: false,
-      hasEmail: false,
-      hasPhone: false,
-      hasAddress: false,
-    };
+    return { found: false, state: 'unverified', hasEmail: false, hasPhone: false, hasAddress: false };
   }
 }
 
@@ -342,21 +329,20 @@ function detectTestimonials($: cheerio.CheerioAPI): { count: number; hasSchema: 
 /**
  * Analyser témoignages clients — piloté par les liens réels de la page.
  *
- * Pre-fix this GUESSED hardcoded slugs (`/temoignages`, `/avis`, …) which
- * missed locale-prefixed / contracted review pages on real sites. Now:
- *   1. detect testimonials ON the already-fetched homepage HTML (no refetch);
- *   2. discover candidate review pages from the homepage's REAL links via the
- *      shared `candidateUrls` (same-origin, scheme-allowlisted, ≤3, SSRF-
- *      guarded), keeping a minimal slug fallback only when no link matched.
- * Soft-404s are rejected by `fetchRealPage`.
+ * Special: a page that fetches ok but has 0 reviews is verified-absent, not
+ * present. We use `fetchPageOutcome` directly per candidate (not `probeSignal`)
+ * so we can apply the per-page review predicate. An `unknown` outcome for any
+ * candidate marks the whole signal as unverified (we can't confirm absence).
  */
 async function analyzeTestimonials(
   pageUrl: string,
   baseUrl: string,
   pageLinks: PageLink[],
   homepageHtml: string,
+  sitemapUrls: string[] = [],
 ): Promise<{
   found: boolean;
+  state: SignalState;
   count: number;
   hasSchema: boolean;
 }> {
@@ -366,37 +352,43 @@ async function analyzeTestimonials(
       const onHome = detectTestimonials(cheerio.load(homepageHtml));
       if (onHome.count > 0) {
         console.log(`[E-E-A-T] Témoignages trouvés sur l'accueil: ${onHome.count} avis, Schema: ${onHome.hasSchema}`);
-        return { found: true, count: onHome.count, hasSchema: onHome.hasSchema };
+        return { found: true, state: 'present', count: onHome.count, hasSchema: onHome.hasSchema };
       }
     }
 
     // 2. Link-driven discovery of dedicated review/testimonial pages.
     const urls = candidateUrls(pageUrl, baseUrl, pageLinks, TESTIMONIAL_KEYWORDS, [
       'testimonials', 'temoignages', 'avis', 'clients', 'referenzen', 'recensioni',
-    ]);
+    ], sitemapUrls);
 
-    // Fetch all (≤3) candidates concurrently (worst-case wall ≈ one timeout,
-    // not N×), then scan in original candidate order for the FIRST page that
-    // actually carries testimonials. Unlike the other signals, a page that
-    // fetches OK but has zero reviews is NOT a hit — so we cannot use
-    // `fetchFirstAvailable` (first-fetchable); we keep the per-page predicate.
-    const htmls = await Promise.all(urls.map((url) => fetchRealPage(url)));
-    for (let i = 0; i < urls.length; i++) {
-      const html = htmls[i];
-      if (!html) continue;
+    if (urls.length === 0) return { found: false, state: 'absent', count: 0, hasSchema: false };
 
-      const { count, hasSchema } = detectTestimonials(cheerio.load(html));
-      if (count > 0) {
-        console.log(`[E-E-A-T] Témoignages trouvés: ${urls[i]}, ${count} avis, Schema: ${hasSchema}`);
-        return { found: true, count, hasSchema };
+    // Fetch all (≤3) candidates concurrently. A page that fetches ok but has
+    // 0 reviews is verified review-less (not present, not unverified). An
+    // unknown outcome means we couldn't determine if reviews exist there.
+    const outcomes = await Promise.all(urls.map((u) => fetchPageOutcome(u)));
+    let sawUnknown = false;
+    for (let i = 0; i < outcomes.length; i++) {
+      const o = outcomes[i];
+      if (o.kind === 'ok') {
+        const { count, hasSchema } = detectTestimonials(cheerio.load(o.html));
+        if (count > 0) {
+          console.log(`[E-E-A-T] Témoignages trouvés: ${urls[i]}, ${count} avis, Schema: ${hasSchema}`);
+          return { found: true, state: 'present', count, hasSchema };
+        }
+        // fetched ok but no reviews → this candidate is verified review-less
+      } else if (o.kind === 'unknown') {
+        sawUnknown = true;
       }
     }
 
-    return { found: false, count: 0, hasSchema: false };
+    // No reviews found anywhere. If something was indeterminate, we can't be
+    // sure → unverified; otherwise confidently absent.
+    return { found: false, state: sawUnknown ? 'unverified' : 'absent', count: 0, hasSchema: false };
 
   } catch (error) {
     console.error('[E-E-A-T] Erreur Testimonials:', error);
-    return { found: false, count: 0, hasSchema: false };
+    return { found: false, state: 'unverified', count: 0, hasSchema: false };
   }
 }
 
@@ -494,7 +486,7 @@ function calculateEEATScore(signals: EEATResult['signals']): number {
   }
   
   // Legal Mentions (10%)
-  if (signals.legalMentions) {
+  if (signals.legalMentions.found) {
     score += 10;
   }
   
@@ -532,24 +524,24 @@ function generateEEATRecommendations(signals: EEATResult['signals']): string[] {
   const recs: string[] = [];
   
   // Priorité haute
-  if (!signals.teamPage.found || signals.teamPage.quality === 'low') {
+  if (signals.teamPage.state === 'absent' || (signals.teamPage.found && signals.teamPage.quality === 'low')) {
     recs.push('Créer page équipe détaillée avec photos, bios, expertise de chaque membre');
   }
-  
+
   if (!signals.authorBios.found) {
     recs.push('Ajouter Schema.org Person/ProfilePage pour identifier auteurs de contenu');
   }
-  
-  if (!signals.testimonials.found) {
+
+  if (signals.testimonials.state === 'absent') {
     recs.push('Publier témoignages clients avec Review Schema pour crédibilité');
   }
-  
+
   // Priorité moyenne
-  if (!signals.contactPage.found || (!signals.contactPage.hasEmail && !signals.contactPage.hasPhone)) {
+  if (signals.contactPage.state !== 'unverified' && (!signals.contactPage.found || (!signals.contactPage.hasEmail && !signals.contactPage.hasPhone))) {
     recs.push('Améliorer page contact avec email, téléphone, adresse physique');
   }
-  
-  if (!signals.legalMentions) {
+
+  if (signals.legalMentions.state === 'absent') {
     recs.push('Ajouter mentions légales complètes (obligatoire en Suisse/UE)');
   }
   
@@ -569,18 +561,21 @@ function simulateEEATData(): EEATResult {
     signals: {
       teamPage: {
         found: false,
+        state: 'absent' as SignalState,
         quality: 'none',
         authorsCount: 0,
       },
-      legalMentions: true,
+      legalMentions: { found: true, state: 'present' as SignalState },
       contactPage: {
         found: true,
+        state: 'present' as SignalState,
         hasEmail: true,
         hasPhone: false,
         hasAddress: false,
       },
       testimonials: {
         found: false,
+        state: 'absent' as SignalState,
         count: 0,
         hasSchema: false,
       },

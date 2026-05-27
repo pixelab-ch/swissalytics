@@ -291,10 +291,10 @@ const FIXTURE: AnalysisResult = {
       eeat: {
         score: 55,
         signals: {
-          teamPage: { found: true },
-          legalMentions: true,
-          contactPage: { found: true },
-          testimonials: { found: false, count: 0 },
+          teamPage:      { found: true,  state: 'present' },
+          legalMentions: { found: false, state: 'unverified' },
+          contactPage:   { found: true,  state: 'present' },
+          testimonials:  { found: false, state: 'absent', count: 0 },
         },
       },
     },

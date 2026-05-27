@@ -139,7 +139,7 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     expect(enigmaPathHit).toBe(false);
   });
 
-  it('does NOT fetch a fixed 9-page list — only homepage + discovered links', async () => {
+  it('does NOT fetch a fixed 9-page list — only homepage + sitemap + discovered links', async () => {
     const stub = fetchStub({
       '/fr/lequipe/': { body: TEAM_PAGE },
       '/fr/blog/un-article': { body: BLOG_PAGE },
@@ -150,8 +150,8 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
 
     await runSchemaMultiPage('https://acme.com');
 
-    // Homepage + exactly the 3 discovered sub-pages = 4 fetches.
-    expect(stub.mock.calls.length).toBe(4);
+    // Homepage + sitemap.xml (Option C best-effort) + 3 discovered sub-pages = 5 fetches.
+    expect(stub.mock.calls.length).toBe(5);
   });
 
   it('skips soft-404 sub-pages rather than counting them in the average', async () => {
@@ -220,8 +220,8 @@ describe('analyzeSchemaOrgMultiPage — link-driven discovery', () => {
     vi.stubGlobal('fetch', stub);
 
     const result = await runSchemaMultiPage('https://solo.com');
-    // Only the homepage was fetched (no nav links to discover).
-    expect(stub.mock.calls.length).toBe(1);
+    // Homepage + sitemap.xml (Option C best-effort, no nav links to discover).
+    expect(stub.mock.calls.length).toBe(2);
     expect(result.schemas.organization).toBe(true);
     expect(result.schemas.website).toBe(true);
     expect(result.schemas.faqPage).toBe(true);

@@ -349,16 +349,20 @@ const SCHEMA_MAX_SUBPAGES = 8;
  *
  * No hardcoded fallback slug: if a site has no link for a page type, we simply
  * don't probe it (so we never penalize a site for lacking enigma's exact paths).
+ *
+ * Optional `sitemapUrls` (Option C) are passed down to `candidateUrls` as a
+ * second discovery source per group, with the same same-origin guard applied.
  */
 function discoverSchemaCandidateGroups(
   pageUrl: string,
   baseUrl: string,
   links: PageLink[],
+  sitemapUrls: string[] = [],
 ): string[][] {
   const seen = new Set<string>();
   const groups: string[][] = [];
   for (const keywords of Object.values(SCHEMA_PAGE_KEYWORDS)) {
-    const candidates = candidateUrls(pageUrl, baseUrl, links, keywords, [])
+    const candidates = candidateUrls(pageUrl, baseUrl, links, keywords, [], sitemapUrls)
       .filter((u) => {
         if (seen.has(u)) return false;
         seen.add(u);
@@ -397,7 +401,7 @@ export async function analyzeSchemaOrgMultiPage(
 
   const homepageHtml = ctx.html;
   const links = ctx.links;
-  const candidateGroups = discoverSchemaCandidateGroups(baseUrl, baseUrl, links);
+  const candidateGroups = discoverSchemaCandidateGroups(baseUrl, baseUrl, links, ctx.sitemapUrls);
 
   console.log(`[Schema.org Multi-Page] ${candidateGroups.length} groupes de pages découverts via liens réels`);
 

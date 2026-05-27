@@ -127,10 +127,17 @@ describe('fallback factories', () => {
     const fb = eeatFallback();
     expect(fb.score).toBe(0);
     expect(fb.signals.teamPage.found).toBe(false);
-    expect(fb.signals.legalMentions).toBe(false);
     expect(fb.signals.contactPage.found).toBe(false);
     expect(fb.signals.testimonials.count).toBe(0);
     expect(fb.signals.backlinks.total).toBe(0);
+  });
+
+  it('eeatFallback marks all signals unverified (analyzer failure ≠ confident absence)', () => {
+    const fb = eeatFallback();
+    expect(fb.signals.teamPage.state).toBe('unverified');
+    expect(fb.signals.legalMentions).toEqual({ found: false, state: 'unverified' });
+    expect(fb.signals.contactPage.state).toBe('unverified');
+    expect(fb.signals.testimonials.state).toBe('unverified');
   });
 });
 

@@ -77,6 +77,12 @@ export const TESTIMONIAL_KEYWORDS = [
 
 const UA = 'Swissalytics/1.0 (+https://swissalytics.com)';
 
+/** Outcome of a single page fetch, distinguishing definitive-absent from indeterminate. */
+export type FetchOutcome =
+  | { kind: 'ok'; html: string }
+  | { kind: 'absent' }    // HTTP 404/410, or HTTP-200 soft-404 — page confidently not there
+  | { kind: 'unknown' };  // timeout/abort/network err/SSRF reject/401/403/429/5xx — couldn't determine
+
 /**
  * Per-fetch hard timeout (ms). Keeps sockets from outliving the analyzer's
  * overall `withTimeout` budget — see eeat I-2.
@@ -96,6 +102,85 @@ export const FETCH_TIMEOUT_MS = 8_000;
 
 /** Max candidate URLs fetched per signal — see eeat I-1 (route promises ≤3). */
 export const MAX_CANDIDATES = 3;
+
+/** Honest 3-state for a discovered signal. */
+export type SignalState = 'present' | 'absent' | 'unverified';
+
+/** Aggregate result of probing a signal's candidate URLs. */
+export type ProbeResult =
+  | { state: 'present'; url: string; html: string }
+  | { state: 'absent' }
+  | { state: 'unverified' };
+
+/**
+ * Max simultaneous fetches to a SINGLE origin. The analyzers fire a burst of
+ * same-origin sub-page fetches (homepage + ≤3×team/contact/legal/testimonials
+ * + schema groups + sitemap). Unbounded, that's ~20-30 parallel connections to
+ * one small CMS — which intermittently self-inflicts the timeouts we just
+ * fixed, and can trip a WAF into blocking our server IP. 6 keeps us polite
+ * while staying well within the analyzer time budgets (most fetches return
+ * fast; a slow site fails open via the analyzer-level withTimeout).
+ */
+export const MAX_PER_ORIGIN = 6;
+
+/**
+ * Minimal FIFO counting semaphore with self-eviction on idle.
+ *
+ * When `release()` returns the semaphore to fully idle (`active === 0` and
+ * `queue.length === 0`) it deletes its own entry from `originSemaphores`,
+ * preventing unbounded map growth on the long-lived VPS process.
+ *
+ * Tradeoff: a caller that holds a stale semaphore reference (acquired just
+ * before eviction) will keep using it — releasing it triggers another eviction
+ * attempt which is a no-op if the key was already re-inserted by a concurrent
+ * `originSemaphore()` call. This means two Semaphore objects for the same
+ * origin can briefly co-exist, each enforcing its own `MAX_PER_ORIGIN` cap.
+ * The window is tiny (race between acquire and eviction) and the consequence
+ * is bounded: at worst 2× the per-origin cap for a brief moment. The goal —
+ * per-origin politeness + no unbounded growth — is preserved.
+ */
+class Semaphore {
+  private active = 0;
+  private readonly queue: Array<() => void> = [];
+  constructor(
+    private readonly max: number,
+    private readonly originKey: string,
+  ) {}
+  async acquire(): Promise<void> {
+    if (this.active < this.max) { this.active++; return; }
+    await new Promise<void>((resolve) => this.queue.push(resolve));
+    this.active++;
+  }
+  release(): void {
+    this.active--;
+    const next = this.queue.shift();
+    if (next) {
+      next();
+    } else if (this.active === 0 && this.queue.length === 0) {
+      // Fully idle — evict so the map doesn't grow for the process lifetime.
+      originSemaphores.delete(this.originKey);
+    }
+  }
+}
+
+/** One semaphore per origin (lazily created, evicted when idle). */
+const originSemaphores = new Map<string, Semaphore>();
+function originSemaphore(url: string): Semaphore {
+  let origin: string;
+  try { origin = new URL(url).origin; } catch { origin = url; }
+  let sem = originSemaphores.get(origin);
+  if (!sem) { sem = new Semaphore(MAX_PER_ORIGIN, origin); originSemaphores.set(origin, sem); }
+  return sem;
+}
+
+/**
+ * TEST-ONLY: return the current number of entries in `originSemaphores`.
+ * Exported under a `__` prefix to signal it must NOT be used in production
+ * code — it exists solely so tests can assert the map stays bounded.
+ */
+export function __originSemaphoreCount(): number {
+  return originSemaphores.size;
+}
 
 /**
  * Registrable-domain-ish key for same-origin restriction (no PSL dependency):
@@ -187,46 +272,80 @@ export function looksLikeSoftError(html: string, title: string): boolean {
 }
 
 /**
- * Fetch a page once, returning its HTML — or null on HTTP error / soft-404.
+ * Fetch a page once and CLASSIFY the result into a 3-way outcome:
+ *   - 'ok'      → 2xx with real content (not a soft-404).
+ *   - 'absent'  → HTTP 404/410, or HTTP-200 soft-404. The page is confidently
+ *                 not there.
+ *   - 'unknown' → timeout / abort / network error / SSRF reject / 401 / 403 /
+ *                 429 / 5xx / other non-ok. We could NOT determine existence;
+ *                 the page may well exist (slow, blocked, gated).
  *
- * The URL may be derived from the (untrusted) analyzed page's links, so every
- * fetch passes through `assertSafeUrl` first (resolves DNS, blocks private /
- * link-local / metadata IPs) — see eeat C-1. An `SsrfError` (or any rejection
- * from the guard) is treated as "not found" rather than crashing the analyzer.
- * A per-fetch `AbortController` caps the socket lifetime so a slow host can't
- * outlive the analyzer's overall timeout (eeat I-2).
+ * This distinction is what lets the E-E-A-T layer say "non vérifié" instead of
+ * "manquant" when a real page is merely unreachable (see probeSignal / Task 5).
+ *
+ * Every fetch passes through `assertSafeUrl` first (the URL may derive from an
+ * untrusted page's links). A guard rejection is 'unknown' (we refused to fetch,
+ * so we genuinely don't know) — never a false 'absent'. A per-fetch
+ * AbortController caps the socket lifetime (FETCH_TIMEOUT_MS).
  */
-export async function fetchRealPage(url: string): Promise<string | null> {
-  try {
-    await assertSafeUrl(url);
-  } catch (err) {
-    if (err instanceof SsrfError) {
-      console.log(`[page-discovery] URL rejetée (SSRF): ${url} (${err.code})`);
-      return null;
-    }
-    return null;
-  }
+const MAX_FETCH_ATTEMPTS = 2; // 1 try + 1 retry on transient 'unknown'
 
+/** One guarded, semaphore-bounded network attempt. */
+async function attemptFetch(url: string): Promise<FetchOutcome> {
+  const sem = originSemaphore(url);
+  await sem.acquire();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': UA },
-      signal: controller.signal,
-    });
-    if (!response.ok) return null;
-    const html = await response.text();
-    const title = cheerio.load(html)('title').text();
-    if (looksLikeSoftError(html, title)) {
-      console.log(`[page-discovery] Soft-404 rejeté: ${url}`);
-      return null;
+    const response = await fetch(url, { headers: { 'User-Agent': UA }, signal: controller.signal });
+    if (response.ok) {
+      const html = await response.text();
+      const title = cheerio.load(html)('title').text();
+      if (looksLikeSoftError(html, title)) {
+        console.log(`[page-discovery] Soft-404 rejeté: ${url}`);
+        return { kind: 'absent' };
+      }
+      return { kind: 'ok', html };
     }
-    return html;
+    if (response.status === 404 || response.status === 410) return { kind: 'absent' };
+    return { kind: 'unknown' };
   } catch {
-    return null;
+    return { kind: 'unknown' };
   } finally {
     clearTimeout(timer);
+    sem.release();
   }
+}
+
+export async function fetchPageOutcome(url: string): Promise<FetchOutcome> {
+  try {
+    await assertSafeUrl(url);
+  } catch (err) {
+    if (err instanceof SsrfError) console.log(`[page-discovery] URL rejetée (SSRF): ${url} (${err.code})`);
+    return { kind: 'unknown' };
+  }
+  // Retry ONLY a transient 'unknown' (cold-start, blip, 5xx). 'absent' (404/
+  // soft-404) is final — never retried. Bounded at 1 retry so a dead host
+  // adds at most ~2× FETCH_TIMEOUT_MS (≈16s) in the worst case, which can
+  // exceed the 12s eeat budget. The REAL backstop is the route-level
+  // `withTimeout` (fail-open), not the retry count keeping us inside budget.
+  let outcome: FetchOutcome = { kind: 'unknown' };
+  for (let attempt = 1; attempt <= MAX_FETCH_ATTEMPTS; attempt++) {
+    outcome = await attemptFetch(url);
+    if (outcome.kind !== 'unknown') return outcome;
+  }
+  return outcome;
+}
+
+/**
+ * Back-compat wrapper: the original `string | null` contract used by schema-org
+ * (single + multipage) and `fetchFirstAvailable`. Both 'absent' and 'unknown'
+ * collapse to null, exactly as the pre-outcome `fetchRealPage` did, so those
+ * callers are unchanged.
+ */
+export async function fetchRealPage(url: string): Promise<string | null> {
+  const outcome = await fetchPageOutcome(url);
+  return outcome.kind === 'ok' ? outcome.html : null;
 }
 
 /**
@@ -264,6 +383,52 @@ export async function fetchFirstAvailable(
 }
 
 /**
+ * Probe a signal's candidate URLs and return an HONEST 3-state:
+ *   - 'present'    → at least one candidate fetched ok (returns the first by
+ *                    order, with its html for downstream parsing).
+ *   - 'absent'     → no candidates at all, OR every candidate was definitively
+ *                    absent (404 / soft-404). We're confident the page isn't there.
+ *   - 'unverified' → candidates existed but at least one was indeterminate
+ *                    (timeout / blocked / 5xx) and none fetched ok. We can NOT
+ *                    claim absence — the page may well exist. This is the state
+ *                    that prevents a false "manquant" → bogus "create page X" reco.
+ *
+ * Fetches all candidates concurrently (worst-case wall ≈ one timeout, bounded
+ * by the per-origin limiter) and preserves first-by-order for the 'present' hit.
+ */
+export async function probeSignal(urls: string[]): Promise<ProbeResult> {
+  if (urls.length === 0) return { state: 'absent' };
+  const outcomes = await Promise.all(urls.map((u) => fetchPageOutcome(u)));
+  for (let i = 0; i < outcomes.length; i++) {
+    const o = outcomes[i];
+    if (o.kind === 'ok') return { state: 'present', url: urls[i], html: o.html };
+  }
+  if (outcomes.some((o) => o.kind === 'unknown')) return { state: 'unverified' };
+  return { state: 'absent' };
+}
+
+/** Max <loc> entries we parse from a sitemap (bounds parse cost on huge sites). */
+export const SITEMAP_MAX_LOCS = 1000;
+
+/**
+ * Extract <loc> URLs from a sitemap.xml body (regex, no XML dep — robust to
+ * the malformed sitemaps real CMSes emit). Sitemap-index files yield child
+ * .xml locs which simply won't match page keywords downstream — we do NOT
+ * recurse into them (out of scope; bounded cost).
+ */
+export function parseSitemapLocs(xml: string): string[] {
+  if (!xml) return [];
+  const out: string[] = [];
+  const re = /<loc>\s*([^<\s]+)\s*<\/loc>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) {
+    out.push(m[1].trim());
+    if (out.length >= SITEMAP_MAX_LOCS) break;
+  }
+  return out;
+}
+
+/**
  * Shared, fetched-ONCE view of the submitted homepage. Built by
  * `buildPageContext` (which goes through the guarded `fetchRealPage`) and
  * threaded into the sub-analyzers (eeat, schema-org) that would otherwise each
@@ -280,6 +445,8 @@ export interface PageContext {
   $: cheerio.CheerioAPI;
   /** Real `<a href>` links extracted from the homepage. */
   links: PageLink[];
+  /** <loc> URLs parsed from the site's sitemap.xml (Option C); [] if none. */
+  sitemapUrls: string[];
 }
 
 /**
@@ -288,18 +455,30 @@ export interface PageContext {
  * `PageContext` reused by every sub-analyzer that reads the homepage. Returns
  * `null` when the homepage is unreachable / soft-404 / SSRF-rejected, so each
  * analyzer can degrade exactly as it did when it self-fetched and got null.
+ *
+ * Also fetches `${origin}/sitemap.xml` best-effort alongside the homepage parse
+ * (never blocks or cancels the context). A missing or erroring sitemap yields [].
  */
 export async function buildPageContext(url: string): Promise<PageContext | null> {
   const html = await fetchRealPage(url);
   if (html === null) return null;
   const $ = cheerio.load(html);
-  return { url, html, $, links: extractLinks($) };
+  // Best-effort sitemap fetch — never blocks/cancels the context. A missing
+  // sitemap just yields []. Same-origin, so the per-origin limiter applies.
+  let sitemapUrls: string[] = [];
+  try {
+    const origin = new URL(url).origin;
+    const outcome = await fetchPageOutcome(`${origin}/sitemap.xml`);
+    if (outcome.kind === 'ok') sitemapUrls = parseSitemapLocs(outcome.html);
+  } catch { /* no sitemap → [] */ }
+  return { url, html, $, links: extractLinks($), sitemapUrls };
 }
 
 /**
  * Resolve candidate URLs for a signal: prefer the real links found on the
- * submitted page (resolved against the page URL), falling back to a small
- * deduped list of guessed slugs only when no link matched.
+ * submitted page (resolved against the page URL), optionally supplemented
+ * with matching sitemap <loc> entries (Option C), falling back to a small
+ * deduped list of guessed slugs only when neither source matched.
  */
 export function candidateUrls(
   pageUrl: string,
@@ -307,6 +486,7 @@ export function candidateUrls(
   linksList: PageLink[],
   keywords: string[],
   fallbackSlugs: string[],
+  sitemapLocs: string[] = [],   // Option C — second discovery source
 ): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -324,8 +504,8 @@ export function candidateUrls(
     }
   })();
 
-  // 1. Link-driven: matching links from the page, resolved absolute, but
-  //    restricted to safe schemes AND the SAME SITE as the analyzed page.
+  // 1. Homepage links (existing logic, unchanged) — highest priority, doc order.
+  //    Restricted to safe schemes AND the SAME SITE as the analyzed page.
   //    Dropping cross-origin links is both an SSRF defence (eeat C-1) and a
   //    correctness fix — an external `linkedin.com/.../about` is NOT the
   //    site's team page.
@@ -342,7 +522,20 @@ export function candidateUrls(
     }
   }
 
-  // 2. Safety-net hardcoded probes ONLY when no link matched. (Same-origin
+  // 2. Sitemap URLs (Option C) — appended after homepage links. A sitemap loc
+  //    is matched the same way (path segment / keyword) via a synthetic
+  //    PageLink with empty anchor text. Same-origin + scheme guards reused.
+  for (const loc of sitemapLocs) {
+    if (!matchesKeyword({ href: loc, text: '' }, keywords)) continue;
+    try {
+      const abs = new URL(loc, pageUrl);
+      if (abs.protocol !== 'http:' && abs.protocol !== 'https:') continue;
+      if (pageHost && !isSameSite(abs, pageHost)) continue;
+      push(abs.href);
+    } catch { /* ignore */ }
+  }
+
+  // 3. Safety-net hardcoded probes ONLY when NEITHER source matched. (Same-origin
   //    by construction — built off baseUrl.)
   if (out.length === 0) {
     for (const slug of fallbackSlugs) push(`${baseUrl}/${slug}`);

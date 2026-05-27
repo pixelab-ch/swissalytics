@@ -19,6 +19,7 @@ import type {
   StoredReport,
 } from './types';
 import type { GeoAnalysisResult } from '@/lib/analyzers/types';
+import { normalizeEeatSignals } from '@/lib/analyzers/normalizeEeatSignals';
 import { getSupabaseClient } from './supabaseClient';
 
 interface ReportRow {
@@ -80,7 +81,9 @@ export function rowToStored(row: ReportRow): StoredReport {
     country: row.country,
     userAgent: row.user_agent,
     referrer: row.referrer,
-    geoAnalysis: (row.geo_analysis ?? null) as GeoAnalysisResult | null,
+    geoAnalysis: row.geo_analysis
+      ? normalizeEeatSignals(row.geo_analysis as GeoAnalysisResult)
+      : null,
     cwv: (row.cwv ?? null) as CwvEnrichment | null,
     keywordSuggestions: (row.keyword_suggestions ?? null) as StoredReport['keywordSuggestions'],
   };
