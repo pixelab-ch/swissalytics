@@ -29,6 +29,7 @@ import {
   findBestCandidate,
   looksLikeSoftError,
   matchesKeyword,
+  MAX_PER_ORIGIN,
   type PageLink,
 } from '../page-discovery';
 import {
@@ -435,5 +436,42 @@ describe('fetchRealPage — wrapper preserves string|null', () => {
     expect(await fetchRealPage('https://site.com/x')).toBeNull();
     vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 500 })));
     expect(await fetchRealPage('https://site.com/x')).toBeNull();
+  });
+});
+
+describe('fetchPageOutcome — per-origin concurrency limiter (Option A)', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  it('caps concurrent fetches to the SAME origin at MAX_PER_ORIGIN', async () => {
+    let inFlight = 0;
+    let maxConcurrent = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      inFlight++; maxConcurrent = Math.max(maxConcurrent, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      inFlight--;
+      return new Response('<title>x</title><body>ok</body>', { status: 200 });
+    }));
+
+    const urls = Array.from({ length: 20 }, (_, i) => `https://same.com/p${i}`);
+    await Promise.all(urls.map((u) => fetchPageOutcome(u)));
+
+    expect(maxConcurrent).toBeLessThanOrEqual(MAX_PER_ORIGIN);
+    expect(maxConcurrent).toBeGreaterThan(1); // not serialized
+  });
+
+  it('does NOT throttle across DIFFERENT origins', async () => {
+    let inFlight = 0;
+    let maxConcurrent = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      inFlight++; maxConcurrent = Math.max(maxConcurrent, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      inFlight--;
+      return new Response('<title>x</title><body>ok</body>', { status: 200 });
+    }));
+
+    // 8 distinct origins → all should run at once (limiter is per-origin).
+    const urls = Array.from({ length: 8 }, (_, i) => `https://host${i}.com/p`);
+    await Promise.all(urls.map((u) => fetchPageOutcome(u)));
+    expect(maxConcurrent).toBe(8);
   });
 });

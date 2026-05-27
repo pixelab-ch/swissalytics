@@ -104,6 +104,44 @@ export const FETCH_TIMEOUT_MS = 8_000;
 export const MAX_CANDIDATES = 3;
 
 /**
+ * Max simultaneous fetches to a SINGLE origin. The analyzers fire a burst of
+ * same-origin sub-page fetches (homepage + ≤3×team/contact/legal/testimonials
+ * + schema groups + sitemap). Unbounded, that's ~20-30 parallel connections to
+ * one small CMS — which intermittently self-inflicts the timeouts we just
+ * fixed, and can trip a WAF into blocking our server IP. 6 keeps us polite
+ * while staying well within the analyzer time budgets (most fetches return
+ * fast; a slow site fails open via the analyzer-level withTimeout).
+ */
+export const MAX_PER_ORIGIN = 6;
+
+/** Minimal FIFO counting semaphore. */
+class Semaphore {
+  private active = 0;
+  private readonly queue: Array<() => void> = [];
+  constructor(private readonly max: number) {}
+  async acquire(): Promise<void> {
+    if (this.active < this.max) { this.active++; return; }
+    await new Promise<void>((resolve) => this.queue.push(resolve));
+    this.active++;
+  }
+  release(): void {
+    this.active--;
+    const next = this.queue.shift();
+    if (next) next();
+  }
+}
+
+/** One semaphore per origin (lazily created). Process-lifetime map. */
+const originSemaphores = new Map<string, Semaphore>();
+function originSemaphore(url: string): Semaphore {
+  let origin: string;
+  try { origin = new URL(url).origin; } catch { origin = url; }
+  let sem = originSemaphores.get(origin);
+  if (!sem) { sem = new Semaphore(MAX_PER_ORIGIN); originSemaphores.set(origin, sem); }
+  return sem;
+}
+
+/**
  * Registrable-domain-ish key for same-origin restriction (no PSL dependency):
  * exact hostname or its last two labels (`team.enigma.swiss` → `enigma.swiss`).
  * Good enough to keep candidate fetches on the analyzed site and drop
@@ -219,6 +257,8 @@ export async function fetchPageOutcome(url: string): Promise<FetchOutcome> {
     return { kind: 'unknown' };
   }
 
+  const sem = originSemaphore(url);
+  await sem.acquire();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -244,6 +284,7 @@ export async function fetchPageOutcome(url: string): Promise<FetchOutcome> {
     return { kind: 'unknown' };
   } finally {
     clearTimeout(timer);
+    sem.release();
   }
 }
 
