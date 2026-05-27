@@ -247,25 +247,16 @@ export function looksLikeSoftError(html: string, title: string): boolean {
  * so we genuinely don't know) — never a false 'absent'. A per-fetch
  * AbortController caps the socket lifetime (FETCH_TIMEOUT_MS).
  */
-export async function fetchPageOutcome(url: string): Promise<FetchOutcome> {
-  try {
-    await assertSafeUrl(url);
-  } catch (err) {
-    if (err instanceof SsrfError) {
-      console.log(`[page-discovery] URL rejetée (SSRF): ${url} (${err.code})`);
-    }
-    return { kind: 'unknown' };
-  }
+const MAX_FETCH_ATTEMPTS = 2; // 1 try + 1 retry on transient 'unknown'
 
+/** One guarded, semaphore-bounded network attempt. */
+async function attemptFetch(url: string): Promise<FetchOutcome> {
   const sem = originSemaphore(url);
   await sem.acquire();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': UA },
-      signal: controller.signal,
-    });
+    const response = await fetch(url, { headers: { 'User-Agent': UA }, signal: controller.signal });
     if (response.ok) {
       const html = await response.text();
       const title = cheerio.load(html)('title').text();
@@ -275,17 +266,32 @@ export async function fetchPageOutcome(url: string): Promise<FetchOutcome> {
       }
       return { kind: 'ok', html };
     }
-    // Definitively-gone statuses are 'absent'; everything else (auth/blocked/
-    // rate-limited/server error) is 'unknown' — the page may exist.
     if (response.status === 404 || response.status === 410) return { kind: 'absent' };
     return { kind: 'unknown' };
   } catch {
-    // Abort (timeout) or network error — indeterminate.
     return { kind: 'unknown' };
   } finally {
     clearTimeout(timer);
     sem.release();
   }
+}
+
+export async function fetchPageOutcome(url: string): Promise<FetchOutcome> {
+  try {
+    await assertSafeUrl(url);
+  } catch (err) {
+    if (err instanceof SsrfError) console.log(`[page-discovery] URL rejetée (SSRF): ${url} (${err.code})`);
+    return { kind: 'unknown' };
+  }
+  // Retry ONLY a transient 'unknown' (cold-start, blip, 5xx). 'absent' (404/
+  // soft-404) is final — never retried. Bounded at 1 retry so a dead host adds
+  // at most one extra timeout, staying inside the analyzer budget.
+  let outcome: FetchOutcome = { kind: 'unknown' };
+  for (let attempt = 1; attempt <= MAX_FETCH_ATTEMPTS; attempt++) {
+    outcome = await attemptFetch(url);
+    if (outcome.kind !== 'unknown') return outcome;
+  }
+  return outcome;
 }
 
 /**

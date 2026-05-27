@@ -439,6 +439,36 @@ describe('fetchRealPage — wrapper preserves string|null', () => {
   });
 });
 
+describe('fetchPageOutcome — retry once on transient (Option D)', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  it('retries ONCE when the first attempt is unknown, succeeding on retry', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new Error('transient network blip');
+      return new Response('<title>x</title><body>ok</body>', { status: 200 });
+    }));
+    const o = await fetchPageOutcome('https://site.com/x');
+    expect(o.kind).toBe('ok');
+    expect(calls).toBe(2);
+  });
+
+  it('does NOT retry an absent (404) outcome', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => { calls++; return new Response('nf', { status: 404 }); }));
+    expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('absent');
+    expect(calls).toBe(1);
+  });
+
+  it('gives up after exactly one retry (2 attempts) and returns unknown', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => { calls++; throw new Error('still down'); }));
+    expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('unknown');
+    expect(calls).toBe(2);
+  });
+});
+
 describe('fetchPageOutcome — per-origin concurrency limiter (Option A)', () => {
   afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
