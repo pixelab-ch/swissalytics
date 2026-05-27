@@ -123,11 +123,29 @@ export type ProbeResult =
  */
 export const MAX_PER_ORIGIN = 6;
 
-/** Minimal FIFO counting semaphore. */
+/**
+ * Minimal FIFO counting semaphore with self-eviction on idle.
+ *
+ * When `release()` returns the semaphore to fully idle (`active === 0` and
+ * `queue.length === 0`) it deletes its own entry from `originSemaphores`,
+ * preventing unbounded map growth on the long-lived VPS process.
+ *
+ * Tradeoff: a caller that holds a stale semaphore reference (acquired just
+ * before eviction) will keep using it — releasing it triggers another eviction
+ * attempt which is a no-op if the key was already re-inserted by a concurrent
+ * `originSemaphore()` call. This means two Semaphore objects for the same
+ * origin can briefly co-exist, each enforcing its own `MAX_PER_ORIGIN` cap.
+ * The window is tiny (race between acquire and eviction) and the consequence
+ * is bounded: at worst 2× the per-origin cap for a brief moment. The goal —
+ * per-origin politeness + no unbounded growth — is preserved.
+ */
 class Semaphore {
   private active = 0;
   private readonly queue: Array<() => void> = [];
-  constructor(private readonly max: number) {}
+  constructor(
+    private readonly max: number,
+    private readonly originKey: string,
+  ) {}
   async acquire(): Promise<void> {
     if (this.active < this.max) { this.active++; return; }
     await new Promise<void>((resolve) => this.queue.push(resolve));
@@ -136,18 +154,32 @@ class Semaphore {
   release(): void {
     this.active--;
     const next = this.queue.shift();
-    if (next) next();
+    if (next) {
+      next();
+    } else if (this.active === 0 && this.queue.length === 0) {
+      // Fully idle — evict so the map doesn't grow for the process lifetime.
+      originSemaphores.delete(this.originKey);
+    }
   }
 }
 
-/** One semaphore per origin (lazily created). Process-lifetime map. */
+/** One semaphore per origin (lazily created, evicted when idle). */
 const originSemaphores = new Map<string, Semaphore>();
 function originSemaphore(url: string): Semaphore {
   let origin: string;
   try { origin = new URL(url).origin; } catch { origin = url; }
   let sem = originSemaphores.get(origin);
-  if (!sem) { sem = new Semaphore(MAX_PER_ORIGIN); originSemaphores.set(origin, sem); }
+  if (!sem) { sem = new Semaphore(MAX_PER_ORIGIN, origin); originSemaphores.set(origin, sem); }
   return sem;
+}
+
+/**
+ * TEST-ONLY: return the current number of entries in `originSemaphores`.
+ * Exported under a `__` prefix to signal it must NOT be used in production
+ * code — it exists solely so tests can assert the map stays bounded.
+ */
+export function __originSemaphoreCount(): number {
+  return originSemaphores.size;
 }
 
 /**

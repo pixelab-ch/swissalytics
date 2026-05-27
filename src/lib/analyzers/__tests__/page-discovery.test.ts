@@ -33,6 +33,7 @@ import {
   probeSignal,
   MAX_PER_ORIGIN,
   SITEMAP_MAX_LOCS,
+  __originSemaphoreCount,
   type PageLink,
 } from '../page-discovery';
 import {
@@ -592,5 +593,31 @@ describe('probeSignal — found / absent / unverified (Option B)', () => {
         ? new Response('nf', { status: 404 })     // absent
         : new Response('x', { status: 500 })));   // unknown
     expect(await probeSignal(['https://site.com/a', 'https://site.com/b'])).toEqual({ state: 'unverified' });
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Per-origin semaphore eviction (memory-leak fix for long-lived VPS).
+ *
+ * `originSemaphores` is a module-level map. Without eviction it grows
+ * for the entire process lifetime — one entry per analyzed origin.
+ * The fix: `release()` deletes the map entry when the semaphore becomes
+ * fully idle (active === 0 && queue.length === 0).
+ * ------------------------------------------------------------------ */
+describe('per-origin semaphore — evicted from map when idle', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  it('does NOT retain a map entry for an origin after all its fetches complete', async () => {
+    const PAGE = '<html><head><title>x</title></head><body>ok</body></html>';
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(PAGE, { status: 200 })));
+
+    const origin = 'https://evict-test-origin.com';
+    const urls = Array.from({ length: 4 }, (_, i) => `${origin}/p${i}`);
+
+    // Run all fetches and wait for completion.
+    await Promise.all(urls.map((u) => fetchPageOutcome(u)));
+
+    // All fetches done → the semaphore must have self-evicted.
+    expect(__originSemaphoreCount()).toBe(0);
   });
 });
