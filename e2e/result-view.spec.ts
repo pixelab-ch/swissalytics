@@ -191,6 +191,15 @@ test.describe('Scorecards — qualifier word + no stuck loading', () => {
   });
 });
 
+test.describe('GEO tab — E-E-A-T 3-state badge', () => {
+  test('E-E-A-T panel renders a "non vérifié" badge for an unverified signal', async ({ page }) => {
+    await page.goto(`${FIXTURE_URL}?tab=geo`);
+    await page.waitForSelector('[role="tablist"]');
+    const badge = page.getByTitle(/non vérifié|not verified/i);
+    await expect(badge.first()).toBeVisible();
+  });
+});
+
 test.describe('GEO tab — bot-coverage panel', () => {
   test('bot coverage panel is visible in the GEO tab', async ({ page }) => {
     await page.goto(FIXTURE_URL);
