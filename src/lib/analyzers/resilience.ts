@@ -112,10 +112,10 @@ export function eeatFallback(): EEATResult {
   return {
     score: 0,
     signals: {
-      teamPage:    { found: false, quality: 'none', authorsCount: 0 },
-      legalMentions: false,
-      contactPage: { found: false, hasEmail: false, hasPhone: false, hasAddress: false },
-      testimonials: { found: false, count: 0, hasSchema: false },
+      teamPage:    { found: false, state: 'unverified', quality: 'none', authorsCount: 0 },
+      legalMentions: { found: false, state: 'unverified' },
+      contactPage: { found: false, state: 'unverified', hasEmail: false, hasPhone: false, hasAddress: false },
+      testimonials: { found: false, state: 'unverified', count: 0, hasSchema: false },
       backlinks:   { total: 0, quality: 'none', domains: 0 },
       authorBios:  { found: false, count: 0 },
     },
