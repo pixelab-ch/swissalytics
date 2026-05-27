@@ -392,6 +392,10 @@ describe('analyzeEEAT — parallel candidate fetch + slow-but-valid resolution',
   it('still finds a slow-but-valid contact page (would have falsely timed out)', async () => {
     // The enigma case: a cold ~3.4s contact fetch. With fake timers we simulate
     // the delay; it stays under the 8s per-fetch timeout, so it must resolve.
+    // Note: buildPageContext now also fetches sitemap.xml (Option C) after the
+    // homepage, adding one more 3.4s slow fetch before the signal probes start.
+    // The signal probes fire concurrently but the per-origin semaphore (cap 6)
+    // means some queue behind others and need multiple timer advances to drain.
     vi.useFakeTimers();
     const HOMEPAGE = `
       <html><head><title>Enigma</title></head><body>
@@ -411,7 +415,9 @@ describe('analyzeEEAT — parallel candidate fetch + slow-but-valid resolution',
       const result = await runEEAT('https://enigma.swiss/');
       return result;
     })();
-    // advance past the homepage fetch + the slow contact fetch
+    // Advance past: sitemap fetch (3.4s) + first batch of concurrent signal
+    // probes (3.4s) + any queued probes (3.4s). Three rounds cover all stages.
+    await vi.advanceTimersByTimeAsync(3_400);
     await vi.advanceTimersByTimeAsync(3_400);
     await vi.advanceTimersByTimeAsync(3_400);
     const result = await ctxPromise;

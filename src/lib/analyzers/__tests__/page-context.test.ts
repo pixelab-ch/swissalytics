@@ -57,7 +57,8 @@ describe('buildPageContext', () => {
     const ctx = await buildPageContext('https://acme.com/');
 
     expect(ctx).not.toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Two fetches: homepage + sitemap.xml (Option C best-effort).
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(ctx!.url).toBe('https://acme.com/');
     expect(ctx!.html).toBe(HOMEPAGE);
     // Parsed cheerio API works off the same HTML.
@@ -67,6 +68,8 @@ describe('buildPageContext', () => {
       { href: '/fr/lequipe/', text: "L'équipe" },
       { href: '/contact', text: 'Contact' },
     ]);
+    // Sitemap URLs parsed (none expected from this HTML fixture).
+    expect(ctx!.sitemapUrls).toEqual([]);
   });
 
   it('returns null on HTTP error (homepage unreachable) so analyzers can degrade', async () => {

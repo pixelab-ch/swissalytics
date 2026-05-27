@@ -29,7 +29,9 @@ import {
   findBestCandidate,
   looksLikeSoftError,
   matchesKeyword,
+  parseSitemapLocs,
   MAX_PER_ORIGIN,
+  SITEMAP_MAX_LOCS,
   type PageLink,
 } from '../page-discovery';
 import {
@@ -503,5 +505,54 @@ describe('fetchPageOutcome — per-origin concurrency limiter (Option A)', () =>
     const urls = Array.from({ length: 8 }, (_, i) => `https://host${i}.com/p`);
     await Promise.all(urls.map((u) => fetchPageOutcome(u)));
     expect(maxConcurrent).toBe(8);
+  });
+});
+
+describe('parseSitemapLocs', () => {
+  it('extracts <loc> URLs from a urlset', () => {
+    const xml = `<?xml version="1.0"?><urlset><url><loc>https://site.com/fr/lequipe/</loc></url>` +
+      `<url><loc>https://site.com/contact</loc></url></urlset>`;
+    expect(parseSitemapLocs(xml)).toEqual(['https://site.com/fr/lequipe/', 'https://site.com/contact']);
+  });
+  it('caps at SITEMAP_MAX_LOCS and ignores junk', () => {
+    const many = Array.from({ length: 2000 }, (_, i) => `<url><loc>https://site.com/p${i}</loc></url>`).join('');
+    const out = parseSitemapLocs(`<urlset>${many}</urlset>`);
+    expect(out.length).toBe(SITEMAP_MAX_LOCS);
+  });
+  it('returns [] for empty / unparseable input', () => {
+    expect(parseSitemapLocs('')).toEqual([]);
+    expect(parseSitemapLocs('not xml')).toEqual([]);
+  });
+});
+
+describe('candidateUrls — sitemap as a second source (Option C)', () => {
+  const linkList = (hrefs: string[]): PageLink[] => hrefs.map((href) => ({ href, text: '' }));
+  it('matches a keyworded sitemap URL when no homepage link matched', () => {
+    const out = candidateUrls(
+      'https://site.com/', 'https://site.com',
+      linkList(['/products']),                       // no team link on homepage
+      TEAM_KEYWORDS, [],
+      ['https://site.com/fr/lequipe/', 'https://site.com/blog/x'], // sitemap locs
+    );
+    expect(out).toContain('https://site.com/fr/lequipe/');
+  });
+  it('keeps homepage links FIRST, sitemap matches appended, deduped, capped at 3', () => {
+    const out = candidateUrls(
+      'https://site.com/', 'https://site.com',
+      linkList(['/equipe']),
+      TEAM_KEYWORDS, [],
+      ['https://site.com/equipe', 'https://site.com/about-us', 'https://site.com/team', 'https://site.com/ueber-uns'],
+    );
+    expect(out[0]).toBe('https://site.com/equipe'); // homepage link wins order
+    expect(out.length).toBe(3);                     // MAX_CANDIDATES
+    expect(new Set(out).size).toBe(out.length);     // deduped
+  });
+  it('drops cross-origin sitemap locs (same-origin guard still applies)', () => {
+    const out = candidateUrls(
+      'https://site.com/', 'https://site.com',
+      [], TEAM_KEYWORDS, [],
+      ['https://evil.com/equipe', 'https://site.com/equipe'],
+    );
+    expect(out).toEqual(['https://site.com/equipe']);
   });
 });

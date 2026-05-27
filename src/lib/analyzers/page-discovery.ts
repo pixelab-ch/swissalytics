@@ -339,6 +339,27 @@ export async function fetchFirstAvailable(
   return null;
 }
 
+/** Max <loc> entries we parse from a sitemap (bounds parse cost on huge sites). */
+export const SITEMAP_MAX_LOCS = 1000;
+
+/**
+ * Extract <loc> URLs from a sitemap.xml body (regex, no XML dep — robust to
+ * the malformed sitemaps real CMSes emit). Sitemap-index files yield child
+ * .xml locs which simply won't match page keywords downstream — we do NOT
+ * recurse into them (out of scope; bounded cost).
+ */
+export function parseSitemapLocs(xml: string): string[] {
+  if (!xml) return [];
+  const out: string[] = [];
+  const re = /<loc>\s*([^<\s]+)\s*<\/loc>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) {
+    out.push(m[1].trim());
+    if (out.length >= SITEMAP_MAX_LOCS) break;
+  }
+  return out;
+}
+
 /**
  * Shared, fetched-ONCE view of the submitted homepage. Built by
  * `buildPageContext` (which goes through the guarded `fetchRealPage`) and
@@ -356,6 +377,8 @@ export interface PageContext {
   $: cheerio.CheerioAPI;
   /** Real `<a href>` links extracted from the homepage. */
   links: PageLink[];
+  /** <loc> URLs parsed from the site's sitemap.xml (Option C); [] if none. */
+  sitemapUrls: string[];
 }
 
 /**
@@ -364,18 +387,30 @@ export interface PageContext {
  * `PageContext` reused by every sub-analyzer that reads the homepage. Returns
  * `null` when the homepage is unreachable / soft-404 / SSRF-rejected, so each
  * analyzer can degrade exactly as it did when it self-fetched and got null.
+ *
+ * Also fetches `${origin}/sitemap.xml` best-effort alongside the homepage parse
+ * (never blocks or cancels the context). A missing or erroring sitemap yields [].
  */
 export async function buildPageContext(url: string): Promise<PageContext | null> {
   const html = await fetchRealPage(url);
   if (html === null) return null;
   const $ = cheerio.load(html);
-  return { url, html, $, links: extractLinks($) };
+  // Best-effort sitemap fetch — never blocks/cancels the context. A missing
+  // sitemap just yields []. Same-origin, so the per-origin limiter applies.
+  let sitemapUrls: string[] = [];
+  try {
+    const origin = new URL(url).origin;
+    const outcome = await fetchPageOutcome(`${origin}/sitemap.xml`);
+    if (outcome.kind === 'ok') sitemapUrls = parseSitemapLocs(outcome.html);
+  } catch { /* no sitemap → [] */ }
+  return { url, html, $, links: extractLinks($), sitemapUrls };
 }
 
 /**
  * Resolve candidate URLs for a signal: prefer the real links found on the
- * submitted page (resolved against the page URL), falling back to a small
- * deduped list of guessed slugs only when no link matched.
+ * submitted page (resolved against the page URL), optionally supplemented
+ * with matching sitemap <loc> entries (Option C), falling back to a small
+ * deduped list of guessed slugs only when neither source matched.
  */
 export function candidateUrls(
   pageUrl: string,
@@ -383,6 +418,7 @@ export function candidateUrls(
   linksList: PageLink[],
   keywords: string[],
   fallbackSlugs: string[],
+  sitemapLocs: string[] = [],   // Option C — second discovery source
 ): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -400,8 +436,8 @@ export function candidateUrls(
     }
   })();
 
-  // 1. Link-driven: matching links from the page, resolved absolute, but
-  //    restricted to safe schemes AND the SAME SITE as the analyzed page.
+  // 1. Homepage links (existing logic, unchanged) — highest priority, doc order.
+  //    Restricted to safe schemes AND the SAME SITE as the analyzed page.
   //    Dropping cross-origin links is both an SSRF defence (eeat C-1) and a
   //    correctness fix — an external `linkedin.com/.../about` is NOT the
   //    site's team page.
@@ -418,7 +454,20 @@ export function candidateUrls(
     }
   }
 
-  // 2. Safety-net hardcoded probes ONLY when no link matched. (Same-origin
+  // 2. Sitemap URLs (Option C) — appended after homepage links. A sitemap loc
+  //    is matched the same way (path segment / keyword) via a synthetic
+  //    PageLink with empty anchor text. Same-origin + scheme guards reused.
+  for (const loc of sitemapLocs) {
+    if (!matchesKeyword({ href: loc, text: '' }, keywords)) continue;
+    try {
+      const abs = new URL(loc, pageUrl);
+      if (abs.protocol !== 'http:' && abs.protocol !== 'https:') continue;
+      if (pageHost && !isSameSite(abs, pageHost)) continue;
+      push(abs.href);
+    } catch { /* ignore */ }
+  }
+
+  // 3. Safety-net hardcoded probes ONLY when NEITHER source matched. (Same-origin
   //    by construction — built off baseUrl.)
   if (out.length === 0) {
     for (const slug of fallbackSlugs) push(`${baseUrl}/${slug}`);

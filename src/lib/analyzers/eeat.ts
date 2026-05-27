@@ -97,14 +97,15 @@ export async function analyzeEEAT(url: string, ctx: PageContext | null): Promise
     const homepageHtml = ctx?.html ?? '';
     const $home = ctx?.$ ?? cheerio.load('');
     const pageLinks = ctx?.links ?? [];
+    const sitemapUrls = ctx?.sitemapUrls ?? [];
 
     // All signal probes run in ONE Promise.all batch (incl. author bios,
     // which reuses the already-fetched homepage HTML — no refetch).
     const [teamPage, legalMentions, contactPage, testimonials, backlinks, authorBios] = await Promise.all([
-      analyzeTeamPage(url, baseUrl, pageLinks),
-      checkLegalMentions(url, baseUrl, pageLinks),
-      analyzeContactPage(url, baseUrl, pageLinks),
-      analyzeTestimonials(url, baseUrl, pageLinks, homepageHtml),
+      analyzeTeamPage(url, baseUrl, pageLinks, sitemapUrls),
+      checkLegalMentions(url, baseUrl, pageLinks, sitemapUrls),
+      analyzeContactPage(url, baseUrl, pageLinks, sitemapUrls),
+      analyzeTestimonials(url, baseUrl, pageLinks, homepageHtml, sitemapUrls),
       analyzeBacklinks(url),
       analyzeAuthorBios($home),
     ]);
@@ -145,6 +146,7 @@ async function analyzeTeamPage(
   pageUrl: string,
   baseUrl: string,
   pageLinks: PageLink[],
+  sitemapUrls: string[] = [],
 ): Promise<{
   found: boolean;
   quality: 'high' | 'medium' | 'low' | 'none';
@@ -153,7 +155,7 @@ async function analyzeTeamPage(
   try {
     const urls = candidateUrls(pageUrl, baseUrl, pageLinks, TEAM_KEYWORDS, [
       'team', 'about', 'a-propos', 'qui-sommes-nous', 'equipe',
-    ]);
+    ], sitemapUrls);
 
     // Fetch all (≤3) candidates concurrently; take the first successful one in
     // original candidate order (best = earliest matching link). Worst-case wall
@@ -226,11 +228,12 @@ async function checkLegalMentions(
   pageUrl: string,
   baseUrl: string,
   pageLinks: PageLink[],
+  sitemapUrls: string[] = [],
 ): Promise<boolean> {
   try {
     const urls = candidateUrls(pageUrl, baseUrl, pageLinks, LEGAL_KEYWORDS, [
       'mentions-legales', 'legal', 'legal-notice', 'imprint', 'impressum',
-    ]);
+    ], sitemapUrls);
 
     // Concurrent fetch of the (≤3) candidates; legal mentions exist if ANY
     // resolves to a real (non-soft-404) page. Worst-case wall ≈ one timeout.
@@ -249,6 +252,7 @@ async function analyzeContactPage(
   pageUrl: string,
   baseUrl: string,
   pageLinks: PageLink[],
+  sitemapUrls: string[] = [],
 ): Promise<{
   found: boolean;
   hasEmail: boolean;
@@ -258,7 +262,7 @@ async function analyzeContactPage(
   try {
     const urls = candidateUrls(pageUrl, baseUrl, pageLinks, CONTACT_KEYWORDS, [
       'contact', 'contactez-nous', 'kontakt', 'contatti',
-    ]);
+    ], sitemapUrls);
 
     // Concurrent fetch of the (≤3) candidates; analyze the first successful one
     // in original candidate order. Worst-case wall ≈ one timeout, not N×.
@@ -355,6 +359,7 @@ async function analyzeTestimonials(
   baseUrl: string,
   pageLinks: PageLink[],
   homepageHtml: string,
+  sitemapUrls: string[] = [],
 ): Promise<{
   found: boolean;
   count: number;
@@ -373,7 +378,7 @@ async function analyzeTestimonials(
     // 2. Link-driven discovery of dedicated review/testimonial pages.
     const urls = candidateUrls(pageUrl, baseUrl, pageLinks, TESTIMONIAL_KEYWORDS, [
       'testimonials', 'temoignages', 'avis', 'clients', 'referenzen', 'recensioni',
-    ]);
+    ], sitemapUrls);
 
     // Fetch all (≤3) candidates concurrently (worst-case wall ≈ one timeout,
     // not N×), then scan in original candidate order for the FIRST page that
