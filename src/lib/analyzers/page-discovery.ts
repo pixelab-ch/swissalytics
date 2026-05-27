@@ -77,6 +77,12 @@ export const TESTIMONIAL_KEYWORDS = [
 
 const UA = 'Swissalytics/1.0 (+https://swissalytics.com)';
 
+/** Outcome of a single page fetch, distinguishing definitive-absent from indeterminate. */
+export type FetchOutcome =
+  | { kind: 'ok'; html: string }
+  | { kind: 'absent' }    // HTTP 404/410, or HTTP-200 soft-404 — page confidently not there
+  | { kind: 'unknown' };  // timeout/abort/network err/SSRF reject/401/403/429/5xx — couldn't determine
+
 /**
  * Per-fetch hard timeout (ms). Keeps sockets from outliving the analyzer's
  * overall `withTimeout` budget — see eeat I-2.
@@ -187,24 +193,30 @@ export function looksLikeSoftError(html: string, title: string): boolean {
 }
 
 /**
- * Fetch a page once, returning its HTML — or null on HTTP error / soft-404.
+ * Fetch a page once and CLASSIFY the result into a 3-way outcome:
+ *   - 'ok'      → 2xx with real content (not a soft-404).
+ *   - 'absent'  → HTTP 404/410, or HTTP-200 soft-404. The page is confidently
+ *                 not there.
+ *   - 'unknown' → timeout / abort / network error / SSRF reject / 401 / 403 /
+ *                 429 / 5xx / other non-ok. We could NOT determine existence;
+ *                 the page may well exist (slow, blocked, gated).
  *
- * The URL may be derived from the (untrusted) analyzed page's links, so every
- * fetch passes through `assertSafeUrl` first (resolves DNS, blocks private /
- * link-local / metadata IPs) — see eeat C-1. An `SsrfError` (or any rejection
- * from the guard) is treated as "not found" rather than crashing the analyzer.
- * A per-fetch `AbortController` caps the socket lifetime so a slow host can't
- * outlive the analyzer's overall timeout (eeat I-2).
+ * This distinction is what lets the E-E-A-T layer say "non vérifié" instead of
+ * "manquant" when a real page is merely unreachable (see probeSignal / Task 5).
+ *
+ * Every fetch passes through `assertSafeUrl` first (the URL may derive from an
+ * untrusted page's links). A guard rejection is 'unknown' (we refused to fetch,
+ * so we genuinely don't know) — never a false 'absent'. A per-fetch
+ * AbortController caps the socket lifetime (FETCH_TIMEOUT_MS).
  */
-export async function fetchRealPage(url: string): Promise<string | null> {
+export async function fetchPageOutcome(url: string): Promise<FetchOutcome> {
   try {
     await assertSafeUrl(url);
   } catch (err) {
     if (err instanceof SsrfError) {
       console.log(`[page-discovery] URL rejetée (SSRF): ${url} (${err.code})`);
-      return null;
     }
-    return null;
+    return { kind: 'unknown' };
   }
 
   const controller = new AbortController();
@@ -214,19 +226,36 @@ export async function fetchRealPage(url: string): Promise<string | null> {
       headers: { 'User-Agent': UA },
       signal: controller.signal,
     });
-    if (!response.ok) return null;
-    const html = await response.text();
-    const title = cheerio.load(html)('title').text();
-    if (looksLikeSoftError(html, title)) {
-      console.log(`[page-discovery] Soft-404 rejeté: ${url}`);
-      return null;
+    if (response.ok) {
+      const html = await response.text();
+      const title = cheerio.load(html)('title').text();
+      if (looksLikeSoftError(html, title)) {
+        console.log(`[page-discovery] Soft-404 rejeté: ${url}`);
+        return { kind: 'absent' };
+      }
+      return { kind: 'ok', html };
     }
-    return html;
+    // Definitively-gone statuses are 'absent'; everything else (auth/blocked/
+    // rate-limited/server error) is 'unknown' — the page may exist.
+    if (response.status === 404 || response.status === 410) return { kind: 'absent' };
+    return { kind: 'unknown' };
   } catch {
-    return null;
+    // Abort (timeout) or network error — indeterminate.
+    return { kind: 'unknown' };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Back-compat wrapper: the original `string | null` contract used by schema-org
+ * (single + multipage) and `fetchFirstAvailable`. Both 'absent' and 'unknown'
+ * collapse to null, exactly as the pre-outcome `fetchRealPage` did, so those
+ * callers are unchanged.
+ */
+export async function fetchRealPage(url: string): Promise<string | null> {
+  const outcome = await fetchPageOutcome(url);
+  return outcome.kind === 'ok' ? outcome.html : null;
 }
 
 /**

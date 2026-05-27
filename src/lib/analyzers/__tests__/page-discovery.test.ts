@@ -24,6 +24,8 @@ import {
   candidateUrls,
   extractLinks,
   fetchFirstAvailable,
+  fetchPageOutcome,
+  fetchRealPage,
   findBestCandidate,
   looksLikeSoftError,
   matchesKeyword,
@@ -383,5 +385,55 @@ describe('fetchFirstAvailable — concurrent, first-success-by-order', () => {
       'https://site.com/missing',
     ]);
     expect(hit).toBeNull();
+  });
+});
+
+describe('fetchPageOutcome — classification', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  const PAGE = '<html><head><title>Real</title></head><body>ok</body></html>';
+  const SOFT_404 = '<html><head><title>Page introuvable</title></head><body><h1>404</h1></body></html>';
+
+  it('returns ok with html for a 200 real page', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(PAGE, { status: 200 })));
+    const o = await fetchPageOutcome('https://site.com/x');
+    expect(o.kind).toBe('ok');
+    if (o.kind === 'ok') expect(o.html).toContain('ok');
+  });
+
+  it('returns absent for a 200 soft-404', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(SOFT_404, { status: 200 })));
+    expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('absent');
+  });
+
+  it('returns absent for HTTP 404 and 410', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nf', { status: 404 })));
+    expect((await fetchPageOutcome('https://site.com/a')).kind).toBe('absent');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('gone', { status: 410 })));
+    expect((await fetchPageOutcome('https://site.com/b')).kind).toBe('absent');
+  });
+
+  it('returns unknown for 403, 429 and 5xx (blocked / server error, page may exist)', async () => {
+    for (const status of [403, 429, 500, 503]) {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status })));
+      expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('unknown');
+    }
+  });
+
+  it('returns unknown when fetch throws (abort / network error)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('aborted'); }));
+    expect((await fetchPageOutcome('https://site.com/x')).kind).toBe('unknown');
+  });
+});
+
+describe('fetchRealPage — wrapper preserves string|null', () => {
+  afterEach(() => vi.restoreAllMocks());
+  it('returns html on ok, null on absent and unknown', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<title>x</title><body>hi</body>', { status: 200 })));
+    expect(await fetchRealPage('https://site.com/x')).toContain('hi');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nf', { status: 404 })));
+    expect(await fetchRealPage('https://site.com/x')).toBeNull();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 500 })));
+    expect(await fetchRealPage('https://site.com/x')).toBeNull();
   });
 });
