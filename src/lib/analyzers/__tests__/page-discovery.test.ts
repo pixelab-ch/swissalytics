@@ -30,6 +30,7 @@ import {
   looksLikeSoftError,
   matchesKeyword,
   parseSitemapLocs,
+  probeSignal,
   MAX_PER_ORIGIN,
   SITEMAP_MAX_LOCS,
   type PageLink,
@@ -554,5 +555,42 @@ describe('candidateUrls — sitemap as a second source (Option C)', () => {
       ['https://evil.com/equipe', 'https://site.com/equipe'],
     );
     expect(out).toEqual(['https://site.com/equipe']);
+  });
+});
+
+describe('probeSignal — found / absent / unverified (Option B)', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const PAGE = '<html><head><title>x</title></head><body>ok</body></html>';
+
+  it('absent when there are no candidate URLs (nothing references such a page)', async () => {
+    const stub = vi.fn();
+    vi.stubGlobal('fetch', stub);
+    expect(await probeSignal([])).toEqual({ state: 'absent' });
+    expect(stub).not.toHaveBeenCalled();
+  });
+
+  it('present (with url+html) when a candidate fetches ok — first in order', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(PAGE, { status: 200 })));
+    const r = await probeSignal(['https://site.com/a', 'https://site.com/b']);
+    expect(r.state).toBe('present');
+    if (r.state === 'present') expect(r.url).toBe('https://site.com/a');
+  });
+
+  it('absent when every candidate is a definitive 404 / soft-404', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nf', { status: 404 })));
+    expect(await probeSignal(['https://site.com/a'])).toEqual({ state: 'absent' });
+  });
+
+  it('unverified when candidates exist but all are indeterminate (timeout/5xx)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 503 })));
+    expect(await probeSignal(['https://site.com/a', 'https://site.com/b'])).toEqual({ state: 'unverified' });
+  });
+
+  it('unverified when mixing absent + unknown with no ok (can not conclude absent)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) =>
+      String(input).endsWith('/a')
+        ? new Response('nf', { status: 404 })     // absent
+        : new Response('x', { status: 500 })));   // unknown
+    expect(await probeSignal(['https://site.com/a', 'https://site.com/b'])).toEqual({ state: 'unverified' });
   });
 });

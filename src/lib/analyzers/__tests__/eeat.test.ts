@@ -175,7 +175,7 @@ describe('analyzeEEAT — link-driven detection (enigma case)', () => {
     expect(result.signals.contactPage.hasEmail).toBe(true);
     expect(result.signals.contactPage.hasPhone).toBe(true);
     expect(result.signals.contactPage.hasAddress).toBe(true);
-    expect(result.signals.legalMentions).toBe(true);
+    expect(result.signals.legalMentions).toEqual({ found: true, state: 'present' });
   });
 
   it('rejects a soft-404 (HTTP 200 "Page introuvable") as NOT found', async () => {
@@ -527,5 +527,57 @@ describe('analyzeEEAT — SSRF + same-origin restriction', () => {
 
     const result = await runEEAT('https://www.enigma.swiss/');
     expect(result.signals.teamPage.found).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Option B — Honest 3-state (present / absent / unverified) per signal.
+ * ------------------------------------------------------------------ */
+describe('analyzeEEAT — signal 3-state (Option B)', () => {
+  beforeEach(() => {
+    delete process.env.MOZ_API_KEY;
+  });
+
+  it('teamPage.state = unverified (not absent) when the team link times out (5xx)', async () => {
+    // homepage links include /fr/lequipe/ ; fetch of it → 503 (unknown)
+    vi.stubGlobal('fetch', fetchStub({
+      '/fr/lequipe/': { status: 503, body: 'Service Unavailable' },
+      '__home__': { body: HOMEPAGE_ENIGMA },
+    }));
+    const result = await runEEAT('https://enigma.swiss/');
+    // unverified: we had a candidate URL but couldn't read it
+    expect(result.signals.teamPage.state).toBe('unverified');
+    expect(result.signals.teamPage.found).toBe(false);
+  });
+
+  it('teamPage.state = absent when no team link AND no sitemap match', async () => {
+    // Homepage has no team-keyword links; all fallback probes → 404
+    vi.stubGlobal('fetch', fetchStub({
+      '__home__': { body: '<html><head><title>X</title></head><body><a href="/products">Products</a></body></html>' },
+    }));
+    const result = await runEEAT('https://noteam.com/');
+    expect(result.signals.teamPage.state).toBe('absent');
+    expect(result.signals.teamPage.found).toBe(false);
+  });
+
+  it('teamPage.state = present when the team page fetches ok', async () => {
+    vi.stubGlobal('fetch', fetchStub({
+      '/fr/lequipe/': { body: TEAM_PAGE },
+      '__home__': { body: HOMEPAGE_ENIGMA },
+    }));
+    const result = await runEEAT('https://enigma.swiss/');
+    expect(result.signals.teamPage.state).toBe('present');
+    expect(result.signals.teamPage.found).toBe(true);
+  });
+
+  it('legalMentions is now an object { found, state }', async () => {
+    vi.stubGlobal('fetch', fetchStub({
+      '/fr/mentions-legales/': { body: '<title>Mentions légales — Enigma</title><p>Mentions</p>' },
+      '__home__': { body: HOMEPAGE_ENIGMA },
+    }));
+    const result = await runEEAT('https://enigma.swiss/');
+    expect(typeof result.signals.legalMentions).toBe('object');
+    expect(result.signals.legalMentions).toHaveProperty('found');
+    expect(result.signals.legalMentions).toHaveProperty('state');
   });
 });

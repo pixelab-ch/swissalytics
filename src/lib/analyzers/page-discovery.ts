@@ -103,6 +103,15 @@ export const FETCH_TIMEOUT_MS = 8_000;
 /** Max candidate URLs fetched per signal — see eeat I-1 (route promises ≤3). */
 export const MAX_CANDIDATES = 3;
 
+/** Honest 3-state for a discovered signal. */
+export type SignalState = 'present' | 'absent' | 'unverified';
+
+/** Aggregate result of probing a signal's candidate URLs. */
+export type ProbeResult =
+  | { state: 'present'; url: string; html: string }
+  | { state: 'absent' }
+  | { state: 'unverified' };
+
 /**
  * Max simultaneous fetches to a SINGLE origin. The analyzers fire a burst of
  * same-origin sub-page fetches (homepage + ≤3×team/contact/legal/testimonials
@@ -337,6 +346,31 @@ export async function fetchFirstAvailable(
     if (html !== null) return { url: urls[i], html };
   }
   return null;
+}
+
+/**
+ * Probe a signal's candidate URLs and return an HONEST 3-state:
+ *   - 'present'    → at least one candidate fetched ok (returns the first by
+ *                    order, with its html for downstream parsing).
+ *   - 'absent'     → no candidates at all, OR every candidate was definitively
+ *                    absent (404 / soft-404). We're confident the page isn't there.
+ *   - 'unverified' → candidates existed but at least one was indeterminate
+ *                    (timeout / blocked / 5xx) and none fetched ok. We can NOT
+ *                    claim absence — the page may well exist. This is the state
+ *                    that prevents a false "manquant" → bogus "create page X" reco.
+ *
+ * Fetches all candidates concurrently (worst-case wall ≈ one timeout, bounded
+ * by the per-origin limiter) and preserves first-by-order for the 'present' hit.
+ */
+export async function probeSignal(urls: string[]): Promise<ProbeResult> {
+  if (urls.length === 0) return { state: 'absent' };
+  const outcomes = await Promise.all(urls.map((u) => fetchPageOutcome(u)));
+  for (let i = 0; i < outcomes.length; i++) {
+    const o = outcomes[i];
+    if (o.kind === 'ok') return { state: 'present', url: urls[i], html: o.html };
+  }
+  if (outcomes.some((o) => o.kind === 'unknown')) return { state: 'unverified' };
+  return { state: 'absent' };
 }
 
 /** Max <loc> entries we parse from a sitemap (bounds parse cost on huge sites). */
