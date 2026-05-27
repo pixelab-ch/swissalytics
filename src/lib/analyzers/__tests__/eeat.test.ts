@@ -344,6 +344,61 @@ describe('analyzeEEAT — testimonials (link-driven)', () => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Testimonials — verified-absent vs unverified custom path (FIX 3).
+ *
+ * A candidate that fetches HTTP 200 but has 0 reviews → verified-absent
+ * (not present, not unverified). An unknown outcome for any candidate
+ * means we can't confirm absence → unverified.
+ * ------------------------------------------------------------------ */
+describe('analyzeEEAT — testimonials verified-absent vs unverified', () => {
+  beforeEach(() => {
+    delete process.env.MOZ_API_KEY;
+  });
+
+  /** A real testimonials page that exists but has zero review markup. */
+  const REVIEWS_PAGE_NO_REVIEWS = `
+    <html><head><title>Avis clients — Acme</title></head><body>
+      <h1>Avis clients</h1>
+      <p>Aucun avis pour l'instant. Revenez bientôt !</p>
+    </body></html>`;
+
+  it('verified-absent: candidate page is HTTP 200 but contains NO reviews', async () => {
+    // Homepage links to a real /avis page; the page fetches ok but has 0 reviews.
+    const HOMEPAGE = `<html><head><title>Acme</title></head><body>
+      <a href="/avis">Avis clients</a>
+    </body></html>`;
+    vi.stubGlobal('fetch', fetchStub({
+      '/avis': { status: 200, body: REVIEWS_PAGE_NO_REVIEWS },
+      '__home__': { body: HOMEPAGE },
+    }));
+
+    const result = await runEEAT('https://acme.com/');
+    // The page was reachable but had no reviews — we are CERTAIN there are none.
+    expect(result.signals.testimonials.state).toBe('absent');
+    expect(result.signals.testimonials.found).toBe(false);
+  });
+
+  it('unverified: one candidate is 200-no-reviews, another is 5xx (indeterminate)', async () => {
+    // Homepage links to two candidates: first fetches ok with no reviews, second
+    // returns 503 (unknown). Because at least one outcome was unknown, we can NOT
+    // claim absence.
+    const HOMEPAGE = `<html><head><title>Acme</title></head><body>
+      <a href="/avis">Avis</a>
+      <a href="/testimonials">Testimonials</a>
+    </body></html>`;
+    vi.stubGlobal('fetch', fetchStub({
+      '/avis': { status: 200, body: REVIEWS_PAGE_NO_REVIEWS },
+      '/testimonials': { status: 503, body: 'Service Unavailable' },
+      '__home__': { body: HOMEPAGE },
+    }));
+
+    const result = await runEEAT('https://acme.com/');
+    expect(result.signals.testimonials.state).toBe('unverified');
+    expect(result.signals.testimonials.found).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ *
  * Parallel candidate fetch (false-timeout fix). With the per-fetch timeout
  * raised to 8s, a signal's ≤3 candidates must be fetched CONCURRENTLY so the
  * worst-case wall stays ≈ one timeout (not N×). A slow-but-valid candidate
