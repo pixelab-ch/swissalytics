@@ -325,8 +325,10 @@ export async function fetchPageOutcome(url: string): Promise<FetchOutcome> {
     return { kind: 'unknown' };
   }
   // Retry ONLY a transient 'unknown' (cold-start, blip, 5xx). 'absent' (404/
-  // soft-404) is final — never retried. Bounded at 1 retry so a dead host adds
-  // at most one extra timeout, staying inside the analyzer budget.
+  // soft-404) is final — never retried. Bounded at 1 retry so a dead host
+  // adds at most ~2× FETCH_TIMEOUT_MS (≈16s) in the worst case, which can
+  // exceed the 12s eeat budget. The REAL backstop is the route-level
+  // `withTimeout` (fail-open), not the retry count keeping us inside budget.
   let outcome: FetchOutcome = { kind: 'unknown' };
   for (let attempt = 1; attempt <= MAX_FETCH_ATTEMPTS; attempt++) {
     outcome = await attemptFetch(url);
