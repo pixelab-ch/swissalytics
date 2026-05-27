@@ -91,19 +91,22 @@ export function normalizeEeatSignals(geo: GeoAnalysisResult): GeoAnalysisResult 
   const contactPage = raw.contactPage ? withState(raw.contactPage) : undefined;
   const testimonials = raw.testimonials ? withState(raw.testimonials) : undefined;
 
+  type Signals = GeoAnalysisResult['geo']['eeat']['signals'];
+  const signals: Signals = {
+    ...(raw as unknown as Signals),
+    ...(teamPage && { teamPage: teamPage as Signals['teamPage'] }),
+    legalMentions,
+    ...(contactPage && { contactPage: contactPage as Signals['contactPage'] }),
+    ...(testimonials && { testimonials: testimonials as Signals['testimonials'] }),
+  };
+
   return {
     ...geo,
     geo: {
       ...geo.geo,
       eeat: {
         ...eeat,
-        signals: {
-          ...raw,
-          ...(teamPage && { teamPage }),
-          legalMentions,
-          ...(contactPage && { contactPage }),
-          ...(testimonials && { testimonials }),
-        },
+        signals,
       },
     },
   };
