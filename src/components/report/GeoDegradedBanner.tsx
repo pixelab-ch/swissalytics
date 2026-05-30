@@ -43,6 +43,7 @@ export default function GeoDegradedBanner({ degraded }: GeoDegradedBannerProps) 
   return (
     <div
       role="status"
+      className="geo-degraded-banner"
       style={{
         border: '2px solid var(--sa-warn)',
         background: 'var(--sa-cream)',
@@ -102,6 +103,11 @@ export default function GeoDegradedBanner({ degraded }: GeoDegradedBannerProps) 
           </span>
         ))}
       </div>
+      <style>{`
+        @media (max-width: 640px) {
+          .geo-degraded-banner { padding: 16px !important; }
+        }
+      `}</style>
     </div>
   );
 }

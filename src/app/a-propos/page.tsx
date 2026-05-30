@@ -78,7 +78,7 @@ export default function AProposPage() {
 
   return (
     <Shell>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="ap-wrap" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
         {/* Section kicker */}
         <div
           className="mono caption-red"
@@ -132,6 +132,7 @@ export default function AProposPage() {
 
         {/* Three-column editorial slab */}
         <div
+          className="ap-cols"
           style={{
             marginTop: 80,
             display: 'grid',
@@ -143,6 +144,7 @@ export default function AProposPage() {
           {columns.map((c, i) => (
             <div
               key={c.n}
+              className="ap-col"
               style={{
                 padding: '36px 32px',
                 borderLeft: i === 0 ? 0 : '1px solid var(--sa-rule)',
@@ -177,6 +179,7 @@ export default function AProposPage() {
 
         {/* Editorial manifesto */}
         <div
+          className="ap-split"
           style={{
             marginTop: 80,
             display: 'grid',
@@ -287,6 +290,7 @@ export default function AProposPage() {
 
         {/* Stats */}
         <div
+          className="ap-stats"
           style={{
             marginTop: 96,
             display: 'grid',
@@ -298,6 +302,8 @@ export default function AProposPage() {
           {stats.map((s, i) => (
             <div
               key={s.n}
+              className="ap-stat"
+              data-i={i}
               style={{
                 padding: '40px 28px',
                 borderLeft: i === 0 ? 0 : '1px solid var(--sa-rule)',
@@ -335,6 +341,7 @@ export default function AProposPage() {
 
         {/* Privacy block */}
         <div
+          className="ap-split"
           style={{
             marginTop: 80,
             display: 'grid',
@@ -403,6 +410,7 @@ export default function AProposPage() {
 
         {/* Dual CTA block */}
         <div
+          className="ap-cta"
           style={{
             marginTop: 80,
             display: 'grid',
@@ -411,7 +419,7 @@ export default function AProposPage() {
             border: '2px solid var(--sa-ink)',
           }}
         >
-          <div style={{ padding: '40px 32px', background: 'var(--sa-cream)' }}>
+          <div className="ap-cta-a" style={{ padding: '40px 32px', background: 'var(--sa-cream)' }}>
             <div
               className="mono"
               style={{
@@ -467,6 +475,7 @@ export default function AProposPage() {
             </Link>
           </div>
           <div
+            className="ap-cta-b"
             style={{
               padding: '40px 32px',
               background: 'var(--sa-ink)',
@@ -532,6 +541,27 @@ export default function AProposPage() {
             </a>
           </div>
         </div>
+
+        <style>{`
+          @media (max-width: 1024px){
+            .ap-stats{ grid-template-columns:1fr 1fr !important; }
+            /* 2-col: left column has no left border; rows after the first get a top rule. */
+            .ap-stat:nth-child(2n+1){ border-left:0 !important; }
+            .ap-stat:nth-child(n+3){ border-top:1px solid var(--sa-rule) !important; }
+          }
+          @media (max-width: 640px){
+            .ap-wrap{ padding:48px 20px !important; }
+            .ap-cols{ grid-template-columns:1fr !important; }
+            .ap-col{ padding:28px 0 !important; border-left:0 !important; }
+            .ap-col + .ap-col{ border-top:1px solid var(--sa-rule) !important; }
+            .ap-split{ grid-template-columns:1fr !important; gap:24px !important; margin-top:56px !important; }
+            .ap-stats{ grid-template-columns:1fr 1fr !important; }
+            .ap-stat{ padding:28px 20px !important; }
+            .ap-cta{ grid-template-columns:1fr !important; }
+            .ap-cta-a, .ap-cta-b{ padding:32px 20px !important; }
+            .ap-cta-b{ border-top:2px solid var(--sa-ink) !important; }
+          }
+        `}</style>
       </div>
     </Shell>
   );

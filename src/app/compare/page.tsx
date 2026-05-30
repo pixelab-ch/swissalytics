@@ -20,7 +20,15 @@ export default function CompareIndexPage() {
 
   return (
     <Shell>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="ci-wrap" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+        <style>{`
+          @media (max-width: 640px){
+            .ci-wrap{ padding:40px 16px !important; }
+            .ci-grid{ grid-template-columns:1fr !important; }
+            .ci-callout{ grid-template-columns:1fr !important; gap:20px !important; padding:28px 20px !important; }
+            .ci-callout-btn{ justify-self:start !important; max-width:100% !important; overflow-wrap:anywhere !important; white-space:normal !important; }
+          }
+        `}</style>
         {/* ──────────────────────────
             Masthead
            ────────────────────────── */}
@@ -99,9 +107,10 @@ export default function CompareIndexPage() {
             Compare cards grid
            ────────────────────────── */}
         <div
+          className="ci-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
             gap: 24,
             marginBottom: 72,
           }}
@@ -298,6 +307,7 @@ export default function CompareIndexPage() {
             Future comparisons callout
            ────────────────────────── */}
         <div
+          className="ci-callout"
           style={{
             border: '2px solid var(--sa-ink)',
             background: 'var(--sa-cream-2)',
@@ -353,6 +363,7 @@ export default function CompareIndexPage() {
           </div>
           <a
             href="mailto:hello@swissalytics.com?subject=Comparatif%20Swissalytics%20vs%20..."
+            className="ci-callout-btn"
             style={{
               padding: '12px 20px',
               background: 'var(--sa-ink)',

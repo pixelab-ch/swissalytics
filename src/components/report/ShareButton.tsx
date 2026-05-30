@@ -38,27 +38,35 @@ export function ShareButton({ reportId, isFr }: { reportId: string; isFr: boolea
   const okLabel = isFr ? 'Copié ✓' : 'Copied ✓';
 
   return (
-    <button
-      type="button"
-      onClick={onShare}
-      disabled={busy}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      className="mono"
-      style={{
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        padding: '8px 14px',
-        border: '2px solid var(--sa-ink)',
-        background: hover ? 'var(--sa-ink)' : 'var(--sa-cream)',
-        color: hover ? 'var(--sa-cream)' : 'var(--sa-ink)',
-        cursor: busy ? 'wait' : 'pointer',
-        transition: 'background 120ms ease, color 120ms ease',
-      }}
-    >
-      {copied ? okLabel : baseLabel}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={onShare}
+        disabled={busy}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        className="mono share-btn"
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          padding: '8px 14px',
+          border: '2px solid var(--sa-ink)',
+          background: hover ? 'var(--sa-ink)' : 'var(--sa-cream)',
+          color: hover ? 'var(--sa-cream)' : 'var(--sa-ink)',
+          cursor: busy ? 'wait' : 'pointer',
+          transition: 'background 120ms ease, color 120ms ease',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {copied ? okLabel : baseLabel}
+      </button>
+      <style>{`
+        @media (max-width: 640px) {
+          .share-btn { min-height: 44px !important; }
+        }
+      `}</style>
+    </>
   );
 }

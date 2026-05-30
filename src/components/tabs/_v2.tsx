@@ -42,11 +42,12 @@ export function SectionHeader({ num, title, info, rightSlot }: SectionHeaderProp
           §{num}
         </span>
       )}
-      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--sa-ink)', margin: 0, letterSpacing: '-0.01em', flex: 1, minWidth: 200 }}>
+      <h3 className="v2-sechead-title" style={{ fontSize: 18, fontWeight: 700, color: 'var(--sa-ink)', margin: 0, letterSpacing: '-0.01em', flex: 1, minWidth: 200 }}>
         {title}
       </h3>
       {rightSlot}
       {info && <span style={{ flexShrink: 0 }}>{info}</span>}
+      <style>{'@media (max-width: 640px){ .v2-sechead-title{ min-width:0 !important; font-size:16px !important; } }'}</style>
     </div>
   );
 }
@@ -147,8 +148,9 @@ export function MonoCard({
 /** Outer tab wrapper — bold 2px frame on cream background. */
 export function TabFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="frame" style={{ background: 'var(--sa-cream)', padding: '32px 36px' }}>
+    <div className="v2-tabframe frame" style={{ background: 'var(--sa-cream)', padding: '32px 36px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>{children}</div>
+      <style>{'@media (max-width: 640px){ .v2-tabframe{ padding:20px 16px !important; } }'}</style>
     </div>
   );
 }

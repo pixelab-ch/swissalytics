@@ -36,14 +36,15 @@ export function BotCoverage({ bots, isFr, num = '07' }: BotCoverageProps) {
   );
 
   return (
-    <section className="frame" style={{ background: 'var(--sa-cream)' }}>
+    <section className="frame bc-root" style={{ background: 'var(--sa-cream)' }}>
       {/* Panel header — same pattern as PanelHeader in GeoTabContent */}
       <div
-        className="ink-b mono"
+        className="ink-b mono bc-head"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: 12,
           padding: '12px 24px',
           background: 'var(--sa-ink)',
@@ -121,6 +122,7 @@ export function BotCoverage({ bots, isFr, num = '07' }: BotCoverageProps) {
           return (
             <li
               key={bot.name}
+              className="bc-row"
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr auto',
@@ -177,7 +179,7 @@ export function BotCoverage({ bots, isFr, num = '07' }: BotCoverageProps) {
 
       {/* Explanatory caption */}
       <div
-        className="mono"
+        className="mono bc-caption"
         style={{
           padding: '12px 24px',
           borderTop: '1px solid var(--sa-rule)',
@@ -191,6 +193,15 @@ export function BotCoverage({ bots, isFr, num = '07' }: BotCoverageProps) {
           ? '« Non mentionné » = aucune règle dans robots.txt — accès autorisé par défaut.'
           : '"Not mentioned" = no rule in robots.txt — access allowed by default.'}
       </div>
+
+      {/* Mobile: shrink horizontal paddings so the bot list never overflows. */}
+      <style>{`
+        @media (max-width: 640px) {
+          .bc-head { padding: 12px 16px !important; gap: 6px !important; }
+          .bc-row { padding: 14px 16px !important; gap: 12px !important; }
+          .bc-caption { padding: 12px 16px !important; }
+        }
+      `}</style>
     </section>
   );
 }

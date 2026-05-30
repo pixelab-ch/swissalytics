@@ -8,6 +8,7 @@ export default function DegradedBanner({ isFr }: DegradedBannerProps) {
   return (
     <div
       role="status"
+      className="degraded-banner"
       style={{
         border: '2px solid var(--sa-red)',
         background: 'var(--sa-cream)',
@@ -49,6 +50,11 @@ export default function DegradedBanner({ isFr }: DegradedBannerProps) {
             : 'Your report is displayed here, but cannot be revisited later or shared. Download the PDF to keep it.'}
         </p>
       </div>
+      <style>{`
+        @media (max-width: 640px) {
+          .degraded-banner { padding: 14px 16px !important; }
+        }
+      `}</style>
     </div>
   );
 }

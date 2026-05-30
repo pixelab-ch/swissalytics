@@ -19,7 +19,7 @@ export default function AnalyzerHero({ url, setUrl, onAnalyze, loading, error }:
 
   return (
     <section className="ink-b" style={{ background: 'var(--sa-bg)' }}>
-      <div style={{ padding: '80px 24px 56px' }}>
+      <div className="hero-pad" style={{ padding: '80px 24px 56px' }}>
         <div
           style={{
             maxWidth: 1280,
@@ -54,9 +54,9 @@ export default function AnalyzerHero({ url, setUrl, onAnalyze, loading, error }:
             </p>
 
             <div style={{ maxWidth: 640 }}>
-              <div className="frame" style={{ display: 'flex', background: 'var(--sa-bg)' }}>
+              <div className="frame hero-form" style={{ display: 'flex', background: 'var(--sa-bg)' }}>
                 <div
-                  className="mono"
+                  className="mono hero-form-prefix"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -94,6 +94,7 @@ export default function AnalyzerHero({ url, setUrl, onAnalyze, loading, error }:
                 <button
                   onClick={onAnalyze}
                   disabled={loading}
+                  className="hero-form-btn"
                   style={{
                     border: 0,
                     borderLeft: '2px solid var(--sa-ink)',
@@ -157,7 +158,12 @@ export default function AnalyzerHero({ url, setUrl, onAnalyze, loading, error }:
 
       <style>{`
         @media (max-width: 960px) {
-          .sa-hero-grid { grid-template-columns: 1fr !important; }
+          .sa-hero-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
+        }
+        @media (max-width: 640px) {
+          .hero-pad { padding: 48px 16px 36px !important; }
+          .hero-form-prefix { padding: 0 12px !important; font-size: 10px !important; }
+          .hero-form-btn { padding: 14px 16px !important; }
         }
       `}</style>
     </section>
@@ -234,7 +240,7 @@ function HeroAsideCrawler({ lang }: { lang: 'fr' | 'en' }) {
   };
 
   return (
-    <aside className="frame sa-rise" style={wrapStyle}>
+    <aside className="frame sa-rise hero-aside" style={wrapStyle}>
       <div style={{ background: 'var(--sa-ink)', padding: '10px 14px', borderBottom: '2px solid var(--sa-ink)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <span style={{ width: 8, height: 8, background: 'var(--sa-red)' }} />
@@ -292,8 +298,8 @@ function HeroAsideCrawler({ lang }: { lang: 'fr' | 'en' }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', flex: 1, minHeight: 0 }}>
-        <div style={{ position: 'relative', padding: '22px 20px', overflow: 'hidden' }}>
+      <div className="hero-aside-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 160px', flex: 1, minHeight: 0 }}>
+        <div className="hero-aside-doc" style={{ position: 'relative', padding: '22px 20px', overflow: 'hidden' }}>
           {blocks.map((b, i) => (
             <div
               key={i}
@@ -366,6 +372,7 @@ function HeroAsideCrawler({ lang }: { lang: 'fr' | 'en' }) {
         </div>
 
         <div
+          className="hero-aside-stats"
           style={{
             borderLeft: '2px solid var(--sa-ink)',
             background: 'var(--sa-cream-2)',
@@ -468,6 +475,21 @@ function HeroAsideCrawler({ lang }: { lang: 'fr' | 'en' }) {
           {counts.h + counts.p + counts.img + counts.a}/20 {isFr ? 'nœuds' : 'nodes'}
         </span>
       </div>
+
+      <style>{`
+        @media (max-width: 1024px) {
+          .hero-aside { min-height: 0 !important; }
+          .hero-aside-grid { grid-template-columns: 1fr 140px !important; }
+        }
+        @media (max-width: 640px) {
+          .hero-aside-grid { grid-template-columns: 1fr !important; }
+          .hero-aside-doc { padding: 18px 16px !important; }
+          .hero-aside-stats {
+            border-left: 0 !important;
+            border-top: 2px solid var(--sa-ink) !important;
+          }
+        }
+      `}</style>
     </aside>
   );
 }

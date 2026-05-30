@@ -45,6 +45,7 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
         {items.map((item, i) => (
           <div
             key={`${item.n}-${i}`}
+            className="pb-row"
             style={{
               display: 'grid',
               gridTemplateColumns: '56px 1fr auto',
@@ -56,7 +57,7 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
             }}
           >
             <div
-              className="display tnum"
+              className="display tnum pb-num"
               style={{
                 fontSize: 36,
                 fontWeight: 800,
@@ -102,7 +103,7 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
                 {item.category}
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="pb-effort" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <span
                 className="mono"
                 style={{
@@ -123,6 +124,25 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
           </div>
         ))}
       </div>
+
+      {/* On mobile the 3-col plan row collapses: number + body stay side by
+          side, the effort badge drops onto its own row under the body,
+          left-aligned. Padding shrinks too. */}
+      <style>{`
+        @media (max-width: 640px) {
+          .pb-row {
+            grid-template-columns: 40px 1fr !important;
+            padding: 16px !important;
+            gap: 12px !important;
+          }
+          .pb-num { font-size: 28px !important; }
+          .pb-effort {
+            grid-column: 2 !important;
+            justify-content: flex-start !important;
+            margin-top: 2px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

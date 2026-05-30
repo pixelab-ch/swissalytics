@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from '@/components/design-system/ThemeProvider';
 import { COPY } from '@/lib/i18n/copy';
@@ -56,7 +56,7 @@ function StripCaptionBar({
 }) {
   return (
     <div
-      className="ink-b mono"
+      className="ink-b mono rv-captionBar"
       style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -71,9 +71,9 @@ function StripCaptionBar({
         textTransform: 'uppercase',
       }}
     >
-      <span style={{ whiteSpace: 'nowrap' }}>{left}</span>
+      <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>{left}</span>
       {right !== undefined && (
-        <span style={{ opacity: 0.75, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+        <span style={{ opacity: 0.75, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 }}>
           {right}
         </span>
       )}
@@ -145,17 +145,10 @@ export default function ReportView({
   // Details section
   const [section, setSection] = useState<DetailsSectionKey>('headings');
 
-  // Responsive: under 768px the main rail collapses to a horizontal
-  // scrollable bar (same approach as DetailsContent's sub-section nav).
-  const [isNarrow, setIsNarrow] = useState(false);
-  useEffect(() => {
-    function handler() {
-      setIsNarrow(window.innerWidth < 768);
-    }
-    handler();
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
+  // Responsive: at <=768px the main rail collapses to a horizontal scrollable
+  // bar and the tabs grid goes single-column. Driven entirely by the scoped
+  // <style> media query below (.rv-mainNav / .rv-tabsGrid) — no JS measuring,
+  // so there is no SSR/hydration mismatch and no desktop-layout flash on mobile.
 
   // Verdict — re-added after P7.2 with editorial copy (3 phrases per
   // tier, picked deterministically by report seed) + inline Pixelab
@@ -212,22 +205,17 @@ export default function ReportView({
     (k, i) => ({ key: k, num: String(i + 1).padStart(2, '0'), label: tabsMono[i] }),
   );
 
-  const mainNavStyle: CSSProperties = isNarrow
-    ? {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 0,
-        borderBottom: '1px solid var(--sa-rule)',
-      }
-    : {
-        position: 'sticky',
-        top: 16,
-        alignSelf: 'start',
-        borderRight: '1px solid var(--sa-rule)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0,
-      };
+  // Desktop rail style; the <=768px scoped @media (.rv-mainNav) flips it to a
+  // horizontal scrollable bar.
+  const mainNavStyle = {
+    position: 'sticky',
+    top: 16,
+    alignSelf: 'start',
+    borderRight: '1px solid var(--sa-rule)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 0,
+  } as const;
 
   const showShare = !!reportId && !readOnly;
 
@@ -241,7 +229,44 @@ export default function ReportView({
     report.headings.h6.length;
 
   return (
-    <div style={{ maxWidth: 1340, margin: '0 auto', padding: '32px 24px 80px' }}>
+    <div className="rv-shell" style={{ maxWidth: 1340, margin: '0 auto', padding: '32px 24px 80px' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .rv-shell { padding: 24px 16px 56px !important; }
+          .rv-stripGrid { grid-template-columns: 1fr !important; }
+          .rv-gaugeCell {
+            padding: 28px 20px !important;
+            border-right: none !important;
+            border-bottom: 2px solid var(--sa-ink) !important;
+          }
+          .rv-cardsGrid { grid-template-columns: repeat(2, 1fr) !important; }
+          /* 2x2: only the left column keeps a right divider; top row keeps a bottom divider. */
+          .rv-cardsGrid > * { border-right: 1px solid var(--sa-rule) !important; border-bottom: 1px solid var(--sa-rule) !important; }
+          .rv-cardsGrid > *:nth-child(2n) { border-right: none !important; }
+          .rv-cardsGrid > *:nth-child(n+3) { border-bottom: none !important; }
+          .rv-verdictLine { padding: 16px 20px !important; }
+          .rv-captionBar { padding: 10px 16px !important; }
+          /* Tabs grid + rail collapse (replaces the old JS isNarrow). */
+          .rv-tabsGrid { grid-template-columns: 1fr !important; }
+          .rv-mainNav {
+            position: static !important;
+            align-self: auto !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            border-right: none !important;
+            border-bottom: 1px solid var(--sa-rule) !important;
+          }
+          /* Collapsed horizontal rail: entries size to content and scroll. */
+          .rv-mainNav > * { width: auto !important; flex: 0 0 auto !important; }
+        }
+        @media (max-width: 420px) {
+          .rv-cardsGrid { grid-template-columns: 1fr !important; }
+          .rv-cardsGrid > * { border-right: none !important; border-bottom: 1px solid var(--sa-rule) !important; }
+          .rv-cardsGrid > *:last-child { border-bottom: none !important; }
+          .rv-gaugeCell { flex-direction: column !important; text-align: center; gap: 16px !important; }
+        }
+      `}</style>
       {degraded && <DegradedBanner isFr={isFr} />}
       {/* 1. MetricStrip */}
       <div className="frame sa-rise" style={{ background: 'var(--sa-cream)', position: 'relative' }}>
@@ -262,6 +287,7 @@ export default function ReportView({
         />
 
         <div
+          className="rv-stripGrid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'auto 1fr',
@@ -269,6 +295,7 @@ export default function ReportView({
         >
           {/* LEFT CELL — gauge + verdict block */}
           <div
+            className="rv-gaugeCell"
             style={{
               padding: '40px 48px',
               borderRight: '2px solid var(--sa-ink)',
@@ -312,7 +339,7 @@ export default function ReportView({
           </div>
 
           {/* RIGHT CELL — 4 scorecards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="rv-cardsGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
             <Scorecard
               num="02"
               label={scorecardLabels[0]}
@@ -359,7 +386,7 @@ export default function ReportView({
 
       {/* 2. Verdict line — editorial copy with inline Pixelab CTA.
           Pick 1 of 3 phrases per tier, deterministic by reportId/url. */}
-      <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--sa-rule)' }}>
+      <div className="rv-verdictLine" style={{ padding: '20px 28px', borderBottom: '1px solid var(--sa-rule)' }}>
         <p
           className="serif"
           style={{
@@ -406,14 +433,15 @@ export default function ReportView({
           SectionNavEntry pattern; below 768px it collapses to a
           horizontal scrollable bar. */}
       <div
+        className="rv-tabsGrid"
         style={{
           display: 'grid',
-          gridTemplateColumns: isNarrow ? '1fr' : '240px 1fr',
+          gridTemplateColumns: '240px 1fr',
           gap: 24,
           marginTop: 26,
         }}
       >
-        <nav role="tablist" style={mainNavStyle}>
+        <nav role="tablist" className="rv-mainNav noscrollbar" style={mainNavStyle}>
           {tabDefs.map((t) => (
             <NavEntry
               key={t.key}

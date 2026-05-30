@@ -141,7 +141,8 @@ export default function HeadingsTab({ data, keywords, url, spa, keywordSuggestio
   const displayedHeadings = showAllHeadings ? allHeadingItems : allHeadingItems.slice(0, 20);
 
   return (
-    <div className="frame" style={{ background: 'var(--sa-cream)', padding: '32px 36px' }}>
+    <div className="headings-tabframe frame" style={{ background: 'var(--sa-cream)', padding: '32px 36px' }}>
+      <style>{'@media (max-width: 640px){ .headings-tabframe{ padding:20px 16px !important; } }'}</style>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
 
         {spa && <SpaWarning spa={spa} />}
@@ -340,6 +341,8 @@ export default function HeadingsTab({ data, keywords, url, spa, keywordSuggestio
                     padding: '10px 16px',
                     border: `1px solid ${densityColor}`,
                     background: 'var(--sa-cream)',
+                    flexWrap: 'wrap',
+                    maxWidth: '100%',
                   }}
                 >
                   <span className="tnum" style={{ fontSize: 13, color: 'var(--sa-ink-2)', fontWeight: 500 }}>

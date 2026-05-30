@@ -12,6 +12,7 @@ export default function NotFound() {
   return (
     <Shell>
       <div
+        className="nf-wrap"
         style={{
           maxWidth: 1280,
           margin: '0 auto',
@@ -21,6 +22,14 @@ export default function NotFound() {
           alignItems: 'center',
         }}
       >
+        <style>{`
+          @media (max-width: 640px){
+            .nf-wrap{ padding:40px 16px !important; }
+            .nf-grid{ grid-template-columns:1fr !important; gap:28px !important; }
+            .nf-h2{ font-size:30px !important; }
+            .nf-actions a{ flex:1 1 auto; text-align:center; }
+          }
+        `}</style>
         <div style={{ width: '100%' }}>
           <div
             className="mono caption-red"
@@ -52,6 +61,7 @@ export default function NotFound() {
           </span>
 
           <div
+            className="nf-grid"
             style={{
               borderTop: '2px solid var(--sa-ink)',
               marginTop: 32,
@@ -63,7 +73,7 @@ export default function NotFound() {
           >
             <div>
               <h2
-                className="h1"
+                className="h1 nf-h2"
                 style={{
                   fontSize: 40,
                   margin: '0 0 16px 0',
@@ -86,7 +96,7 @@ export default function NotFound() {
                   ? "Cette page n'existe pas — ou plus. Le site a peut-être été réorganisé depuis votre dernier passage."
                   : "This page doesn't exist — or no longer does. The site may have been reorganised since you last visited."}
               </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 28, flexWrap: 'wrap' }}>
+              <div className="nf-actions" style={{ display: 'flex', gap: 12, marginTop: 28, flexWrap: 'wrap' }}>
                 <Link
                   href="/"
                   className="mono"

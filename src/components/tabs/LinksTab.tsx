@@ -76,8 +76,8 @@ function LinkTable({ links, title }: { links: LinkInfo[]; title: string }) {
           ) : null
         }
       />
-      <div style={{ border: '1px solid var(--sa-rule)', background: 'var(--sa-cream-2)' }}>
-        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div className="noscrollbar" style={{ border: '1px solid var(--sa-rule)', background: 'var(--sa-cream-2)', overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: 520, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--sa-ink)' }}>
               <th className="mono" style={{ textAlign: 'left', padding: '10px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--sa-ink-4)', width: '45%' }}>

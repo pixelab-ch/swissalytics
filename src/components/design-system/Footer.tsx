@@ -30,7 +30,8 @@ export default function Footer() {
 
   return (
     <footer className="ink-t" style={{ marginTop: 96, background: 'var(--sa-bg)' }}>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
+      <style>{`@media (max-width: 640px){ .sa-footer-inner{ padding-left:16px !important; padding-right:16px !important; } }`}</style>
+      <div className="sa-footer-inner" style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
         <div
           className="rule-b"
           style={{

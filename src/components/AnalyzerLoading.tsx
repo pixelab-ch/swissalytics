@@ -30,7 +30,7 @@ export default function AnalyzerLoading() {
       <div className="frame" style={{ background: 'var(--sa-bg)' }}>
         {/* Caption bar */}
         <div
-          className="ink-b"
+          className="ink-b al-caption"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -89,6 +89,7 @@ export default function AnalyzerLoading() {
           {copy.steps.map((s, i) => (
             <li
               key={s.id}
+              className="al-step"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -150,7 +151,7 @@ export default function AnalyzerLoading() {
                 </div>
               </div>
               <span
-                className="mono"
+                className="mono al-badge"
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
@@ -160,6 +161,7 @@ export default function AnalyzerLoading() {
                   border: '1px solid var(--sa-ink)',
                   background: 'var(--sa-ink)',
                   color: 'var(--sa-cream)',
+                  flexShrink: 0,
                 }}
               >
                 {lang === 'fr' ? 'EN COURS' : 'RUNNING'}
@@ -170,7 +172,7 @@ export default function AnalyzerLoading() {
 
         {/* Footer */}
         <div
-          className="ink-t mono"
+          className="ink-t mono al-footer"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -187,6 +189,14 @@ export default function AnalyzerLoading() {
           <span>{lang === 'fr' ? '~ 30 s' : '~ 30 s'}</span>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .al-caption { padding: 12px 16px !important; gap: 8px; }
+          .al-step { gap: 12px !important; padding: 14px 16px !important; }
+          .al-footer { padding: 12px 16px !important; gap: 8px; }
+        }
+      `}</style>
     </div>
   );
 }

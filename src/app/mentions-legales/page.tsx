@@ -248,7 +248,16 @@ export default function MentionsLegalesPage() {
 
   return (
     <Shell>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="ml-wrap" style={{ maxWidth: 1100, margin: '0 auto', padding: '64px 24px' }}>
+        <style>{`
+          @media (max-width: 640px){
+            .ml-wrap{ padding:40px 16px !important; }
+            .ml-grid{ grid-template-columns:1fr !important; }
+            .ml-num{ padding:24px 0 0 0 !important; border-right:0 !important; }
+            .ml-body{ padding:8px 0 32px 0 !important; border-top:0 !important; }
+            .ml-h2{ font-size:24px !important; }
+          }
+        `}</style>
         <Link
           href="/"
           className="mono"
@@ -305,6 +314,7 @@ export default function MentionsLegalesPage() {
         </p>
 
         <div
+          className="ml-grid"
           style={{
             marginTop: 64,
             display: 'grid',
@@ -315,6 +325,7 @@ export default function MentionsLegalesPage() {
           {sections.map((s) => (
             <React.Fragment key={s.n}>
               <div
+                className="ml-num"
                 style={{
                   padding: '32px 0',
                   borderTop: '1px solid var(--sa-rule)',
@@ -335,12 +346,13 @@ export default function MentionsLegalesPage() {
                 </span>
               </div>
               <div
+                className="ml-body"
                 style={{
                   padding: '32px 0 32px 32px',
                   borderTop: '1px solid var(--sa-rule)',
                 }}
               >
-                <h2 className="h2" style={{ fontSize: 32, margin: '0 0 16px 0' }}>
+                <h2 className="h2 ml-h2" style={{ fontSize: 32, margin: '0 0 16px 0' }}>
                   {s.h}
                 </h2>
                 <div

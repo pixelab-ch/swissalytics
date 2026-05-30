@@ -42,6 +42,7 @@ export function NavEntry({ num, label, active, onClick, variant }: NavEntryProps
     fontWeight: 700,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    minHeight: 44,
   };
 
   const barStyle: CSSProperties = {
@@ -50,7 +51,8 @@ export function NavEntry({ num, label, active, onClick, variant }: NavEntryProps
     border: 'none',
     borderBottom: `2px solid ${active ? 'var(--sa-red)' : 'transparent'}`,
     marginBottom: -1,
-    padding: '8px 0',
+    padding: '12px 0',
+    minHeight: 44,
     fontSize: 11,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',

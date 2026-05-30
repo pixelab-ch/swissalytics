@@ -173,7 +173,7 @@ export default function ReportPage({
             alignItems: 'center',
             justifyContent: 'center',
             gap: 16,
-            padding: '48px 24px',
+            padding: '48px 16px',
             textAlign: 'center',
           }}
         >
@@ -230,7 +230,7 @@ export default function ReportPage({
             alignItems: 'center',
             justifyContent: 'center',
             gap: 16,
-            padding: '48px 24px',
+            padding: '48px 16px',
             textAlign: 'center',
           }}
         >

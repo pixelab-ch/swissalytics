@@ -27,6 +27,7 @@ export default function SpaWarning({ spa }: SpaWarningProps) {
   return (
     <div
       role="status"
+      className="spa-warn"
       style={{
         border: '2px solid var(--sa-warn)',
         background: 'var(--sa-cream)',
@@ -94,6 +95,7 @@ export default function SpaWarning({ spa }: SpaWarningProps) {
 
         {!isStyledDivs && (
           <div
+            className="spa-cards"
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
@@ -205,6 +207,15 @@ export default function SpaWarning({ spa }: SpaWarningProps) {
           </details>
         )}
       </div>
+
+      {/* Mobile: the Google / AI-engines two-up collapses to one column and
+          the banner padding shrinks. */}
+      <style>{`
+        @media (max-width: 640px) {
+          .spa-warn { padding: 16px !important; }
+          .spa-cards { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }

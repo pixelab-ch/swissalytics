@@ -85,7 +85,13 @@ export function DisplayTitle({
   return (
     <TagEl
       className={['display', className].filter(Boolean).join(' ')}
-      style={{ ...DISPLAY_SIZES[size], margin: 0, color: 'var(--sa-ink)', ...style }}
+      style={{
+        ...DISPLAY_SIZES[size],
+        margin: 0,
+        color: 'var(--sa-ink)',
+        overflowWrap: 'break-word',
+        ...style,
+      }}
     >
       {parts.map((p, i) => (
         <React.Fragment key={i}>

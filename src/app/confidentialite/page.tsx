@@ -304,7 +304,21 @@ export default function ConfidentialitePage() {
 
   return (
     <Shell>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="cf-wrap" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+        <style>{`
+          @media (max-width: 640px){
+            .cf-wrap{ padding:40px 16px !important; }
+            .cf-summary{ grid-template-columns:repeat(2, 1fr) !important; padding:8px 12px !important; }
+            .cf-tile{ border-top:0 !important; }
+            .cf-tile:nth-child(odd){ border-left:0 !important; }
+            .cf-tile:nth-child(even){ border-left:1px solid var(--sa-rule) !important; }
+            .cf-tile:nth-child(n+3){ border-top:1px solid var(--sa-rule) !important; }
+            .cf-grid{ grid-template-columns:1fr !important; }
+            .cf-num{ padding:24px 0 0 0 !important; border-right:0 !important; }
+            .cf-body{ padding:8px 0 32px 0 !important; border-top:0 !important; }
+            .cf-h2{ font-size:24px !important; }
+          }
+        `}</style>
         <Link
           href="/"
           className="mono"
@@ -395,6 +409,7 @@ export default function ConfidentialitePage() {
             <span style={{ color: 'var(--sa-red)' }}>TL;DR</span>
           </div>
           <div
+            className="cf-summary"
             style={{
               padding: '32px 28px',
               display: 'grid',
@@ -405,6 +420,7 @@ export default function ConfidentialitePage() {
             {summary.map((r, i) => (
               <div
                 key={r.k}
+                className="cf-tile"
                 style={{
                   padding: '14px 16px',
                   borderLeft: i % 3 === 0 ? 0 : '1px solid var(--sa-rule)',
@@ -443,6 +459,7 @@ export default function ConfidentialitePage() {
 
         {/* Detailed sections — legal style */}
         <div
+          className="cf-grid"
           style={{
             marginTop: 64,
             display: 'grid',
@@ -453,6 +470,7 @@ export default function ConfidentialitePage() {
           {sections.map((s) => (
             <React.Fragment key={s.n}>
               <div
+                className="cf-num"
                 style={{
                   padding: '32px 0',
                   borderTop: '1px solid var(--sa-rule)',
@@ -473,13 +491,14 @@ export default function ConfidentialitePage() {
                 </span>
               </div>
               <div
+                className="cf-body"
                 style={{
                   padding: '32px 0 32px 32px',
                   borderTop: '1px solid var(--sa-rule)',
                 }}
               >
                 <h2
-                  className="h2"
+                  className="h2 cf-h2"
                   style={{ fontSize: 30, margin: '0 0 16px 0', letterSpacing: '-0.02em' }}
                 >
                   {s.h}

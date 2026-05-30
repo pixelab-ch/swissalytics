@@ -48,7 +48,7 @@ export function PlanContent({ copy, critItems, warnItems, infoItems, isFr }: Pla
 
       {/* §99 CTA Banner — final "next step" sentinel, last in flow */}
       <div
-        className="frame"
+        className="frame pc-cta"
         style={{ background: 'var(--sa-cream)', padding: '40px 48px' }}
       >
         <div
@@ -122,6 +122,12 @@ export function PlanContent({ copy, critItems, warnItems, infoItems, isFr }: Pla
           </a>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .pc-cta { padding: 24px 20px !important; }
+        }
+      `}</style>
     </div>
   );
 }

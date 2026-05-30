@@ -229,7 +229,25 @@ export default function ComparePage({
       <FaqJsonLd page={page} isFr={isFr} />
       <ArticleJsonLd page={page} isFr={isFr} />
 
-      <div style={{ maxWidth: 920, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="cd-wrap" style={{ maxWidth: 920, margin: '0 auto', padding: '64px 24px' }}>
+        <style>{`
+          @media (max-width: 640px){
+            .cd-wrap{ padding:40px 16px !important; }
+            .cd-vs-grid{ grid-template-columns:1fr !important; }
+            .cd-vs-sa{ border-right:0 !important; border-bottom:2px solid var(--sa-ink) !important; padding:24px 20px !important; }
+            .cd-vs-sep{ padding:8px 0 !important; }
+            .cd-vs-comp{ padding:24px 20px !important; }
+            .cd-h1strip{ padding:28px 20px !important; }
+            .cd-tldr{ grid-template-columns:1fr !important; gap:14px !important; padding:24px 20px !important; }
+            .cd-table-scroll{ overflow-x:auto !important; }
+            .cd-table-inner{ min-width:680px !important; }
+            .cd-when{ grid-template-columns:1fr !important; }
+            .cd-when-sa{ border-right:0 !important; border-bottom:1px solid var(--sa-rule) !important; padding:28px 20px !important; }
+            .cd-when-comp{ padding:28px 20px !important; }
+            .cd-cta{ grid-template-columns:1fr !important; gap:20px !important; padding:28px 20px !important; }
+            .cd-cta-btn{ justify-self:start !important; }
+          }
+        `}</style>
         {/* ──────────────────────────
             Breadcrumb
            ────────────────────────── */}
@@ -295,6 +313,7 @@ export default function ComparePage({
 
           {/* vs panels */}
           <div
+            className="cd-vs-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr auto 1fr',
@@ -303,6 +322,7 @@ export default function ComparePage({
           >
             {/* Swissalytics panel */}
             <div
+              className="cd-vs-sa"
               style={{
                 background: 'var(--sa-cream)',
                 padding: '32px 28px',
@@ -352,6 +372,7 @@ export default function ComparePage({
 
             {/* vs separator */}
             <div
+              className="cd-vs-sep"
               style={{
                 background: 'var(--sa-ink)',
                 color: 'var(--sa-cream)',
@@ -377,6 +398,7 @@ export default function ComparePage({
 
             {/* Competitor panel */}
             <div
+              className="cd-vs-comp"
               style={{
                 background: 'var(--sa-cream-2)',
                 padding: '32px 28px',
@@ -426,6 +448,7 @@ export default function ComparePage({
 
           {/* H1 strip */}
           <div
+            className="cd-h1strip"
             style={{
               borderTop: '2px solid var(--sa-ink)',
               padding: '40px 28px',
@@ -467,6 +490,7 @@ export default function ComparePage({
             TL;DR — black box
            ────────────────────────── */}
         <div
+          className="cd-tldr"
           style={{
             background: 'var(--sa-ink)',
             color: 'var(--sa-cream)',
@@ -541,7 +565,9 @@ export default function ComparePage({
             <Pixel />
           </h2>
 
+          <div className="cd-table-scroll noscrollbar">
           <div
+            className="cd-table-inner"
             style={{
               border: '2px solid var(--sa-ink)',
               overflow: 'hidden',
@@ -651,6 +677,7 @@ export default function ComparePage({
               </div>
             ))}
           </div>
+          </div>
 
           <div
             className="mono"
@@ -688,15 +715,17 @@ export default function ComparePage({
           </div>
 
           <div
+            className="cd-when"
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
               gap: 0,
               border: '2px solid var(--sa-ink)',
             }}
           >
             {/* Choose Swissalytics */}
             <div
+              className="cd-when-sa"
               style={{
                 padding: '32px 28px',
                 background: 'var(--sa-cream)',
@@ -762,6 +791,7 @@ export default function ComparePage({
 
             {/* Choose Competitor */}
             <div
+              className="cd-when-comp"
               style={{
                 padding: '32px 28px',
                 background: 'var(--sa-cream-2)',
@@ -937,6 +967,7 @@ export default function ComparePage({
             CTA — analyze my site
            ────────────────────────── */}
         <div
+          className="cd-cta"
           style={{
             border: '2px solid var(--sa-ink)',
             background: 'var(--sa-cream-2)',
@@ -979,6 +1010,7 @@ export default function ComparePage({
           </div>
           <Link
             href="/"
+            className="cd-cta-btn"
             style={{
               padding: '14px 24px',
               background: 'var(--sa-red)',

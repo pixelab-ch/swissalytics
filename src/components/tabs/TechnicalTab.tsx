@@ -245,6 +245,7 @@ export default function TechnicalTab({ data, cwvLoading }: { data: TechnicalAnal
             {techGroups.map(({ category, techs }) => (
               <div
                 key={category}
+                className="tech-catrow"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '180px 1fr',
@@ -282,6 +283,7 @@ export default function TechnicalTab({ data, cwvLoading }: { data: TechnicalAnal
                 </div>
               </div>
             ))}
+            <style>{'@media (max-width: 640px){ .tech-catrow{ grid-template-columns:1fr !important; gap:10px !important; } }'}</style>
           </div>
         )}
       </section>

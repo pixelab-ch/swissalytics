@@ -65,13 +65,15 @@ export default function InfoBox({ items }: InfoBoxProps) {
       {open && (
         <div
           ref={popoverRef}
+          className="infobox-popover"
           style={{
             position: 'absolute',
             top: '100%',
-            left: 0,
+            right: 0,
             marginTop: 6,
             zIndex: 50,
             width: 320,
+            maxWidth: 'calc(100vw - 32px)',
             maxHeight: 384,
             overflowY: 'auto',
             background: 'var(--sa-cream)',
@@ -135,6 +137,7 @@ export default function InfoBox({ items }: InfoBoxProps) {
                     color: 'var(--sa-ink-3)',
                     margin: 0,
                     lineHeight: 1.5,
+                    overflowWrap: 'break-word',
                   }}
                 >
                   {item.definition}

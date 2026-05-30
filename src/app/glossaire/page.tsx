@@ -216,7 +216,16 @@ export default function GlossairePage() {
 
   return (
     <Shell>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="gl-wrap" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+        <style>{`
+          @media (max-width: 640px){
+            .gl-wrap{ padding:40px 16px !important; }
+            .gl-grid{ grid-template-columns:1fr !important; }
+            .gl-num{ padding:28px 0 0 0 !important; border-right:0 !important; }
+            .gl-content{ padding:8px 0 32px 0 !important; border-top:0 !important; }
+            .gl-why{ flex-direction:column !important; gap:6px !important; }
+          }
+        `}</style>
         {/* Kicker */}
         <div
           className="mono caption-red"
@@ -257,6 +266,7 @@ export default function GlossairePage() {
 
         {/* Grid of entries */}
         <div
+          className="gl-grid"
           style={{
             marginTop: 72,
             display: 'grid',
@@ -268,6 +278,7 @@ export default function GlossairePage() {
             <React.Fragment key={e.n}>
               {/* Number column */}
               <div
+                className="gl-num"
                 style={{
                   padding: '40px 0',
                   borderTop: '2px solid var(--sa-ink)',
@@ -290,6 +301,7 @@ export default function GlossairePage() {
 
               {/* Content column */}
               <div
+                className="gl-content"
                 style={{
                   padding: '40px 0 40px 40px',
                   borderTop: '2px solid var(--sa-ink)',
@@ -322,6 +334,7 @@ export default function GlossairePage() {
 
                 {/* Why it matters */}
                 <div
+                  className="gl-why"
                   style={{
                     display: 'flex',
                     gap: 12,

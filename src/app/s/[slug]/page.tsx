@@ -56,7 +56,12 @@ export default function SharedReportPage({
       )}
 
       {state.kind === 'error' && (
-        <div style={{ maxWidth: 680, margin: '0 auto', padding: '96px 24px' }}>
+        <div className="sh-error" style={{ maxWidth: 680, margin: '0 auto', padding: '96px 24px' }}>
+          <style>{`
+            @media (max-width: 640px){
+              .sh-error{ padding:64px 16px !important; }
+            }
+          `}</style>
           <div className="mono caption-red" style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 20 }}>
             § {state.status === 404 ? (lang === 'fr' ? '404 — Lien expiré' : '404 — Link expired') : (lang === 'fr' ? 'Erreur' : 'Error')}
           </div>
@@ -79,7 +84,13 @@ export default function SharedReportPage({
       {state.kind === 'ok' && (
         <>
           {/* Share banner at top */}
-          <div className="ink-b mono" style={{ background: 'var(--sa-ink)', color: 'var(--sa-cream)', padding: '10px 24px', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+          <div className="ink-b mono sh-banner" style={{ background: 'var(--sa-ink)', color: 'var(--sa-cream)', padding: '10px 24px', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <style>{`
+              @media (max-width: 640px){
+                .sh-banner{ padding:10px 16px !important; }
+                .sh-reportwrap{ padding:32px 16px !important; }
+              }
+            `}</style>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <span style={{ display: 'inline-block', width: 8, height: 8, background: 'var(--sa-red)' }} />
               {lang === 'fr' ? 'Rapport partagé · Swissalytics' : 'Shared report · Swissalytics'}
@@ -93,7 +104,7 @@ export default function SharedReportPage({
             </span>
           </div>
 
-          <div style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 24px' }}>
+          <div className="sh-reportwrap" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 24px' }}>
             <ReportView report={state.report} reportId={state.reportId} readOnly />
           </div>
         </>

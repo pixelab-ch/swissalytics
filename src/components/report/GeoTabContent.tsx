@@ -201,7 +201,7 @@ function GeoEmptyState({ isFr }: { isFr: boolean }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       {/* Bandeau d'état clair en tête */}
       <div
-        className="ink-b mono"
+        className="ink-b mono geo-loadbar"
         style={{
           padding: '14px 24px',
           background: 'var(--sa-ink)',
@@ -222,6 +222,11 @@ function GeoEmptyState({ isFr }: { isFr: boolean }) {
             ? 'Analyse IA en cours — interroge ChatGPT, Claude, Gemini, Mistral…'
             : 'AI analysis running — querying ChatGPT, Claude, Gemini, Mistral…'}
         </span>
+        <style>{`
+          @media (max-width: 640px) {
+            .geo-loadbar { padding: 14px 16px !important; gap: 8px !important; }
+          }
+        `}</style>
       </div>
 
       {placeholders.map((p) => (
@@ -514,11 +519,12 @@ function PanelHeader({
 }) {
   return (
     <div
-      className="ink-b mono"
+      className="ink-b mono geo-panelhead"
       style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: 12,
         padding: '12px 24px',
         background: 'var(--sa-ink)',
@@ -533,6 +539,11 @@ function PanelHeader({
         §{num} — {label} · <span style={{ color: 'var(--sa-cream)' }}>{score}/100</span>
       </span>
       {right && <span style={{ opacity: 0.85, fontWeight: 700 }}>{right}</span>}
+      <style>{`
+        @media (max-width: 640px) {
+          .geo-panelhead { padding: 12px 16px !important; gap: 6px !important; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -16,13 +16,13 @@ export function Gauge({ score }: { score: number }) {
   const grade = scoreGrade(score);
 
   return (
-    <div style={{ position: 'relative', width: 180, height: 180 }}>
+    <div style={{ position: 'relative', width: 180, height: 180, maxWidth: '100%', flexShrink: 0 }}>
       <svg
         width={180}
         height={180}
         viewBox="0 0 180 180"
         aria-hidden
-        style={{ transform: 'rotate(-90deg)', display: 'block' }}
+        style={{ transform: 'rotate(-90deg)', display: 'block', maxWidth: '100%', height: 'auto' }}
       >
         <circle
           cx={cx}
