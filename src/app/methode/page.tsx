@@ -58,7 +58,7 @@ export default function MethodePage() {
           n: '07',
           h: 'Limites et honnêteté',
           body: "Nous ne remplaçons pas un audit manuel approfondi. Nous ne voyons pas vos Google Analytics. Nous ne jugeons pas votre stratégie commerciale. Pour un diagnostic complet — avec recommandations priorisées et plan d'action 3–6 mois — demandez un audit sur mesure chez Pixelab.",
-          aside: 'Audit complet ↗',
+          aside: 'Audit complet ↗︎',
         },
       ]
     : [
@@ -102,7 +102,7 @@ export default function MethodePage() {
           n: '07',
           h: 'Limits and honesty',
           body: "We don't replace a deep manual audit. We don't see your Google Analytics. We don't judge your business strategy. For a full diagnosis — prioritized recommendations, 3–6 month action plan — request a custom audit at Pixelab.",
-          aside: 'Full audit ↗',
+          aside: 'Full audit ↗︎',
         },
       ];
 

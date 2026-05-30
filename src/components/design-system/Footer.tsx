@@ -18,7 +18,7 @@ const LINKS: Record<string, { label: string; href?: string; external?: boolean }
     { label: 'Mentions légales', href: '/mentions-legales' },
   ],
   agence: [
-    { label: 'Pixelab ↗', href: 'https://pixelab.ch', external: true },
+    { label: 'Pixelab ↗︎', href: 'https://pixelab.ch', external: true },
     { label: 'Audit sur mesure', href: 'https://pixelab.ch/contact', external: true },
     { label: 'hello@swissalytics.com', href: 'mailto:hello@swissalytics.com' },
   ],
@@ -30,7 +30,13 @@ export default function Footer() {
 
   return (
     <footer className="ink-t" style={{ marginTop: 96, background: 'var(--sa-bg)' }}>
-      <style>{`@media (max-width: 640px){ .sa-footer-inner{ padding-left:16px !important; padding-right:16px !important; } }`}</style>
+      <style>{`@media (max-width: 640px){
+        .sa-footer-inner{ padding-left:16px !important; padding-right:16px !important; }
+        /* Stack the bottom meta cleanly instead of letting it wrap/overlap. */
+        .sa-footer-meta{ flex-direction:column !important; align-items:flex-start !important; gap:14px !important; }
+        .sa-footer-metaline{ flex-direction:column !important; align-items:flex-start !important; row-gap:8px !important; }
+        .sa-footer-sep{ display:none !important; }
+      }`}</style>
       <div className="sa-footer-inner" style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
         <div
           className="rule-b"
@@ -85,19 +91,22 @@ export default function Footer() {
           }}
         >
           <div
+            className="sa-footer-meta"
             style={{
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'space-between',
+              alignItems: 'center',
               gap: 16,
             }}
           >
             <div
-              className="mono"
+              className="mono sa-footer-metaline"
               style={{
                 display: 'flex',
                 flexWrap: 'wrap',
-                gap: 12,
+                rowGap: 6,
+                columnGap: 12,
                 fontSize: 11,
                 fontWeight: 600,
                 letterSpacing: '0.1em',
@@ -106,9 +115,9 @@ export default function Footer() {
               }}
             >
               <span>{copy.footerMeta[0]}</span>
-              <span style={{ opacity: 0.4 }}>·</span>
+              <span className="sa-footer-sep" style={{ opacity: 0.4 }}>·</span>
               <span>{copy.footerMeta[1]}</span>
-              <span style={{ opacity: 0.4 }}>·</span>
+              <span className="sa-footer-sep" style={{ opacity: 0.4 }}>·</span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <span
                   style={{

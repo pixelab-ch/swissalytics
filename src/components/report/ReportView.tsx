@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from '@/components/design-system/ThemeProvider';
 import { COPY } from '@/lib/i18n/copy';
@@ -150,6 +150,23 @@ export default function ReportView({
   // <style> media query below (.rv-mainNav / .rv-tabsGrid) — no JS measuring,
   // so there is no SSR/hydration mismatch and no desktop-layout flash on mobile.
 
+  // Scroll affordance for the collapsed (mobile) rail: show a right-edge "›"
+  // cap while more tabs remain off-screen, so users know it scrolls sideways.
+  const railRef = useRef<HTMLElement | null>(null);
+  const [railCanScrollRight, setRailCanScrollRight] = useState(false);
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const update = () => setRailCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      el.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
   // Verdict — re-added after P7.2 with editorial copy (3 phrases per
   // tier, picked deterministically by report seed) + inline Pixelab
   // link. Same URL = same phrase across refreshes/shares.
@@ -259,7 +276,26 @@ export default function ReportView({
           }
           /* Collapsed horizontal rail: entries size to content and scroll. */
           .rv-mainNav > * { width: auto !important; flex: 0 0 auto !important; }
+          /* Right-edge scroll affordance cap (only rendered while more tabs remain). */
+          .rv-railHint {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0; right: 0; bottom: 1px;
+            width: 30px;
+            pointer-events: none;
+            background: var(--sa-bg);
+            border-left: 1px solid var(--sa-rule);
+            color: var(--sa-ink-3);
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1;
+          }
+          .rv-railHint > span { animation: rv-nudge 1.2s ease-in-out infinite; }
         }
+        @keyframes rv-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
+        .rv-railHint { display: none; }
         @media (max-width: 420px) {
           .rv-cardsGrid { grid-template-columns: 1fr !important; }
           .rv-cardsGrid > * { border-right: none !important; border-bottom: 1px solid var(--sa-rule) !important; }
@@ -441,18 +477,25 @@ export default function ReportView({
           marginTop: 26,
         }}
       >
-        <nav role="tablist" className="rv-mainNav noscrollbar" style={mainNavStyle}>
-          {tabDefs.map((t) => (
-            <NavEntry
-              key={t.key}
-              variant="rail"
-              num={t.num}
-              label={t.label}
-              active={tab === t.key}
-              onClick={() => changeTab(t.key)}
-            />
-          ))}
-        </nav>
+        <div className="rv-railWrap" style={{ position: 'relative', minWidth: 0 }}>
+          <nav ref={railRef} role="tablist" className="rv-mainNav noscrollbar" style={mainNavStyle}>
+            {tabDefs.map((t) => (
+              <NavEntry
+                key={t.key}
+                variant="rail"
+                num={t.num}
+                label={t.label}
+                active={tab === t.key}
+                onClick={() => changeTab(t.key)}
+              />
+            ))}
+          </nav>
+          {railCanScrollRight && (
+            <span className="rv-railHint" aria-hidden="true">
+              <span>›</span>
+            </span>
+          )}
+        </div>
 
         {/* Tab content – min-width:0 prevents the 1fr grid track from
             expanding to fit nowrap children (e.g. the Détails section bar). */}
