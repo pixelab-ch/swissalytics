@@ -17,6 +17,18 @@ export default function AnalyzerHero({ url, setUrl, onAnalyze, loading, error }:
   const { lang } = useTheme();
   const copy = COPY[lang];
 
+  // Which crawler animation to run. Both DOMs render (CSS picks the visible
+  // one — SSR-safe, no flash); `active` only gates the timers so the hidden
+  // one doesn't animate. null until hydrated → animation starts post-mount.
+  const [isMobileView, setIsMobileView] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const update = () => setIsMobileView(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   return (
     <section className="ink-b" style={{ background: 'var(--sa-bg)' }}>
       <div className="hero-pad" style={{ padding: '80px 24px 56px' }}>
@@ -32,15 +44,16 @@ export default function AnalyzerHero({ url, setUrl, onAnalyze, loading, error }:
           className="sa-hero-grid"
         >
           <div className="sa-rise" style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 32 }}>
+            <div className="hero-chips" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 32 }}>
               <Chip>{copy.hero.badges[0]}</Chip>
               <Chip inverted>{copy.hero.badges[1]}</Chip>
               <Chip>{copy.hero.badges[2]}</Chip>
             </div>
 
-            <DisplayTitle parts={copy.hero.title} size="hero" />
+            <DisplayTitle parts={copy.hero.title} size="hero" className="hero-title" />
 
             <p
+              className="hero-sub"
               style={{
                 fontSize: 20,
                 lineHeight: 1.45,
@@ -78,6 +91,7 @@ export default function AnalyzerHero({ url, setUrl, onAnalyze, loading, error }:
                   placeholder={copy.hero.placeholder}
                   disabled={loading}
                   aria-label={lang === 'fr' ? 'URL du site à analyser' : 'Site URL to analyze'}
+                  className="hero-input"
                   style={{
                     flex: 1,
                     border: 0,
@@ -151,30 +165,47 @@ export default function AnalyzerHero({ url, setUrl, onAnalyze, loading, error }:
           </div>
 
           <div style={{ minWidth: 0 }}>
-            <HeroAsideCrawler lang={lang} />
+            <div className="hero-aside-desktop">
+              <HeroAsideCrawler lang={lang} active={isMobileView === false} />
+            </div>
+            <div className="hero-aside-mobile">
+              <HeroAsideCrawlerMobile lang={lang} active={isMobileView === true} />
+            </div>
           </div>
         </div>
       </div>
 
       <style>{`
+        .hero-aside-mobile { display: none; }
         @media (max-width: 960px) {
           .sa-hero-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
         }
         @media (max-width: 640px) {
-          .hero-pad { padding: 48px 16px 36px !important; }
+          .hero-pad { padding: 36px 16px 32px !important; }
+          .hero-chips { margin-bottom: 18px !important; }
+          .hero-title { font-size: 34px !important; line-height: 1.0 !important; letter-spacing: -0.02em !important; }
+          .hero-sub { font-size: 15px !important; line-height: 1.4 !important; margin-top: 18px !important; margin-bottom: 22px !important; }
           .hero-form-prefix { padding: 0 12px !important; font-size: 10px !important; }
-          .hero-form-btn { padding: 14px 16px !important; }
+          .hero-input { padding: 13px 14px !important; }
+          .hero-form-btn { padding: 13px 14px !important; font-size: 12px !important; }
+          /* Swap desktop crawler for the compact mobile animation. */
+          .hero-aside-desktop { display: none !important; }
+          .hero-aside-mobile { display: block !important; }
+        }
+        @media (min-width: 641px) and (max-width: 768px) {
+          .hero-title { font-size: clamp(44px, 8vw, 64px) !important; }
         }
       `}</style>
     </section>
   );
 }
 
-function HeroAsideCrawler({ lang }: { lang: 'fr' | 'en' }) {
+function HeroAsideCrawler({ lang, active = true }: { lang: 'fr' | 'en'; active?: boolean }) {
   const isFr = lang === 'fr';
   const [counts, setCounts] = useState({ h: 0, p: 0, img: 0, a: 0 });
 
   useEffect(() => {
+    if (!active) return;
     const seq: Array<[Partial<typeof counts>, number]> = [
       [{ h: 1 }, 100], [{ p: 1 }, 200], [{ p: 2 }, 280], [{ p: 3 }, 360],
       [{ img: 1 }, 600], [{ img: 2 }, 680],
@@ -197,7 +228,7 @@ function HeroAsideCrawler({ lang }: { lang: 'fr' | 'en' }) {
       clearInterval(i);
       timers.forEach(clearTimeout);
     };
-  }, []);
+  }, [active]);
 
   interface Block {
     t: string;
@@ -490,6 +521,178 @@ function HeroAsideCrawler({ lang }: { lang: 'fr' | 'en' }) {
           }
         }
       `}</style>
+    </aside>
+  );
+}
+
+/* ============================================================
+   HeroAsideCrawlerMobile — compact, fast animation for phones.
+   Lean version of the desktop crawler: ~5 scan rows + a tight
+   inline stat strip, ~1.8s loop so it never feels slow.
+   ============================================================ */
+function HeroAsideCrawlerMobile({ lang, active = true }: { lang: 'fr' | 'en'; active?: boolean }) {
+  const isFr = lang === 'fr';
+  const [counts, setCounts] = useState({ h: 0, p: 0, img: 0, a: 0 });
+
+  useEffect(() => {
+    if (!active) return;
+    const seq: Array<[Partial<typeof counts>, number]> = [
+      [{ h: 1 }, 120], [{ p: 1 }, 260], [{ p: 2 }, 360],
+      [{ img: 1 }, 520], [{ h: 2 }, 660], [{ p: 3 }, 780],
+      [{ a: 1 }, 920], [{ a: 2 }, 1020], [{ p: 4 }, 1160],
+      [{ img: 2 }, 1280], [{ a: 3 }, 1400],
+    ];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const run = () => {
+      setCounts({ h: 0, p: 0, img: 0, a: 0 });
+      seq.forEach(([v, t]) => timers.push(setTimeout(() => setCounts((c) => ({ ...c, ...v })), t)));
+    };
+    run();
+    const i = setInterval(run, 1900);
+    return () => {
+      clearInterval(i);
+      timers.forEach(clearTimeout);
+    };
+  }, [active]);
+
+  const rows: Array<{ t: string; w: string; d: number; big?: boolean; img?: boolean; link?: boolean }> = [
+    { t: 'H1', w: '78%', d: 0.0, big: true },
+    { t: 'P', w: '92%', d: 0.18 },
+    { t: 'P', w: '74%', d: 0.3 },
+    { t: 'IMG', w: '100%', d: 0.52, img: true },
+    { t: 'A', w: '64%', d: 0.9, link: true },
+  ];
+
+  const total = counts.h + counts.p + counts.img + counts.a;
+  const stats: Array<{ k: string; v: number; c: string }> = [
+    { k: 'H', v: counts.h, c: 'var(--sa-ink)' },
+    { k: 'P', v: counts.p, c: 'var(--sa-ink)' },
+    { k: 'IMG', v: counts.img, c: 'var(--sa-warn)' },
+    { k: 'A', v: counts.a, c: 'var(--sa-red)' },
+  ];
+
+  return (
+    <aside className="frame sa-rise" style={{ background: 'var(--sa-bg)', overflow: 'hidden' }}>
+      {/* Terminal header */}
+      <div style={{ background: 'var(--sa-ink)', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ width: 7, height: 7, background: 'var(--sa-red)' }} />
+        <span style={{ width: 7, height: 7, background: '#E8A800' }} />
+        <span style={{ width: 7, height: 7, background: 'var(--sa-ok)' }} />
+        <span
+          className="mono"
+          style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--sa-cream)', opacity: 0.6, textTransform: 'uppercase', fontWeight: 700 }}
+        >
+          {isFr ? 'Analyse' : 'Analysis'}
+        </span>
+        <span
+          className="mono"
+          style={{ marginLeft: 'auto', fontSize: 9, letterSpacing: '0.1em', color: 'var(--sa-ok)', fontWeight: 700 }}
+        >
+          200 OK
+        </span>
+        <span className="sa-ping" style={{ display: 'inline-block', width: 6, height: 6, background: 'var(--sa-red)' }} />
+      </div>
+
+      {/* Scan rows */}
+      <div style={{ position: 'relative', padding: '14px 14px', overflow: 'hidden' }}>
+        {rows.map((b, i) => (
+          <div
+            key={i}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '34px 1fr',
+              gap: 10,
+              marginBottom: 9,
+              alignItems: 'center',
+              animation: `sa-flash 1.9s ${b.d}s infinite`,
+            }}
+          >
+            <span
+              className="mono"
+              style={{
+                fontSize: 9,
+                fontWeight: 800,
+                letterSpacing: '0.06em',
+                padding: '2px 4px',
+                textAlign: 'center',
+                border: `1px solid ${b.link ? 'var(--sa-red)' : 'var(--sa-ink-4)'}`,
+                color: b.link ? 'var(--sa-red)' : 'var(--sa-ink-4)',
+                background: 'var(--sa-bg)',
+              }}
+            >
+              {b.t}
+            </span>
+            <div
+              style={{
+                height: b.img ? 40 : b.big ? 16 : 10,
+                width: b.w,
+                background: b.img ? 'var(--sa-cream-2)' : b.link ? 'rgba(229,36,26,0.18)' : 'var(--sa-rule)',
+                border: b.img ? '1px dashed var(--sa-ink-4)' : 0,
+              }}
+            />
+          </div>
+        ))}
+        <div
+          className="sa-scanner"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            height: 2,
+            background: 'var(--sa-red)',
+            boxShadow: '0 0 12px var(--sa-red), 0 0 3px var(--sa-red)',
+          }}
+        />
+      </div>
+
+      {/* Compact inline stat strip */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          borderTop: '2px solid var(--sa-ink)',
+          background: 'var(--sa-cream-2)',
+        }}
+      >
+        {stats.map((s, i) => (
+          <div
+            key={s.k}
+            style={{
+              padding: '10px 6px',
+              textAlign: 'center',
+              borderRight: i < 3 ? '1px solid var(--sa-rule)' : 0,
+            }}
+          >
+            <div className="mono" style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--sa-ink-4)', textTransform: 'uppercase' }}>
+              {s.k}
+            </div>
+            <div className="display tnum" style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: s.c }}>
+              {s.v}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer status */}
+      <div
+        className="mono"
+        style={{
+          padding: '7px 12px',
+          background: 'var(--sa-ink)',
+          color: 'var(--sa-cream)',
+          fontSize: 9,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          fontWeight: 700,
+          display: 'flex',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span>● {isFr ? 'Analyse en cours' : 'Analyzing'}</span>
+        <span style={{ color: 'var(--sa-red)' }}>
+          {total}/11 {isFr ? 'nœuds' : 'nodes'}
+        </span>
+      </div>
     </aside>
   );
 }
