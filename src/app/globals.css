@@ -8,6 +8,10 @@
    ============================================================ */
 
 :root {
+  /* Declare the page as light so a phone/OS in dark mode doesn't auto-darken
+     native form controls (inputs, etc.). The site's own dark mode flips this. */
+  color-scheme: light;
+
   --sa-cream:     #F5F2EA;
   --sa-cream-2:   #EDEAE0;
   --sa-cream-3:   #E3DFD2;
@@ -51,6 +55,8 @@
 }
 
 html[data-dark="true"] {
+  color-scheme: dark;
+
   --sa-cream:     #0A0A0A;
   --sa-cream-2:   #141414;
   --sa-cream-3:   #1E1E1E;

@@ -182,8 +182,10 @@ export default function AnalyzerHero({ url, setUrl, onAnalyze, loading, error }:
         }
         @media (max-width: 640px) {
           .hero-pad { padding: 36px 16px 32px !important; }
-          .hero-chips { margin-bottom: 18px !important; }
-          .hero-title { font-size: 34px !important; line-height: 1.0 !important; letter-spacing: -0.02em !important; }
+          .hero-chips { margin-bottom: 18px !important; gap: 6px !important; }
+          /* Shrink the 3 badges so they stay proportional to the title. */
+          .hero-chips > span { font-size: 9px !important; padding: 3px 7px !important; letter-spacing: 0.04em !important; }
+          .hero-title { font-size: 39px !important; line-height: 1.0 !important; letter-spacing: -0.02em !important; }
           .hero-sub { font-size: 15px !important; line-height: 1.4 !important; margin-top: 18px !important; margin-bottom: 22px !important; }
           .hero-form-prefix { padding: 0 12px !important; font-size: 10px !important; }
           .hero-input { padding: 13px 14px !important; }

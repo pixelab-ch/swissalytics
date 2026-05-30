@@ -43,6 +43,13 @@ test.describe('InfoBox bottom sheet (mobile)', () => {
   });
 });
 
+test('page declares a light color-scheme (no OS dark-mode bleed)', async ({ page }) => {
+  await page.setViewportSize(MOBILE);
+  await page.goto('/');
+  const scheme = await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
+  expect(scheme).toBe('light');
+});
+
 test.describe('Hero crawler animation swap', () => {
   test('mobile shows the compact crawler, hides the desktop one', async ({ page }) => {
     await page.setViewportSize(MOBILE);
