@@ -110,12 +110,12 @@ export default function TopBar() {
           </Link>
         </div>
 
-        {/* Dark mode toggle */}
+        {/* Dark mode toggle — hidden on mobile (<768px) where night mode is off. */}
         <button
           onClick={() => setDark(!dark)}
           aria-label={dark ? 'Light mode' : 'Dark mode'}
           title={dark ? 'Light' : 'Dark'}
-          className="mono"
+          className="mono sa-dark-toggle"
           style={{
             border: '2px solid var(--sa-ink)',
             background: 'transparent',
@@ -259,6 +259,10 @@ export default function TopBar() {
           [data-md-flex] { display: flex !important; }
           .sa-burger { display: none !important; }
           .sa-mobile-nav { display: none !important; }
+        }
+        @media (max-width: 767px) {
+          /* No night mode on phones — hide the day/night toggle. */
+          .sa-dark-toggle { display: none !important; }
         }
         @media (max-width: 640px) {
           .sa-topbar { padding: 16px !important; }

@@ -43,6 +43,15 @@ test.describe('InfoBox bottom sheet (mobile)', () => {
   });
 });
 
+test('night mode is off on mobile: dark toggle hidden on phone, shown on desktop', async ({ page }) => {
+  await page.setViewportSize(MOBILE);
+  await page.goto('/');
+  await expect(page.locator('.sa-dark-toggle')).toBeHidden();
+
+  await page.setViewportSize(DESKTOP);
+  await expect(page.locator('.sa-dark-toggle')).toBeVisible();
+});
+
 test('page declares a light color-scheme (no OS dark-mode bleed)', async ({ page }) => {
   await page.setViewportSize(MOBILE);
   await page.goto('/');

@@ -25,6 +25,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [dark, setDarkState] = useState(false);
   const [density, setDensityState] = useState<Density>('normal');
   const [mounted, setMounted] = useState(false);
+  // Night mode is disabled on phones (<768px). We keep the user's dark
+  // preference (it applies on desktop) but never render dark on mobile, so a
+  // stored pref can't trap a phone in dark mode where the toggle is hidden.
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     try {
@@ -39,17 +43,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
     if (!mounted) return;
     const html = document.documentElement;
+    const effectiveDark = dark && !isMobile;
     html.setAttribute('lang', lang);
-    html.setAttribute('data-dark', dark ? 'true' : 'false');
+    html.setAttribute('data-dark', effectiveDark ? 'true' : 'false');
     html.setAttribute('data-density', density);
     try {
       localStorage.setItem(LS_LANG, lang);
       localStorage.setItem(LS_DARK, dark ? 'true' : 'false');
       localStorage.setItem(LS_DENSITY, density);
     } catch {}
-  }, [lang, dark, density, mounted]);
+  }, [lang, dark, density, mounted, isMobile]);
 
   const setLang = (l: Lang) => setLangState(l);
   const setDark = (d: boolean) => setDarkState(d);
