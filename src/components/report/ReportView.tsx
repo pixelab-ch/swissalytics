@@ -171,8 +171,14 @@ export default function ReportView({
     };
   }, []);
 
-  const scrollRailBy = (dir: 1 | -1) =>
-    railRef.current?.scrollBy({ left: dir * Math.round(railRef.current.clientWidth * 0.7), behavior: 'smooth' });
+  // Caps jump straight to the start / end so the first (or last) tab lands
+  // flush against the edge in a single click — cleaner for a short rail than
+  // an incremental scroll that can leave the first tab stranded mid-way.
+  const scrollRailToEdge = (dir: 1 | -1) =>
+    railRef.current?.scrollTo({
+      left: dir === -1 ? 0 : railRef.current.scrollWidth,
+      behavior: 'smooth',
+    });
 
   // Verdict — re-added after P7.2 with editorial copy (3 phrases per
   // tier, picked deterministically by report seed) + inline Pixelab
@@ -516,7 +522,7 @@ export default function ReportView({
               type="button"
               className="rv-railHint rv-railHint-l"
               aria-label={isFr ? 'Onglets précédents' : 'Previous tabs'}
-              onClick={() => scrollRailBy(-1)}
+              onClick={() => scrollRailToEdge(-1)}
             >
               <span>‹</span>
             </button>
@@ -526,7 +532,7 @@ export default function ReportView({
               type="button"
               className="rv-railHint"
               aria-label={isFr ? 'Voir les autres onglets' : 'See more tabs'}
-              onClick={() => scrollRailBy(1)}
+              onClick={() => scrollRailToEdge(1)}
             >
               <span>›</span>
             </button>
