@@ -53,7 +53,7 @@ test.describe('Report tab rail scroll affordance (mobile)', () => {
     const rightCap = page.locator('.rv-railHint:not(.rv-railHint-l)');
     await expect(rightCap).toBeVisible();
     // Scroll the rail fully right → the right hint should go away.
-    await page.locator('nav.rv-mainNav').evaluate((el) => {
+    await page.locator('nav.rv-mainNav').first().evaluate((el) => {
       el.scrollLeft = el.scrollWidth;
     });
     await expect(rightCap).toHaveCount(0);
@@ -62,7 +62,7 @@ test.describe('Report tab rail scroll affordance (mobile)', () => {
   test('clicking the right cap scrolls forward; a left cap then appears and scrolls back', async ({ page }) => {
     await page.setViewportSize(MOBILE);
     await page.goto('/e2e/report');
-    const rail = page.locator('nav.rv-mainNav');
+    const rail = page.locator('nav.rv-mainNav').first();
 
     // No left cap at the start (already at scrollLeft 0).
     await expect(page.locator('.rv-railHint-l')).toHaveCount(0);
@@ -100,6 +100,16 @@ test('night mode is off on mobile: dark toggle hidden on phone, shown on desktop
 
   await page.setViewportSize(DESKTOP);
   await expect(page.locator('.sa-dark-toggle')).toBeVisible();
+});
+
+test('mobile footer: no arrow on Pixelab, Geneva dedication shown', async ({ page }) => {
+  await page.setViewportSize(MOBILE);
+  await page.goto('/');
+  const footer = page.locator('.sa-footer-mobile');
+  await expect(footer).toBeVisible();
+  const txt = await footer.innerText();
+  expect(txt).not.toContain('↗'); // arrow removed from "Pixelab"
+  expect(txt).toMatch(/Gen[èe]v/i); // "Créé à Genève" dedication
 });
 
 test('page declares a light color-scheme (no OS dark-mode bleed)', async ({ page }) => {
