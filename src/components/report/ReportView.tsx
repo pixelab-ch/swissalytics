@@ -153,11 +153,15 @@ export default function ReportView({
   // Scroll affordance for the collapsed (mobile) rail: show a right-edge "›"
   // cap while more tabs remain off-screen, so users know it scrolls sideways.
   const railRef = useRef<HTMLElement | null>(null);
+  const [railCanScrollLeft, setRailCanScrollLeft] = useState(false);
   const [railCanScrollRight, setRailCanScrollRight] = useState(false);
   useEffect(() => {
     const el = railRef.current;
     if (!el) return;
-    const update = () => setRailCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    const update = () => {
+      setRailCanScrollLeft(el.scrollLeft > 4);
+      setRailCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    };
     update();
     el.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update);
@@ -166,6 +170,9 @@ export default function ReportView({
       window.removeEventListener('resize', update);
     };
   }, []);
+
+  const scrollRailBy = (dir: 1 | -1) =>
+    railRef.current?.scrollBy({ left: dir * Math.round(railRef.current.clientWidth * 0.7), behavior: 'smooth' });
 
   // Verdict — re-added after P7.2 with editorial copy (3 phrases per
   // tier, picked deterministically by report seed) + inline Pixelab
@@ -296,8 +303,19 @@ export default function ReportView({
             line-height: 1;
           }
           .rv-railHint > span { animation: rv-nudge 1.2s ease-in-out infinite; }
+          .rv-railHint-l {
+            right: auto;
+            left: 0;
+            border-left: 0;
+            border-right: 1px solid var(--sa-rule);
+          }
+          .rv-railHint-l > span { animation-name: rv-nudge-l; }
         }
         @keyframes rv-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
+        @keyframes rv-nudge-l { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-3px); } }
+        @media (prefers-reduced-motion: reduce) {
+          .rv-railHint > span, .rv-railHint-l > span { animation: none !important; }
+        }
         .rv-railHint { display: none; }
         @media (max-width: 420px) {
           .rv-cardsGrid { grid-template-columns: 1fr !important; }
@@ -493,17 +511,22 @@ export default function ReportView({
               />
             ))}
           </nav>
+          {railCanScrollLeft && (
+            <button
+              type="button"
+              className="rv-railHint rv-railHint-l"
+              aria-label={isFr ? 'Onglets précédents' : 'Previous tabs'}
+              onClick={() => scrollRailBy(-1)}
+            >
+              <span>‹</span>
+            </button>
+          )}
           {railCanScrollRight && (
             <button
               type="button"
               className="rv-railHint"
               aria-label={isFr ? 'Voir les autres onglets' : 'See more tabs'}
-              onClick={() =>
-                railRef.current?.scrollBy({
-                  left: Math.round(railRef.current.clientWidth * 0.7),
-                  behavior: 'smooth',
-                })
-              }
+              onClick={() => scrollRailBy(1)}
             >
               <span>›</span>
             </button>

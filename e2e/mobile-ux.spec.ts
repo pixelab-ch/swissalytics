@@ -49,24 +49,41 @@ test.describe('Report tab rail scroll affordance (mobile)', () => {
   test('shows a "more" hint that clears once scrolled to the end', async ({ page }) => {
     await page.setViewportSize(MOBILE);
     await page.goto('/e2e/report');
-    const hint = page.locator('.rv-railHint');
-    await expect(hint).toBeVisible();
-    // Scroll the rail fully right → the hint should go away.
+    // Right cap only (the left cap also carries .rv-railHint).
+    const rightCap = page.locator('.rv-railHint:not(.rv-railHint-l)');
+    await expect(rightCap).toBeVisible();
+    // Scroll the rail fully right → the right hint should go away.
     await page.locator('nav.rv-mainNav').evaluate((el) => {
       el.scrollLeft = el.scrollWidth;
     });
-    await expect(hint).toHaveCount(0);
+    await expect(rightCap).toHaveCount(0);
   });
 
-  test('clicking the hint cap scrolls the rail to reveal more tabs', async ({ page }) => {
+  test('clicking the right cap scrolls forward; a left cap then appears and scrolls back', async ({ page }) => {
     await page.setViewportSize(MOBILE);
     await page.goto('/e2e/report');
     const rail = page.locator('nav.rv-mainNav');
-    const before = await rail.evaluate((el) => el.scrollLeft);
-    await page.locator('.rv-railHint').click();
-    await page.waitForTimeout(500); // smooth scroll
-    const after = await rail.evaluate((el) => el.scrollLeft);
-    expect(after).toBeGreaterThan(before);
+
+    // No left cap at the start (already at scrollLeft 0).
+    await expect(page.locator('.rv-railHint-l')).toHaveCount(0);
+
+    // Click the right cap → scrolls forward. force:true avoids actionability
+    // flake from the cap's infinite "nudge" transform animation.
+    const start = await rail.evaluate((el) => el.scrollLeft);
+    const rightCap = page.locator('.rv-railHint:not(.rv-railHint-l)');
+    await expect(rightCap).toBeVisible();
+    await rightCap.click({ force: true });
+    await page.waitForTimeout(500);
+    const mid = await rail.evaluate((el) => el.scrollLeft);
+    expect(mid).toBeGreaterThan(start);
+
+    // Now a left cap exists → click it scrolls back.
+    const leftCap = page.locator('.rv-railHint-l');
+    await expect(leftCap).toBeVisible();
+    await leftCap.click({ force: true });
+    await page.waitForTimeout(500);
+    const back = await rail.evaluate((el) => el.scrollLeft);
+    expect(back).toBeLessThan(mid);
   });
 
   test('no scroll hint on desktop (rail is a vertical list)', async ({ page }) => {
