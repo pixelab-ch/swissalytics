@@ -43,12 +43,14 @@ export function analyzeImages($: CheerioAPI, baseUrl: string = ''): ImagesAnalys
 
     images.push({ src, alt, hasAlt, width, height, isLazy, format, hasSrcset });
 
+    // Per-image issues carry the full resolved `src` (not the 80-char message
+    // copy) so the UI can preview/open the exact problematic media.
     if (!hasAlt) {
-      issues.push({ type: 'error', message: `Image sans attribut alt: ${rawSrc.substring(0, 80)}` });
+      issues.push({ type: 'error', message: `Image sans attribut alt: ${rawSrc.substring(0, 80)}`, url: src });
     } else if (!alt) {
-      issues.push({ type: 'info', message: `Image avec alt vide (décorative): ${rawSrc.substring(0, 80)}` });
+      issues.push({ type: 'info', message: `Image avec alt vide (décorative): ${rawSrc.substring(0, 80)}`, url: src });
     } else if (alt.length > 125) {
-      issues.push({ type: 'info', message: `Alt text très long (${alt.length} car.): ${rawSrc.substring(0, 80)}` });
+      issues.push({ type: 'info', message: `Alt text très long (${alt.length} car.): ${rawSrc.substring(0, 80)}`, url: src });
     }
 
     if (!width || !height) {
@@ -62,7 +64,7 @@ export function analyzeImages($: CheerioAPI, baseUrl: string = ''): ImagesAnalys
 
     // First 3 images should NOT be lazy
     if (i < 3 && isLazy) {
-      issues.push({ type: 'warning', message: `Image above-the-fold avec lazy loading: ${rawSrc.substring(0, 80)}` });
+      issues.push({ type: 'warning', message: `Image above-the-fold avec lazy loading: ${rawSrc.substring(0, 80)}`, url: src });
     }
 
     // Modern formats

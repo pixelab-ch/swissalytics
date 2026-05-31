@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import type { AnalysisResult } from '@/lib/types';
 import { calculateGlobalScore } from '@/lib/analyzer/score';
 import { fetchGeo, fetchCwv, fetchKeywordSuggestions, persistEnrichment, buildPageContext } from '@/lib/client/enrichment';
@@ -23,6 +24,7 @@ function isSelfAnalysis(input: string): boolean {
 
 export default function HomePage() {
   const { lang } = useTheme();
+  const router = useRouter();
 
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -67,6 +69,13 @@ export default function HomePage() {
     setResult(null);
     setReportId(null);
     setDegraded(false);
+
+    // A new analysis must open on the overview. ReportView reads the active tab
+    // from `?tab=`, which lingers on the homepage after the user clicked e.g.
+    // "Plan d'action" on a previous report — drop it so we don't land there.
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('tab')) {
+      router.replace('/', { scroll: false });
+    }
 
     setTimeout(() => {
       loadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });

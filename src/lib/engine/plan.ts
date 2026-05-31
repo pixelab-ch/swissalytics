@@ -40,6 +40,9 @@ export interface PlanIssue {
   /** Explicit effort (geo recommendations only). When unset, the builder
    * falls back to a lookup keyed on `category`. */
   effort?: Effort;
+  /** Full URL of the specific resource (e.g. a problematic image's src), so
+   * the action plan can preview/open it. */
+  url?: string;
   source: PlanSource;
 }
 
@@ -52,7 +55,27 @@ export interface PlanItem {
   effort: Effort;
   count: number; // how many raw issues this rolls up
   category: string;
+  /** Full URL of the specific resource this item is about, when one exists. */
+  url?: string;
   source: PlanSource;
+}
+
+/**
+ * The subtitle to render under a plan item's title — or null when it would just
+ * repeat it. Native issues set `body = description ?? message`, and with no
+ * description `body === message === title`, so showing both prints the same
+ * line twice (e.g. a broken-link URL in the title AND the subtitle). GEO
+ * recommendations have a distinct description, so their body is kept.
+ */
+export function planSubtitle(item: Pick<PlanItem, 'title' | 'body'>): string | null {
+  const t = item.title.trim();
+  const b = (item.body ?? '').trim();
+  if (!b || b === t) return null;
+  // buildPlan appends a " (×N)" dedup suffix to the title while body stays the
+  // bare message, so "<body> (×N)" is still a repeat. Match only that suffix —
+  // not any prefix — so a genuinely distinct body is never silently dropped.
+  if (t.startsWith(`${b} (×`) && t.endsWith(')')) return null;
+  return item.body;
 }
 
 const categoryEffort: Record<string, Effort> = {
@@ -114,6 +137,7 @@ function collectIssues(result: AnalysisResult): PlanIssue[] {
         type: (iss.type ?? 'info') as Severity,
         category: cat,
         message: iss.message,
+        url: iss.url,
         source: 'native',
       });
     }
@@ -224,6 +248,7 @@ export function buildPlan(result: AnalysisResult): PlanItem[] {
       effort: iss.effort ?? categoryEffort[iss.category] ?? 'M',
       count: entry.count,
       category: iss.category,
+      url: iss.url,
       source: iss.source,
     };
   });

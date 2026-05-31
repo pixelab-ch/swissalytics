@@ -304,4 +304,11 @@ export interface ReadabilityAnalysis {
 export interface Issue {
   type: 'error' | 'warning' | 'info';
   message: string;
+  /**
+   * Full (untruncated, resolved) URL of the specific resource this issue is
+   * about — e.g. a problematic image's `src`. The `message` may embed a
+   * shortened copy for readability; `url` is what the UI uses to preview/open
+   * the actual media. Optional: most aggregate issues have no single resource.
+   */
+  url?: string;
 }

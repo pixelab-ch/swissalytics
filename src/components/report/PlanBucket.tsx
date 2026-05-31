@@ -1,7 +1,8 @@
 'use client';
 
-import type { PlanItem } from '@/lib/engine/plan';
+import { type PlanItem, planSubtitle } from '@/lib/engine/plan';
 import { effortLabel } from './cockpitData';
+import { MediaPreviewButton } from './MediaPreviewButton';
 
 interface PlanBucketProps {
   captionNum: string;
@@ -68,7 +69,10 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
             >
               {String(item.n).padStart(2, '0')}
             </div>
-            <div>
+            {/* minWidth:0 lets this 1fr column shrink; without it an unbreakable
+                URL inside item.body (e.g. "Lien cassé (404) : https://…") forces
+                min-content width and overflows the card to the right. */}
+            <div style={{ minWidth: 0 }}>
               <div
                 style={{
                   fontWeight: 600,
@@ -76,31 +80,48 @@ export function PlanBucket({ captionNum, label, items, dotColor, isFr }: PlanBuc
                   fontSize: 18,
                   marginBottom: 4,
                   lineHeight: 1.35,
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
                 }}
               >
                 {item.title}
               </div>
+              {planSubtitle(item) && (
+                <div
+                  style={{
+                    color: 'var(--sa-ink-3)',
+                    fontSize: 16,
+                    lineHeight: 1.5,
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {planSubtitle(item)}
+                </div>
+              )}
               <div
-                style={{
-                  color: 'var(--sa-ink-3)',
-                  fontSize: 16,
-                  lineHeight: 1.5,
-                }}
-              >
-                {item.body}
-              </div>
-              <div
-                className="mono"
                 style={{
                   marginTop: 6,
-                  fontSize: 11,
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  color: 'var(--sa-ink-4)',
-                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 10,
                 }}
               >
-                {item.category}
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 11,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: 'var(--sa-ink-4)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {item.category}
+                </span>
+                {/* Action items about a specific media are previewable inline. */}
+                {item.url && <MediaPreviewButton url={item.url} />}
               </div>
             </div>
             <div className="pb-effort" style={{ display: 'flex', justifyContent: 'flex-end' }}>

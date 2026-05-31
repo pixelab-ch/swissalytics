@@ -80,7 +80,10 @@ export default function MetadataTab({ data }: { data: MetadataAnalysis }) {
       {/* §02 — Social Previews */}
       <section>
         <SectionHeader num="02" title="Aperçus réseaux sociaux" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+        {/* min(320px, 100%) so a phone narrower than 320px+gutters keeps the card
+            at container width instead of forcing a 320px track that overflows
+            (clipped right, since body is overflow-x:clip). */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 20 }}>
           {/* Facebook / LinkedIn */}
           <div>
             <div className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--sa-ink-4)', fontWeight: 700, marginBottom: 8 }}>

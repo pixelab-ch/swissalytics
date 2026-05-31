@@ -74,7 +74,9 @@ export default function ReadabilityTab({ data }: { data: ReadabilityAnalysis }) 
         </div>
       </section>
 
-      {/* §02 — Flesch gauge */}
+      {/* §02 — Flesch score. Desktop is UNCHANGED (colour bar + the four numeric
+          ticks). Only ≤640px swaps the bunched-up ticks for a stacked zone
+          legend — same data, readable on phones. */}
       <section>
         <SectionHeader
           num="02"
@@ -127,12 +129,53 @@ export default function ReadabilityTab({ data }: { data: ReadabilityAnalysis }) 
             }}
           />
         </div>
-        <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--sa-ink-4)', marginTop: 8, letterSpacing: '0.08em' }}>
+
+        {/* Desktop ticks — original, unchanged. Hidden ≤640px. */}
+        <div className="rt-scale-desktop mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--sa-ink-4)', marginTop: 8, letterSpacing: '0.08em' }}>
           <span>Très difficile · 0</span>
           <span>40</span>
           <span>60</span>
           <span>100 · Très facile</span>
         </div>
+
+        {/* Mobile-only stacked zone legend (≤640px), active band highlighted. */}
+        <div className="rt-scale-mobile" style={{ display: 'none', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+          {[
+            { min: 0,  max: 40,  color: 'var(--sa-red)',  label: 'Très difficile' },
+            { min: 40, max: 60,  color: 'var(--sa-warn)', label: 'Standard' },
+            { min: 60, max: 100, color: 'var(--sa-ok)',   label: 'Facile à lire' },
+          ].map((zone) => {
+            const on = data.fleschScore >= zone.min && data.fleschScore < zone.max;
+            return (
+              <div
+                key={zone.min}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 10px',
+                  border: `1px solid ${on ? zone.color : 'var(--sa-rule)'}`,
+                  background: on ? 'var(--sa-cream)' : 'transparent',
+                }}
+              >
+                <span style={{ width: 10, height: 10, background: zone.color, flexShrink: 0, opacity: on ? 1 : 0.4 }} />
+                <span className="mono" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--sa-ink-4)', minWidth: 50 }}>
+                  {zone.min}–{zone.max}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: on ? 700 : 500, color: on ? 'var(--sa-ink)' : 'var(--sa-ink-3)' }}>
+                  {zone.label}
+                </span>
+                {on && (
+                  <span className="mono tnum" style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 800, color: zone.color }}>
+                    {data.fleschScore}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <style>{'@media (max-width: 640px){ .rt-scale-desktop{ display: none !important; } .rt-scale-mobile{ display: flex !important; } }'}</style>
       </section>
 
       {/* §03 — Issues */}
