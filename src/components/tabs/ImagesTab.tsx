@@ -1,7 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import type { ImagesAnalysis } from '@/lib/types';
+
+type ImageItem = ImagesAnalysis['images'][number];
 import IssuesList from '../IssuesList';
 import CTABanner from '../CTABanner';
 import InfoBox from '../InfoBox';
@@ -36,6 +40,7 @@ function StatCell({ value, label, color = 'var(--sa-ink)' }: { value: number | s
 export default function ImagesTab({ data }: { data: ImagesAnalysis }) {
   const [showAllImages, setShowAllImages] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
+  const [preview, setPreview] = useState<ImageItem | null>(null);
   const altPercent = data.total > 0 ? Math.round((data.withAlt / data.total) * 100) : 100;
 
   const formatCounts: Record<string, number> = {};
@@ -159,6 +164,8 @@ export default function ImagesTab({ data }: { data: ImagesAnalysis }) {
                 }}
               >
                 <div
+                  onClick={() => img.src && setPreview(img)}
+                  title={img.src ? "Voir l'image" : undefined}
                   style={{
                     width: 64,
                     height: 64,
@@ -169,6 +176,7 @@ export default function ImagesTab({ data }: { data: ImagesAnalysis }) {
                     justifyContent: 'center',
                     overflow: 'hidden',
                     flexShrink: 0,
+                    cursor: img.src ? 'zoom-in' : 'default',
                   }}
                 >
                   {img.src && !failedImages.has(i) ? (
@@ -260,8 +268,30 @@ export default function ImagesTab({ data }: { data: ImagesAnalysis }) {
                   </p>
                 </div>
 
-                <div className="mono tnum" style={{ fontSize: 11, color: 'var(--sa-ink-4)', textAlign: 'right', flexShrink: 0 }}>
-                  {img.width && img.height ? `${img.width}×${img.height}` : '—'}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                  <span className="mono tnum" style={{ fontSize: 11, color: 'var(--sa-ink-4)', textAlign: 'right' }}>
+                    {img.width && img.height ? `${img.width}×${img.height}` : '—'}
+                  </span>
+                  {img.src && (
+                    <button
+                      onClick={() => setPreview(img)}
+                      className="mono"
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase',
+                        padding: '4px 9px',
+                        border: '1px solid var(--sa-ink)',
+                        background: 'var(--sa-cream)',
+                        color: 'var(--sa-ink)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Voir
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -270,6 +300,127 @@ export default function ImagesTab({ data }: { data: ImagesAnalysis }) {
       )}
 
       <CTABanner variant="inline" />
+
+      {preview && <ImagePreview img={preview} onClose={() => setPreview(null)} />}
     </TabFrame>
+  );
+}
+
+/**
+ * Full-size image preview — portaled to <body> so it escapes the report's
+ * transformed/scrolled ancestors. Shows the image, its source URL (openable),
+ * alt text and key attributes so you know exactly which media to act on.
+ */
+function ImagePreview({ img, onClose }: { img: ImageItem; onClose: () => void }) {
+  const [failed, setFailed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <>
+      <div
+        aria-hidden="true"
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(10, 10, 10, 0.55)', zIndex: 1000 }}
+      />
+      <div
+        role="dialog"
+        aria-label="Aperçu de l'image"
+        style={{
+          position: 'fixed',
+          left: 16,
+          right: 16,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          margin: '0 auto',
+          maxWidth: 560,
+          maxHeight: '86vh',
+          overflowY: 'auto',
+          zIndex: 1001,
+          background: 'var(--sa-cream)',
+          border: '2px solid var(--sa-ink)',
+        }}
+      >
+        <div
+          className="ink-b mono"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 14px',
+            background: 'var(--sa-ink)',
+            color: 'var(--sa-cream)',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+          }}
+        >
+          <span>Aperçu de l&apos;image</span>
+          <button
+            onClick={onClose}
+            aria-label="Fermer"
+            style={{ background: 'transparent', border: 'none', color: 'var(--sa-cream)', cursor: 'pointer', padding: 0, display: 'inline-flex' }}
+          >
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* Image */}
+        <div
+          className="placeholder-hatch"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, minHeight: 160 }}
+        >
+          {!failed ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={img.src}
+              alt={img.alt || ''}
+              onError={() => setFailed(true)}
+              style={{ maxWidth: '100%', maxHeight: '56vh', objectFit: 'contain', border: '1px solid var(--sa-rule)', background: 'var(--sa-cream)' }}
+            />
+          ) : (
+            <span className="mono" style={{ fontSize: 11, color: 'var(--sa-ink-4)', fontWeight: 700, letterSpacing: '0.08em' }}>
+              Image non chargeable
+            </span>
+          )}
+        </div>
+
+        {/* Meta */}
+        <div style={{ borderTop: '1px solid var(--sa-rule)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {img.alt && (
+            <div>
+              <div className="mono" style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sa-ink-4)', marginBottom: 3 }}>
+                Alt
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--sa-ink-2)', overflowWrap: 'anywhere' }}>{img.alt}</div>
+            </div>
+          )}
+          <div>
+            <div className="mono" style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sa-ink-4)', marginBottom: 3 }}>
+              Source · {img.format.toUpperCase()}
+              {img.width && img.height ? ` · ${img.width}×${img.height}` : ''}
+            </div>
+            <a
+              href={img.src}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mono"
+              style={{ fontSize: 11, color: 'var(--sa-red)', overflowWrap: 'anywhere', textDecoration: 'underline', textUnderlineOffset: 2 }}
+            >
+              {img.src}
+            </a>
+          </div>
+        </div>
+      </div>
+    </>,
+    document.body,
   );
 }

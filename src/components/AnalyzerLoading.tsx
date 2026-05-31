@@ -110,6 +110,7 @@ export default function AnalyzerLoading() {
                 {s.id.toString().padStart(2, '0')}
               </span>
               <span
+                className="al-glyph"
                 style={{
                   width: 36,
                   height: 36,
@@ -185,16 +186,19 @@ export default function AnalyzerLoading() {
             color: 'var(--sa-ink-4)',
           }}
         >
-          <span>{copy.loadingFooter}</span>
-          <span>{lang === 'fr' ? '~ 30 s' : '~ 30 s'}</span>
+          <span className="al-footer-text">{copy.loadingFooter}</span>
+          <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>~ 30 s</span>
         </div>
       </div>
 
       <style>{`
         @media (max-width: 640px) {
           .al-caption { padding: 12px 16px !important; gap: 8px; }
-          .al-step { gap: 12px !important; padding: 14px 16px !important; }
-          .al-footer { padding: 12px 16px !important; gap: 8px; }
+          .al-step { gap: 14px !important; padding: 14px 16px !important; }
+          /* The decorative ◧◨ glyph boxes render poorly on mobile — drop them. */
+          .al-glyph { display: none !important; }
+          .al-footer { padding: 11px 16px !important; gap: 10px; font-size: 9px !important; }
+          .al-footer-text { min-width: 0; }
         }
       `}</style>
     </div>

@@ -171,14 +171,19 @@ export default function ReportView({
     };
   }, []);
 
-  // Caps jump straight to the start / end so the first (or last) tab lands
-  // flush against the edge in a single click — cleaner for a short rail than
-  // an incremental scroll that can leave the first tab stranded mid-way.
-  const scrollRailToEdge = (dir: 1 | -1) =>
-    railRef.current?.scrollTo({
-      left: dir === -1 ? 0 : railRef.current.scrollWidth,
-      behavior: 'smooth',
-    });
+  // Caps scroll by ~one viewport at a time so you can step through the middle
+  // tabs, but snap flush to the edge once within a step of it — so the first
+  // (or last) tab never ends up stranded a few px off the edge.
+  const scrollRailBy = (dir: 1 | -1) => {
+    const el = railRef.current;
+    if (!el) return;
+    const step = Math.round(el.clientWidth * 0.7);
+    const max = el.scrollWidth - el.clientWidth;
+    let target = Math.max(0, Math.min(max, el.scrollLeft + dir * step));
+    if (target < 24) target = 0;
+    else if (target > max - 24) target = max;
+    el.scrollTo({ left: target, behavior: 'smooth' });
+  };
 
   // Verdict — re-added after P7.2 with editorial copy (3 phrases per
   // tier, picked deterministically by report seed) + inline Pixelab
@@ -522,7 +527,7 @@ export default function ReportView({
               type="button"
               className="rv-railHint rv-railHint-l"
               aria-label={isFr ? 'Onglets précédents' : 'Previous tabs'}
-              onClick={() => scrollRailToEdge(-1)}
+              onClick={() => scrollRailBy(-1)}
             >
               <span>‹</span>
             </button>
@@ -532,7 +537,7 @@ export default function ReportView({
               type="button"
               className="rv-railHint"
               aria-label={isFr ? 'Voir les autres onglets' : 'See more tabs'}
-              onClick={() => scrollRailToEdge(1)}
+              onClick={() => scrollRailBy(1)}
             >
               <span>›</span>
             </button>

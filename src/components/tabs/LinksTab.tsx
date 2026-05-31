@@ -159,7 +159,7 @@ function BrokenLinkRow({ href, status, error }: { href: string; status: number; 
         borderBottom: '1px solid var(--sa-rule)',
       }}
     >
-      <span className="mono" style={{ fontSize: 11, color: 'var(--sa-ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+      <span className="mono" style={{ fontSize: 11, color: 'var(--sa-ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
         {href}
       </span>
       <span

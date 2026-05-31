@@ -102,6 +102,24 @@ test('night mode is off on mobile: dark toggle hidden on phone, shown on desktop
   await expect(page.locator('.sa-dark-toggle')).toBeVisible();
 });
 
+test('image preview modal opens with the media URL and closes', async ({ page }) => {
+  await page.setViewportSize(MOBILE);
+  await page.goto('/e2e/report?tab=details');
+  // Switch to the Images & médias sub-section.
+  await page.locator('nav').nth(1).getByText(/images/i).first().click();
+  const voir = page.getByRole('button', { name: /^Voir$/ }).first();
+  await expect(voir).toBeVisible();
+  await voir.click();
+  const dlg = page.getByRole('dialog', { name: /aper[çc]u/i });
+  await expect(dlg).toBeVisible();
+  // The source URL is shown and contained (no page overflow).
+  await expect(dlg.getByRole('link')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  // Closes on Escape.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: /aper[çc]u/i })).toHaveCount(0);
+});
+
 test('mobile footer: no arrow on Pixelab, Geneva dedication shown', async ({ page }) => {
   await page.setViewportSize(MOBILE);
   await page.goto('/');
