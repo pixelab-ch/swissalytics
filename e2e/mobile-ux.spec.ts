@@ -168,7 +168,9 @@ test('action plan: long URLs in items wrap inside the card (no right clipping)',
 test('details sub-nav is a single segmented grid, fully contained', async ({ page }) => {
   await page.setViewportSize(NARROW);
   await page.goto('/e2e/report?tab=details');
-  const subnav = page.locator('.dc-subnav');
+  // .first() — the report tab area double-renders under React 19 concurrent
+  // mode (same reason the rv-mainNav test uses .first()).
+  const subnav = page.locator('.dc-subnav').first();
   await expect(subnav).toBeVisible();
   // It's a CSS grid (the segmented control), not a wrapped flex.
   expect(await subnav.evaluate((el) => getComputedStyle(el).display)).toBe('grid');
