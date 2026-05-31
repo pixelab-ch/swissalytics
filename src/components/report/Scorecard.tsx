@@ -32,14 +32,21 @@ export function Scorecard({ num, label, score, isLast, isFr, hint }: ScorecardPr
 
   return (
     <div
+      className="sc-card"
       style={{
         padding: '28px 24px',
         borderRight: isLast ? 'none' : '1px solid var(--sa-rule)',
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
+        minWidth: 0,
       }}
     >
+      <style>{`
+        @media (max-width: 768px) {
+          .sc-card { padding: 20px 16px !important; gap: 12px !important; }
+        }
+      `}</style>
       <div
         className="mono"
         style={{
@@ -48,6 +55,7 @@ export function Scorecard({ num, label, score, isLast, isFr, hint }: ScorecardPr
           textTransform: 'uppercase',
           color: 'var(--sa-ink-4)',
           fontWeight: 700,
+          overflowWrap: 'anywhere',
         }}
       >
         §{num} · {label}

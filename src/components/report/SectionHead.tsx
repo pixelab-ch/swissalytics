@@ -19,13 +19,14 @@ export function SectionHead({
       style={{
         display: 'flex',
         alignItems: 'baseline',
+        flexWrap: 'wrap',
         gap: 10,
         marginBottom: 12,
       }}
     >
       <span
         className="mono"
-        style={{ fontSize: 12, fontWeight: 700, color: 'var(--sa-red)' }}
+        style={{ fontSize: 12, fontWeight: 700, color: 'var(--sa-red)', flexShrink: 0 }}
       >
         §{num}
       </span>
@@ -36,6 +37,8 @@ export function SectionHead({
           letterSpacing: '-0.01em',
           margin: 0,
           color: 'var(--sa-ink)',
+          minWidth: 0,
+          overflowWrap: 'anywhere',
         }}
       >
         {title}

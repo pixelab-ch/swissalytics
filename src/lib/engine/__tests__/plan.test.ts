@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPlan } from '../plan';
+import { buildPlan, planSubtitle } from '../plan';
 import type { AnalysisResult, Issue } from '@/lib/types';
 import type {
   GeoAnalysisResult,
@@ -84,6 +84,44 @@ describe('buildPlan — native-only behavior (regression)', () => {
     });
     const plan = buildPlan(result);
     expect(plan[0].source).toBe('native');
+  });
+
+  it('threads issue.url through to the plan item (previewable media)', () => {
+    const result = makeResult({
+      images: {
+        score: 50,
+        issues: [
+          { type: 'error', message: 'Image sans attribut alt: …', url: 'https://site.test/x.jpg' },
+        ],
+      } as unknown as AnalysisResult['images'],
+    });
+    const item = buildPlan(result).find((p) => /sans attribut alt/i.test(p.title));
+    expect(item?.url).toBe('https://site.test/x.jpg');
+  });
+
+  it('leaves url undefined for issues without a specific resource', () => {
+    const result = makeResult({
+      headings: { score: 60, issues: [issue('error', 'H1 missing')] } as unknown as AnalysisResult['headings'],
+    });
+    expect(buildPlan(result)[0].url).toBeUndefined();
+  });
+});
+
+describe('planSubtitle — avoids printing the title twice', () => {
+  it('returns null when body equals the title (native issue, no description)', () => {
+    expect(planSubtitle({ title: 'Lien cassé (404) : https://x.test/y', body: 'Lien cassé (404) : https://x.test/y' })).toBeNull();
+  });
+
+  it('returns null when the title is the body plus a "(×N)" dedup suffix', () => {
+    expect(planSubtitle({ title: 'Lien cassé (404) : https://x.test/y (×3)', body: 'Lien cassé (404) : https://x.test/y' })).toBeNull();
+  });
+
+  it('keeps a distinct body (e.g. a GEO recommendation description)', () => {
+    expect(planSubtitle({ title: 'Optimiser la performance', body: 'Réduisez le LCP sous 2,5 s.' })).toBe('Réduisez le LCP sous 2,5 s.');
+  });
+
+  it('is null on an empty body', () => {
+    expect(planSubtitle({ title: 'X', body: '' })).toBeNull();
   });
 });
 

@@ -83,7 +83,7 @@ export default function ExemplesPage() {
 
   return (
     <Shell>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="ex-wrap" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
         <div
           className="mono caption-red"
           style={{
@@ -121,6 +121,7 @@ export default function ExemplesPage() {
         </p>
 
         <div
+          className="ex-grid"
           style={{
             marginTop: 56,
             display: 'grid',
@@ -134,6 +135,8 @@ export default function ExemplesPage() {
             return (
               <div
                 key={c.url}
+                className="ex-card"
+                data-i={i}
                 style={{
                   background: 'var(--sa-cream)',
                   padding: 28,
@@ -261,6 +264,22 @@ export default function ExemplesPage() {
             );
           })}
         </div>
+
+        <style>{`
+          @media (max-width: 1024px){
+            .ex-grid{ grid-template-columns:1fr 1fr !important; }
+            .ex-card{ border-right:1px solid var(--sa-rule) !important; border-bottom:1px solid var(--sa-rule) !important; }
+            /* 2-col: right column has no right border; last row has no bottom border. */
+            .ex-card:nth-child(2n){ border-right:0 !important; }
+            .ex-card:nth-last-child(-n+2){ border-bottom:0 !important; }
+          }
+          @media (max-width: 640px){
+            .ex-wrap{ padding:48px 20px !important; }
+            .ex-grid{ grid-template-columns:1fr !important; margin-top:40px !important; }
+            .ex-card{ border-right:0 !important; border-bottom:1px solid var(--sa-rule) !important; }
+            .ex-card:last-child{ border-bottom:0 !important; }
+          }
+        `}</style>
       </div>
     </Shell>
   );

@@ -101,6 +101,7 @@ function BodyBlocks({ blocks }: { blocks: JournalBlock[] }) {
               {b.items.map((item) => (
                 <li
                   key={item.n}
+                  className="ja-numitem"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '64px 1fr',
@@ -109,6 +110,11 @@ function BodyBlocks({ blocks }: { blocks: JournalBlock[] }) {
                     borderTop: '1px solid var(--sa-rule)',
                   }}
                 >
+                  <style>{`
+                    @media (max-width: 640px){
+                      .ja-numitem{ grid-template-columns:1fr !important; gap:6px !important; }
+                    }
+                  `}</style>
                   <div
                     className="mono"
                     style={{
@@ -256,12 +262,22 @@ export default function ArticlePage({
   return (
     <Shell>
       <div
+        className="ja-wrap"
         style={{
           maxWidth: 680,
           margin: '0 auto',
           padding: '64px 24px',
         }}
       >
+        <style>{`
+          @media (max-width: 640px){
+            .ja-wrap{ padding:40px 16px !important; }
+            .ja-dropcap{ font-size:64px !important; margin-right:10px !important; }
+            .ja-related-row{ grid-template-columns:1fr !important; gap:8px !important; }
+            .ja-cta{ grid-template-columns:1fr !important; gap:20px !important; }
+            .ja-cta-btn{ justify-self:start !important; }
+          }
+        `}</style>
         {/* ────────────────────────────────────────────
             Breadcrumb
            ──────────────────────────────────────────── */}
@@ -418,6 +434,7 @@ export default function ArticlePage({
           {/* Lead paragraph with red drop cap */}
           <p style={{ margin: '0 0 24px 0' }}>
             <span
+              className="ja-dropcap"
               style={{
                 float: 'left',
                 fontFamily: 'var(--sa-font-sans)',
@@ -475,6 +492,7 @@ export default function ArticlePage({
                   }}
                 >
                   <article
+                    className="ja-related-row"
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '1fr auto',
@@ -538,6 +556,7 @@ export default function ArticlePage({
             Footer CTA — test my site
            ──────────────────────────────────────────── */}
         <div
+          className="ja-cta"
           style={{
             marginTop: 64,
             paddingTop: 32,
@@ -579,6 +598,7 @@ export default function ArticlePage({
           </div>
           <Link
             href="/"
+            className="ja-cta-btn"
             style={{
               padding: '14px 24px',
               background: 'var(--sa-red)',

@@ -67,19 +67,20 @@ export function DetailsContent({
 
   return (
     <div>
-      {/* Underlined sub-section bar. Wraps onto multiple rows when the six
-          labels exceed the content column instead of opening an inner
-          horizontal scroll region (which also forced a stray vertical
-          scrollbar via the implicit overflow-y:auto). */}
+      {/* Segmented sub-section nav. A bordered grid where the 1px gap (over a
+          rule-coloured background) draws the hairlines between cells — so it
+          reads as a deliberate control, not loose labels wrapped in a block.
+          6 cells in one row on desktop, 3 on tablet, 2 on phones. */}
       <nav
         role="tablist"
+        className="dc-subnav"
         style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 26,
-          rowGap: 8,
-          borderBottom: '1px solid var(--sa-rule)',
-          marginBottom: 20,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(6, 1fr)',
+          gap: 1,
+          background: 'var(--sa-rule)',
+          border: '1px solid var(--sa-rule)',
+          marginBottom: 24,
         }}
       >
         {sectionDefs.map((s) => (
@@ -93,6 +94,10 @@ export function DetailsContent({
           />
         ))}
       </nav>
+      <style>{`
+        @media (max-width: 1024px) { .dc-subnav { grid-template-columns: repeat(3, 1fr) !important; } }
+        @media (max-width: 640px)  { .dc-subnav { grid-template-columns: repeat(2, 1fr) !important; } }
+      `}</style>
       <div>{content}</div>
     </div>
   );

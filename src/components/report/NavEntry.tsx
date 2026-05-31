@@ -10,8 +10,9 @@ interface NavEntryProps {
   /**
    * `rail` — vertical left-rail entry: red left-border + cream-2 bg on active
    *   (used for the 4 main report tabs in ReportView).
-   * `bar`  — horizontal sub-section bar entry: red bottom-border underline on
-   *   active (used for the 6 Détails sub-sections in DetailsContent).
+   * `bar`  — segmented-grid cell (used for the 6 Détails sub-sections in
+   *   DetailsContent): fills its grid cell, red top accent + cream-2 fill on
+   *   active. The grid container draws the hairline borders via gap.
    */
   variant: 'rail' | 'bar';
 }
@@ -42,22 +43,31 @@ export function NavEntry({ num, label, active, onClick, variant }: NavEntryProps
     fontWeight: 700,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    minHeight: 44,
   };
 
+  // Segmented-grid cell: fills the cell, hairlines are drawn by the grid
+  // container's gap (so no per-cell border math across breakpoints). Active =
+  // cream-2 fill + a red top accent rule.
   const barStyle: CSSProperties = {
     appearance: 'none',
-    background: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+    textAlign: 'left',
     border: 'none',
-    borderBottom: `2px solid ${active ? 'var(--sa-red)' : 'transparent'}`,
-    marginBottom: -1,
-    padding: '8px 0',
+    borderTop: `2px solid ${active ? 'var(--sa-red)' : 'transparent'}`,
+    padding: '12px 14px',
+    minHeight: 48,
+    background: active ? 'var(--sa-cream-2)' : 'var(--sa-cream)',
     fontSize: 11,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     fontWeight: 700,
     color: active ? 'var(--sa-ink)' : 'var(--sa-ink-4)',
     cursor: 'pointer',
-    whiteSpace: 'nowrap',
+    lineHeight: 1.2,
   };
 
   if (variant === 'rail') {
@@ -91,7 +101,10 @@ export function NavEntry({ num, label, active, onClick, variant }: NavEntryProps
       className="mono"
       style={barStyle}
     >
-      <span className="tnum">§{num}</span> {label}
+      <span className="tnum" style={{ color: active ? 'var(--sa-red)' : 'var(--sa-ink-4)', flexShrink: 0 }}>
+        §{num}
+      </span>
+      <span style={{ color: active ? 'var(--sa-ink)' : 'var(--sa-ink-3)' }}>{label}</span>
     </button>
   );
 }

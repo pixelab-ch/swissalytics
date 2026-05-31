@@ -2,6 +2,7 @@
 
 import type { Issue } from '@/lib/types';
 import { getIssueTip } from '@/lib/issueTips';
+import { MediaPreviewButton } from './report/MediaPreviewButton';
 
 const issueTones: Record<Issue['type'], { stroke: string; bg: string; label: string }> = {
   error:   { stroke: 'var(--sa-red)',  bg: 'rgba(229, 36, 26, 0.05)', label: 'CRITIQUE' },
@@ -15,25 +16,27 @@ const labelColor: Record<Issue['type'], string> = {
   info:    'var(--sa-ink-4)',
 };
 
-export default function IssuesList({ issues }: { issues: Issue[] }) {
+export default function IssuesList({ issues, showHeader = true }: { issues: Issue[]; showHeader?: boolean }) {
   if (issues.length === 0) return null;
 
   return (
     <section>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 16,
-          borderBottom: '1px solid var(--sa-rule)',
-          paddingBottom: 10,
-        }}
-      >
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--sa-ink)', margin: 0, letterSpacing: '-0.01em' }}>
-          Problèmes détectés ({issues.length})
-        </h3>
-      </div>
+      {showHeader && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 16,
+            borderBottom: '1px solid var(--sa-rule)',
+            paddingBottom: 10,
+          }}
+        >
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--sa-ink)', margin: 0, letterSpacing: '-0.01em' }}>
+            Problèmes détectés ({issues.length})
+          </h3>
+        </div>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {issues.map((issue, i) => {
           const tone = issueTones[issue.type];
@@ -60,22 +63,26 @@ export default function IssuesList({ issues }: { issues: Issue[] }) {
                     {tip}
                   </p>
                 )}
-                <span
-                  className="mono"
-                  style={{
-                    display: 'inline-block',
-                    marginTop: 8,
-                    fontSize: 9,
-                    fontWeight: 700,
-                    letterSpacing: '0.12em',
-                    padding: '2px 6px',
-                    border: `1px solid ${labelColor[issue.type]}`,
-                    color: labelColor[issue.type],
-                    background: 'var(--sa-cream)',
-                  }}
-                >
-                  {tone.label}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
+                  <span
+                    className="mono"
+                    style={{
+                      display: 'inline-block',
+                      fontSize: 9,
+                      fontWeight: 700,
+                      letterSpacing: '0.12em',
+                      padding: '2px 6px',
+                      border: `1px solid ${labelColor[issue.type]}`,
+                      color: labelColor[issue.type],
+                      background: 'var(--sa-cream)',
+                    }}
+                  >
+                    {tone.label}
+                  </span>
+                  {/* When the issue points at a specific media, let the user
+                      open/preview it right from the problem list. */}
+                  {issue.url && <MediaPreviewButton url={issue.url} />}
+                </div>
               </div>
             </div>
           );

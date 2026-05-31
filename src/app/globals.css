@@ -8,6 +8,10 @@
    ============================================================ */
 
 :root {
+  /* Declare the page as light so a phone/OS in dark mode doesn't auto-darken
+     native form controls (inputs, etc.). The site's own dark mode flips this. */
+  color-scheme: light;
+
   --sa-cream:     #F5F2EA;
   --sa-cream-2:   #EDEAE0;
   --sa-cream-3:   #E3DFD2;
@@ -51,6 +55,8 @@
 }
 
 html[data-dark="true"] {
+  color-scheme: dark;
+
   --sa-cream:     #0A0A0A;
   --sa-cream-2:   #141414;
   --sa-cream-3:   #1E1E1E;
@@ -71,8 +77,16 @@ html                          { --sa-density: 1; }
   * { box-sizing: border-box; }
   html {
     scroll-behavior: auto !important;
+    max-width: 100%;
+    /* Prevent horizontal scroll (notably on iOS Safari, where body alone
+       isn't enough). `clip` doesn't create a scroll container, so it can't
+       break the sticky TopBar the way overflow:hidden would. */
+    overflow-x: hidden;
+    overflow-x: clip;
   }
   body {
+    position: relative;
+    max-width: 100%;
     background: var(--sa-bg);
     color: var(--sa-fg);
     font-family: var(--sa-font-sans);
@@ -83,6 +97,7 @@ html                          { --sa-density: 1; }
     font-feature-settings: "ss01", "cv11";
     transition: background 160ms ease, color 160ms ease;
     overflow-x: hidden;
+    overflow-x: clip;
   }
   button:active:not(:disabled) {
     @apply outline-none;
@@ -140,6 +155,33 @@ html                          { --sa-density: 1; }
   }
   .scrollbar-hide::-webkit-scrollbar,
   .noscrollbar::-webkit-scrollbar { display: none; }
+
+  /* ============================================================
+     Responsive breakpoint scale (project convention)
+     ------------------------------------------------------------
+     mobile   : max-width 640px   — single column, 16px gutters
+     tablet   : 641–1024px        — reduced multi-column
+     desktop  : >=1025px          — full layout
+     Exceptions kept where coherent: the TopBar nav + report rail
+     switch at 768px; the report MetricStrip has an extra 420px step.
+     Components are styled with inline `style` objects, so responsive
+     overrides live in scoped <style> blocks (component-prefixed
+     classNames + !important) next to each component. The helpers
+     below are the shared opt-in shortcuts.
+     ============================================================ */
+  .sa-container {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: 24px;
+  }
+  .sa-scroll-x { overflow-x: auto; }
+
+  @media (max-width: 640px) {
+    .sa-container { padding-inline: 16px; }
+    /* Collapse any opt-in grid to a single column on mobile. */
+    .sa-stack-640 { grid-template-columns: 1fr !important; }
+  }
 
   /* Cross-hatched placeholder for imagery */
   .placeholder-hatch {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import type { AnalysisResult } from '@/lib/types';
 import { calculateGlobalScore } from '@/lib/analyzer/score';
 import { fetchGeo, fetchCwv, fetchKeywordSuggestions, persistEnrichment, buildPageContext } from '@/lib/client/enrichment';
@@ -23,6 +24,7 @@ function isSelfAnalysis(input: string): boolean {
 
 export default function HomePage() {
   const { lang } = useTheme();
+  const router = useRouter();
 
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -67,6 +69,13 @@ export default function HomePage() {
     setResult(null);
     setReportId(null);
     setDegraded(false);
+
+    // A new analysis must open on the overview. ReportView reads the active tab
+    // from `?tab=`, which lingers on the homepage after the user clicked e.g.
+    // "Plan d'action" on a previous report — drop it so we don't land there.
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('tab')) {
+      router.replace('/', { scroll: false });
+    }
 
     setTimeout(() => {
       loadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -187,19 +196,19 @@ export default function HomePage() {
       <AnalyzerHero url={url} setUrl={setUrl} onAnalyze={handleAnalyze} loading={loading} error={error} />
 
       {loading && (
-        <section ref={loadingRef} className="scroll-mt-24" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 24px' }}>
+        <section ref={loadingRef} className="scroll-mt-24 page-section" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 24px' }}>
           <AnalyzerLoading />
         </section>
       )}
 
       {easterEgg && (
-        <section ref={resultsRef} className="scroll-mt-24" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+        <section ref={resultsRef} className="scroll-mt-24 page-section-lg" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
           <EasterEgg lang={lang} onReset={() => { setEasterEgg(false); setUrl(''); }} />
         </section>
       )}
 
       {result && (
-        <section ref={resultsRef} className="scroll-mt-24" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 24px' }}>
+        <section ref={resultsRef} className="scroll-mt-24 page-section" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 24px' }}>
           <ReportView
             report={result}
             reportId={reportId ?? undefined}
@@ -210,6 +219,13 @@ export default function HomePage() {
           />
         </section>
       )}
+
+      <style>{`
+        @media (max-width: 640px) {
+          .page-section { padding: 28px 16px !important; }
+          .page-section-lg { padding: 36px 16px !important; }
+        }
+      `}</style>
     </Shell>
   );
 }
@@ -223,7 +239,7 @@ function EasterEgg({ lang, onReset }: { lang: 'fr' | 'en'; onReset: () => void }
     <div style={{ maxWidth: 820, margin: '0 auto' }}>
       <div className="frame" style={{ background: 'var(--sa-cream-2)' }}>
         <div
-          className="ink-b mono"
+          className="ink-b mono ee-caption"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -241,7 +257,7 @@ function EasterEgg({ lang, onReset }: { lang: 'fr' | 'en'; onReset: () => void }
           <span style={{ opacity: 0.7 }}>{isFr ? 'Score : ∞' : 'Score: ∞'}</span>
         </div>
 
-        <div style={{ padding: '56px 40px' }}>
+        <div className="ee-body" style={{ padding: '56px 40px' }}>
           <p
             className="mono"
             style={{
@@ -259,7 +275,7 @@ function EasterEgg({ lang, onReset }: { lang: 'fr' | 'en'; onReset: () => void }
           <h2
             className="display"
             style={{
-              fontSize: 'clamp(40px, 6vw, 80px)',
+              fontSize: 'clamp(34px, 6vw, 80px)',
               letterSpacing: '-0.02em',
               lineHeight: 0.95,
               color: 'var(--sa-ink)',
@@ -289,16 +305,17 @@ function EasterEgg({ lang, onReset }: { lang: 'fr' | 'en'; onReset: () => void }
           </p>
 
           <div
-            className="frame"
+            className="frame ee-score"
             style={{
               display: 'inline-flex',
               alignItems: 'stretch',
               background: 'var(--sa-bg)',
               marginBottom: 40,
+              maxWidth: '100%',
             }}
           >
             <div
-              className="mono"
+              className="mono ee-score-label"
               style={{
                 padding: '16px 24px',
                 background: 'var(--sa-ink)',
@@ -314,6 +331,7 @@ function EasterEgg({ lang, onReset }: { lang: 'fr' | 'en'; onReset: () => void }
               {isFr ? 'Score global' : 'Overall score'}
             </div>
             <div
+              className="ee-score-value"
               style={{
                 padding: '16px 32px',
                 display: 'flex',
@@ -323,7 +341,7 @@ function EasterEgg({ lang, onReset }: { lang: 'fr' | 'en'; onReset: () => void }
               }}
             >
               <span
-                className="display tnum"
+                className="display tnum ee-score-num"
                 style={{ fontSize: 72, lineHeight: 1, color: 'var(--sa-ink)' }}
               >
                 ∞
@@ -370,6 +388,17 @@ function EasterEgg({ lang, onReset }: { lang: 'fr' | 'en'; onReset: () => void }
           </button>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .ee-caption { padding: 12px 16px !important; flex-wrap: wrap; gap: 6px; }
+          .ee-body { padding: 32px 20px !important; }
+          .ee-score { display: flex !important; width: 100%; }
+          .ee-score-label { padding: 14px 16px !important; }
+          .ee-score-value { padding: 14px 20px !important; flex: 1; justify-content: flex-end; }
+          .ee-score-num { font-size: 52px !important; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -71,10 +71,47 @@ const FIXTURE: AnalysisResult = {
     withAlt: 10,
     withoutAlt: 8,
     withoutResponsive: 4,
-    images: [],
+    images: [
+      {
+        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='140'%3E%3Crect width='240' height='140' fill='%23E5241A'/%3E%3C/svg%3E",
+        alt: 'Bannière promotionnelle rouge',
+        hasAlt: true,
+        width: '240',
+        height: '140',
+        isLazy: true,
+        format: 'svg',
+        hasSrcset: false,
+      },
+      {
+        src: 'https://e2e-fixture.swissalytics.test/assets/media/very/deep/path/hero-banner-2400x1600-final-v3-compressed.jpg',
+        alt: '',
+        hasAlt: false,
+        width: '2400',
+        height: '1600',
+        isLazy: false,
+        format: 'jpg',
+        hasSrcset: false,
+      },
+    ],
     issues: [
       { type: 'error', message: '8 images sans attribut alt (accessibilité et SEO)' },
       { type: 'warning', message: '4 images sans attribut srcset (responsive)' },
+      // Real analyzers embed an 80-char URL in the message (images.ts:47) AND
+      // attach the full resolved src as `url`, so the problem is previewable
+      // from the issues list and the action plan. In the plan the body must
+      // also wrap, not overflow the card to the right.
+      {
+        type: 'error',
+        message: 'Image sans attribut alt: https://e2e-fixture.swissalytics.test/media/banniere-promotionnelle-tres-longue',
+        url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='140'%3E%3Crect width='240' height='140' fill='%23E5241A'/%3E%3C/svg%3E",
+      },
+      // Second per-image issue with the SAME reason → exercises the grouped
+      // thumbnail gallery (count 2). url maps to images[1].src (rich preview).
+      {
+        type: 'error',
+        message: 'Image sans attribut alt: https://e2e-fixture.swissalytics.test/assets/media/very/deep/path/hero-banner-2400x1600-final-v3-compressed.jpg',
+        url: 'https://e2e-fixture.swissalytics.test/assets/media/very/deep/path/hero-banner-2400x1600-final-v3-compressed.jpg',
+      },
     ],
   },
   links: {
@@ -97,10 +134,18 @@ const FIXTURE: AnalysisResult = {
     genericAnchors: 2,
     withImages: 3,
     uniqueAnchors: 30,
-    brokenLinks: [],
-    internalBrokenLinks: [],
+    brokenLinks: [
+      { href: 'https://example.com/ancienne-page-supprimee/avec-une-url-tres-longue-sans-aucun-espace-pour-tester-le-retour-a-la-ligne', status: 404 },
+    ],
+    internalBrokenLinks: [
+      { href: '/ressources/document-introuvable-au-chemin-particulierement-profond-et-long-qui-ne-rentre-pas-sur-une-ligne', status: 500 },
+    ],
     issues: [
       { type: 'info', message: '2 ancres génériques ("cliquez ici") détectées' },
+      // Broken-link issue: a native issue with no `description`, so body falls
+      // back to message === title. The plan/overview must show it ONCE, not as
+      // a duplicated title + subtitle.
+      { type: 'error', message: 'Lien cassé (404) : https://exponent.ch/page-introuvable-marqueur-e2e' },
     ],
   },
   technical: {

@@ -58,7 +58,7 @@ export default function MethodePage() {
           n: '07',
           h: 'Limites et honnêteté',
           body: "Nous ne remplaçons pas un audit manuel approfondi. Nous ne voyons pas vos Google Analytics. Nous ne jugeons pas votre stratégie commerciale. Pour un diagnostic complet — avec recommandations priorisées et plan d'action 3–6 mois — demandez un audit sur mesure chez Pixelab.",
-          aside: 'Audit complet ↗',
+          aside: 'Audit complet ↗︎',
         },
       ]
     : [
@@ -102,13 +102,13 @@ export default function MethodePage() {
           n: '07',
           h: 'Limits and honesty',
           body: "We don't replace a deep manual audit. We don't see your Google Analytics. We don't judge your business strategy. For a full diagnosis — prioritized recommendations, 3–6 month action plan — request a custom audit at Pixelab.",
-          aside: 'Full audit ↗',
+          aside: 'Full audit ↗︎',
         },
       ];
 
   return (
     <Shell>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="meth-wrap" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
         <div
           className="mono caption-red"
           style={{
@@ -147,6 +147,7 @@ export default function MethodePage() {
         </p>
 
         <div
+          className="meth-grid"
           style={{
             marginTop: 72,
             display: 'grid',
@@ -157,6 +158,7 @@ export default function MethodePage() {
           {sections.map((s) => (
             <React.Fragment key={s.n}>
               <div
+                className="meth-num"
                 style={{
                   padding: '40px 0',
                   borderTop: '2px solid var(--sa-ink)',
@@ -177,6 +179,7 @@ export default function MethodePage() {
                 </span>
               </div>
               <div
+                className="meth-body"
                 style={{
                   padding: '40px 40px 40px 32px',
                   borderTop: '2px solid var(--sa-ink)',
@@ -202,6 +205,7 @@ export default function MethodePage() {
                 </p>
               </div>
               <div
+                className="meth-aside"
                 style={{
                   padding: '40px 0 40px 32px',
                   borderTop: '2px solid var(--sa-ink)',
@@ -230,6 +234,21 @@ export default function MethodePage() {
             </React.Fragment>
           ))}
         </div>
+        <style>{`
+          @media (max-width: 1024px){
+            .meth-grid{ grid-template-columns:1fr 220px !important; }
+            .meth-num{ grid-column:1 / -1 !important; padding:32px 0 0 0 !important; border-right:0 !important; }
+            .meth-num + .meth-body{ border-top:0 !important; padding-top:12px !important; }
+            .meth-aside{ border-top:0 !important; padding-top:12px !important; }
+          }
+          @media (max-width: 640px){
+            .meth-wrap{ padding:48px 20px !important; }
+            .meth-grid{ grid-template-columns:1fr !important; margin-top:48px !important; }
+            .meth-body{ padding:8px 0 24px 0 !important; border-right:0 !important; }
+            .meth-body h2{ font-size:26px !important; }
+            .meth-aside{ padding:0 0 8px 0 !important; }
+          }
+        `}</style>
       </div>
     </Shell>
   );

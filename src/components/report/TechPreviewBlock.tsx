@@ -87,7 +87,7 @@ export function TechPreviewBlock({
         }}
       />
       <div
-        className="frame"
+        className="frame tpb-grid"
         style={{
           background: 'var(--sa-cream)',
           display: 'grid',
@@ -132,6 +132,18 @@ export function TechPreviewBlock({
           isLast={true}
         />
       </div>
+
+      {/* 4-col stat strip collapses to a 2x2 grid on mobile. The inline
+          per-cell borderRight is overridden so the 2-col layout gets clean
+          column + row dividers instead of stray borders. */}
+      <style>{`
+        @media (max-width: 640px) {
+          .tpb-grid { grid-template-columns: 1fr 1fr !important; }
+          .tpb-grid > * { border-right: 1px solid var(--sa-rule) !important; }
+          .tpb-grid > *:nth-child(2n) { border-right: none !important; }
+          .tpb-grid > *:nth-child(n + 3) { border-top: 1px solid var(--sa-rule) !important; }
+        }
+      `}</style>
     </div>
   );
 }

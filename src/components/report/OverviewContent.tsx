@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import type { AnalysisResult } from '@/lib/types';
-import type { PlanItem } from '@/lib/engine/plan';
+import { type PlanItem, planSubtitle } from '@/lib/engine/plan';
 import { SectionHead } from './SectionHead';
 import { IAVisibilityBlock } from './IAVisibilityBlock';
 import { StrengthsBlock } from './StrengthsBlock';
@@ -114,20 +114,26 @@ function PriorityBlock({
                       margin: '0 0 2px',
                       color: 'var(--sa-ink)',
                       lineHeight: 1.35,
+                      overflowWrap: 'anywhere',
+                      wordBreak: 'break-word',
                     }}
                   >
                     {item.title}
                   </p>
-                  <p
-                    style={{
-                      fontSize: 14,
-                      color: 'var(--sa-ink-3)',
-                      margin: 0,
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {item.body}
-                  </p>
+                  {planSubtitle(item) && (
+                    <p
+                      style={{
+                        fontSize: 14,
+                        color: 'var(--sa-ink-3)',
+                        margin: 0,
+                        lineHeight: 1.45,
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {planSubtitle(item)}
+                    </p>
+                  )}
                 </div>
                 <span
                   className="mono"

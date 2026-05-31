@@ -67,7 +67,19 @@ export default function JournalIndexPage() {
 
   return (
     <Shell>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="jx-wrap" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+        <style>{`
+          @media (max-width: 640px){
+            .jx-wrap{ padding:40px 16px !important; }
+            .jx-featured{ grid-template-columns:1fr !important; margin-bottom:48px !important; }
+            .jx-featured-body{ padding:28px 20px !important; min-height:0 !important; }
+            .jx-featured-panel{ padding:28px 20px !important; }
+            .jx-row{ grid-template-columns:auto 1fr !important; gap:16px !important; padding:24px 0 !important; }
+            .jx-row-num{ font-size:28px !important; }
+            .jx-row-date, .jx-row-time{ grid-column:2 !important; text-align:left !important; }
+            .jx-rss{ grid-template-columns:1fr !important; padding:28px 20px !important; gap:20px !important; }
+          }
+        `}</style>
         {/* ────────────────────────────────────────────────
             Masthead — newspaper-style
            ──────────────────────────────────────────────── */}
@@ -148,7 +160,7 @@ export default function JournalIndexPage() {
           style={{ textDecoration: 'none', color: 'inherit' }}
         >
           <article
-            className="sa-rise"
+            className="sa-rise jx-featured"
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
@@ -159,6 +171,7 @@ export default function JournalIndexPage() {
             }}
           >
             <div
+              className="jx-featured-body"
               style={{
                 padding: '40px 36px',
                 display: 'flex',
@@ -237,6 +250,7 @@ export default function JournalIndexPage() {
 
             {/* Black panel with giant numeral */}
             <div
+              className="jx-featured-panel"
               style={{
                 background: 'var(--sa-ink)',
                 color: 'var(--sa-cream)',
@@ -377,6 +391,7 @@ export default function JournalIndexPage() {
                 style={{ textDecoration: 'none', color: 'inherit' }}
               >
                 <article
+                  className="jx-row"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '100px 1fr 140px 120px',
@@ -395,7 +410,7 @@ export default function JournalIndexPage() {
                   }}
                 >
                   <div
-                    className="display tnum"
+                    className="display tnum jx-row-num"
                     style={{
                       fontSize: 40,
                       fontWeight: 800,
@@ -448,7 +463,7 @@ export default function JournalIndexPage() {
                     </p>
                   </div>
                   <div
-                    className="mono"
+                    className="mono jx-row-date"
                     style={{
                       fontSize: 11,
                       fontWeight: 700,
@@ -460,7 +475,7 @@ export default function JournalIndexPage() {
                     {formatJournalDate(p.date, lang)}
                   </div>
                   <div
-                    className="mono"
+                    className="mono jx-row-time"
                     style={{
                       fontSize: 11,
                       fontWeight: 700,
@@ -499,6 +514,7 @@ export default function JournalIndexPage() {
             RSS block
            ──────────────────────────────────────────────── */}
         <div
+          className="jx-rss"
           style={{
             marginTop: 72,
             border: '2px solid var(--sa-ink)',

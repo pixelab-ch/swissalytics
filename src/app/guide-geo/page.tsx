@@ -173,7 +173,7 @@ export default function GuideGeoPage() {
 
   return (
     <Shell>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
+      <div className="geo-wrap" style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 24px' }}>
         {/* Kicker */}
         <div
           className="mono"
@@ -240,6 +240,7 @@ export default function GuideGeoPage() {
           />
 
           <div
+            className="geo-dnw"
             style={{
               background: 'var(--sa-cream-2)',
               border: '2px solid var(--sa-ink)',
@@ -405,6 +406,23 @@ export default function GuideGeoPage() {
               : "Sources: Google Search Central — “Google’s Guide to Optimizing for Generative AI Features on Google Search” (May 15, 2026) · “AI Features and Your Website” · Search Engine Journal, Search Engine Land (interpretation validation)."}
           </p>
         </div>
+
+        <style>{`
+          @media (max-width: 1024px){
+            .geo-grid{ grid-template-columns:1fr 200px !important; }
+            .geo-num{ grid-column:1 / -1 !important; padding:32px 0 0 0 !important; border-right:0 !important; }
+            .geo-num + .geo-body{ border-top:0 !important; padding-top:12px !important; }
+            .geo-aside{ border-top:0 !important; padding-top:12px !important; }
+          }
+          @media (max-width: 640px){
+            .geo-wrap{ padding:48px 20px !important; }
+            .geo-grid{ grid-template-columns:1fr !important; }
+            .geo-body{ padding:8px 0 24px 0 !important; border-right:0 !important; }
+            .geo-body h2{ font-size:22px !important; }
+            .geo-aside{ padding:0 0 8px 0 !important; }
+            .geo-dnw{ padding:24px 20px !important; }
+          }
+        `}</style>
       </div>
     </Shell>
   );
@@ -444,6 +462,7 @@ function SectionLabel({
 function SectionGrid({ blocks, isFr }: { blocks: Block[]; isFr: boolean }) {
   return (
     <div
+      className="geo-grid"
       style={{
         display: 'grid',
         gridTemplateColumns: '120px 1fr 220px',
@@ -454,6 +473,7 @@ function SectionGrid({ blocks, isFr }: { blocks: Block[]; isFr: boolean }) {
         <React.Fragment key={b.n}>
           {/* Number */}
           <div
+            className="geo-num"
             style={{
               padding: '40px 0',
               borderTop: '2px solid var(--sa-ink)',
@@ -476,6 +496,7 @@ function SectionGrid({ blocks, isFr }: { blocks: Block[]; isFr: boolean }) {
 
           {/* Body */}
           <div
+            className="geo-body"
             style={{
               padding: '40px 40px 40px 32px',
               borderTop: '2px solid var(--sa-ink)',
@@ -507,6 +528,7 @@ function SectionGrid({ blocks, isFr }: { blocks: Block[]; isFr: boolean }) {
 
           {/* Aside */}
           <div
+            className="geo-aside"
             style={{
               padding: '40px 0 40px 32px',
               borderTop: '2px solid var(--sa-ink)',
