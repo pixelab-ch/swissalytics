@@ -77,8 +77,16 @@ html                          { --sa-density: 1; }
   * { box-sizing: border-box; }
   html {
     scroll-behavior: auto !important;
+    max-width: 100%;
+    /* Prevent horizontal scroll (notably on iOS Safari, where body alone
+       isn't enough). `clip` doesn't create a scroll container, so it can't
+       break the sticky TopBar the way overflow:hidden would. */
+    overflow-x: hidden;
+    overflow-x: clip;
   }
   body {
+    position: relative;
+    max-width: 100%;
     background: var(--sa-bg);
     color: var(--sa-fg);
     font-family: var(--sa-font-sans);
@@ -89,6 +97,7 @@ html                          { --sa-density: 1; }
     font-feature-settings: "ss01", "cv11";
     transition: background 160ms ease, color 160ms ease;
     overflow-x: hidden;
+    overflow-x: clip;
   }
   button:active:not(:disabled) {
     @apply outline-none;

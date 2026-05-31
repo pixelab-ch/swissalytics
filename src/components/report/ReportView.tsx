@@ -283,12 +283,15 @@ export default function ReportView({
             justify-content: center;
             position: absolute;
             top: 0; right: 0; bottom: 1px;
-            width: 30px;
-            pointer-events: none;
+            width: 34px;
+            padding: 0;
+            margin: 0;
+            cursor: pointer;
             background: var(--sa-bg);
+            border: 0;
             border-left: 1px solid var(--sa-rule);
-            color: var(--sa-ink-3);
-            font-size: 20px;
+            color: var(--sa-ink);
+            font-size: 22px;
             font-weight: 700;
             line-height: 1;
           }
@@ -491,9 +494,19 @@ export default function ReportView({
             ))}
           </nav>
           {railCanScrollRight && (
-            <span className="rv-railHint" aria-hidden="true">
+            <button
+              type="button"
+              className="rv-railHint"
+              aria-label={isFr ? 'Voir les autres onglets' : 'See more tabs'}
+              onClick={() =>
+                railRef.current?.scrollBy({
+                  left: Math.round(railRef.current.clientWidth * 0.7),
+                  behavior: 'smooth',
+                })
+              }
+            >
               <span>›</span>
-            </span>
+            </button>
           )}
         </div>
 

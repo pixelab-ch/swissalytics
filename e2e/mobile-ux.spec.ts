@@ -10,7 +10,7 @@ const MOBILE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 900 };
 
 test.describe('InfoBox bottom sheet (mobile)', () => {
-  test('opens as a full-width sheet pinned to the bottom, readable', async ({ page }) => {
+  test('opens as a centered, readable modal', async ({ page }) => {
     await page.setViewportSize(MOBILE);
     await page.goto('/e2e/report');
     await page.getByRole('button', { name: 'Aide' }).first().click();
@@ -24,8 +24,10 @@ test.describe('InfoBox bottom sheet (mobile)', () => {
     if (box) {
       // Near-full width (viewport 390 minus 16px gutters each side ≈ 358).
       expect(box.width).toBeGreaterThan(320);
-      // Sits in the lower part of the screen and fully on-screen.
-      expect(box.y).toBeGreaterThan(MOBILE.height * 0.3);
+      // Vertically centered (not a bottom sheet) and fully on-screen.
+      const centerY = box.y + box.height / 2;
+      expect(centerY).toBeGreaterThan(MOBILE.height * 0.35);
+      expect(centerY).toBeLessThan(MOBILE.height * 0.65);
       expect(box.x).toBeGreaterThanOrEqual(8);
       expect(box.x + box.width).toBeLessThanOrEqual(MOBILE.width + 1);
       expect(box.y + box.height).toBeLessThanOrEqual(MOBILE.height + 1);
@@ -54,6 +56,17 @@ test.describe('Report tab rail scroll affordance (mobile)', () => {
       el.scrollLeft = el.scrollWidth;
     });
     await expect(hint).toHaveCount(0);
+  });
+
+  test('clicking the hint cap scrolls the rail to reveal more tabs', async ({ page }) => {
+    await page.setViewportSize(MOBILE);
+    await page.goto('/e2e/report');
+    const rail = page.locator('nav.rv-mainNav');
+    const before = await rail.evaluate((el) => el.scrollLeft);
+    await page.locator('.rv-railHint').click();
+    await page.waitForTimeout(500); // smooth scroll
+    const after = await rail.evaluate((el) => el.scrollLeft);
+    expect(after).toBeGreaterThan(before);
   });
 
   test('no scroll hint on desktop (rail is a vertical list)', async ({ page }) => {
