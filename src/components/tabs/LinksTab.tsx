@@ -1,12 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import type { LinksAnalysis, LinkInfo } from '@/lib/types';
 import { groupLinksByHref } from '@/lib/analyzer/dedup-links';
 import IssuesList from '../IssuesList';
 import CTABanner from '../CTABanner';
 import InfoBox from '../InfoBox';
 import { SectionHeader, TabFrame } from './_v2';
+
+/** Long URLs / texts: wrap and break onto up to 3 lines, then ellipsis. */
+const clamp3: CSSProperties = {
+  display: '-webkit-box',
+  WebkitLineClamp: 3,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+  wordBreak: 'break-word',
+};
+
+/** Details about a link, for the preview popup. */
+export interface LinkPreviewData {
+  href: string;
+  texts?: string[];
+  isNofollow?: boolean;
+  isSponsored?: boolean;
+  isUgc?: boolean;
+  status?: number;
+  error?: string;
+}
 
 function StatCell({ value, label, color = 'var(--sa-ink)' }: { value: number | string; label: string; color?: string }) {
   return (
@@ -41,7 +64,7 @@ function attrChip(label: string, color: string) {
   );
 }
 
-function LinkTable({ links, title }: { links: LinkInfo[]; title: string }) {
+function LinkTable({ links, title, onOpen }: { links: LinkInfo[]; title: string; onOpen: (d: LinkPreviewData) => void }) {
   const [showAll, setShowAll] = useState(false);
   // P10: dedup display by canonical href. The raw count (links.length)
   // stays exposed in the section title so users see the duplication
@@ -77,7 +100,7 @@ function LinkTable({ links, title }: { links: LinkInfo[]; title: string }) {
         }
       />
       <div className="noscrollbar" style={{ border: '1px solid var(--sa-rule)', background: 'var(--sa-cream-2)', overflowX: 'auto' }}>
-        <table style={{ width: '100%', minWidth: 520, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
+        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--sa-ink)' }}>
               <th className="mono" style={{ textAlign: 'left', padding: '10px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--sa-ink-4)', width: '45%' }}>
@@ -94,11 +117,30 @@ function LinkTable({ links, title }: { links: LinkInfo[]; title: string }) {
           <tbody>
             {displayed.map((link, i) => (
               <tr key={`${link.href}-${i}`} style={{ borderBottom: i < displayed.length - 1 ? '1px solid var(--sa-rule)' : 'none' }}>
-                <td style={{ padding: '10px 12px', maxWidth: 280 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="mono" style={{ fontSize: 11, color: 'var(--sa-ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                <td style={{ padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => onOpen({ href: link.href, texts: link.texts, isNofollow: link.isNofollow, isSponsored: link.isSponsored, isUgc: link.isUgc })}
+                      title="Voir le lien"
+                      className="mono"
+                      style={{
+                        ...clamp3,
+                        flex: 1,
+                        minWidth: 0,
+                        textAlign: 'left',
+                        fontSize: 11,
+                        color: 'var(--sa-ink-3)',
+                        background: 'transparent',
+                        border: 0,
+                        padding: 0,
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        textUnderlineOffset: 2,
+                      }}
+                    >
                       {link.href}
-                    </span>
+                    </button>
                     {link.count > 1 && (
                       <span
                         className="mono tnum"
@@ -119,9 +161,9 @@ function LinkTable({ links, title }: { links: LinkInfo[]; title: string }) {
                     )}
                   </div>
                 </td>
-                <td style={{ padding: '10px 12px', maxWidth: 240 }}>
+                <td style={{ padding: '10px 12px' }}>
                   {link.texts.length > 0 ? (
-                    <span style={{ color: 'var(--sa-ink-2)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ ...clamp3, color: 'var(--sa-ink-2)' }}>
                       {link.texts.join(' · ')}
                     </span>
                   ) : (
@@ -145,23 +187,29 @@ function LinkTable({ links, title }: { links: LinkInfo[]; title: string }) {
   );
 }
 
-function BrokenLinkRow({ href, status, error }: { href: string; status: number; error?: string }) {
+function BrokenLinkRow({ href, status, error, onOpen }: { href: string; status: number; error?: string; onOpen: (d: LinkPreviewData) => void }) {
   const tone = status === 404 ? 'var(--sa-red)' : status >= 500 ? 'var(--sa-warn)' : 'var(--sa-ink-4)';
   const display = status === 0 ? error || 'timeout' : String(status);
   return (
     <div
       style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'space-between',
         gap: 12,
         padding: '10px 14px',
         borderBottom: '1px solid var(--sa-rule)',
       }}
     >
-      <span className="mono" style={{ fontSize: 11, color: 'var(--sa-ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+      <button
+        type="button"
+        onClick={() => onOpen({ href, status, error })}
+        title="Voir le lien"
+        className="mono"
+        style={{ ...clamp3, fontSize: 11, color: 'var(--sa-ink-2)', flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}
+      >
         {href}
-      </span>
+      </button>
       <span
         className="mono"
         style={{
@@ -184,6 +232,7 @@ function BrokenLinkRow({ href, status, error }: { href: string; status: number; 
 export default function LinksTab({ data }: { data: LinksAnalysis }) {
   const internalPercent = data.total > 0 ? Math.round((data.internal.length / data.total) * 100) : 0;
   const externalPercent = data.total > 0 ? Math.round((data.external.length / data.total) * 100) : 0;
+  const [linkPreview, setLinkPreview] = useState<LinkPreviewData | null>(null);
 
   return (
     <TabFrame>
@@ -306,7 +355,7 @@ export default function LinksTab({ data }: { data: LinksAnalysis }) {
           <SectionHeader num="05" title={`Liens internes cassés (${data.internalBrokenLinks.length})`} />
           <div style={{ border: '1px solid var(--sa-red)', background: 'var(--sa-cream-2)' }}>
             {data.internalBrokenLinks.map((link, i) => (
-              <BrokenLinkRow key={i} href={link.href} status={link.status} error={link.error} />
+              <BrokenLinkRow key={i} href={link.href} status={link.status} error={link.error} onOpen={setLinkPreview} />
             ))}
           </div>
         </section>
@@ -318,17 +367,98 @@ export default function LinksTab({ data }: { data: LinksAnalysis }) {
           <SectionHeader num="06" title={`Liens externes cassés (${data.brokenLinks.length})`} />
           <div style={{ border: '1px solid var(--sa-red)', background: 'var(--sa-cream-2)' }}>
             {data.brokenLinks.map((link, i) => (
-              <BrokenLinkRow key={i} href={link.href} status={link.status} error={link.error} />
+              <BrokenLinkRow key={i} href={link.href} status={link.status} error={link.error} onOpen={setLinkPreview} />
             ))}
           </div>
         </section>
       )}
 
       {/* Link tables — no §number, they're details */}
-      <LinkTable links={data.internal} title="Liens internes" />
-      <LinkTable links={data.external} title="Liens externes" />
+      <LinkTable links={data.internal} title="Liens internes" onOpen={setLinkPreview} />
+      <LinkTable links={data.external} title="Liens externes" onOpen={setLinkPreview} />
 
       <CTABanner variant="inline" />
+
+      {linkPreview && <LinkPreview data={linkPreview} onClose={() => setLinkPreview(null)} />}
     </TabFrame>
+  );
+}
+
+/**
+ * Link preview — portaled to <body>. Shows the full URL (wrapped, never
+ * overflowing), anchor text(s), attributes / status, and an "open" action for
+ * absolute URLs so you can act on the exact link.
+ */
+function LinkPreview({ data, onClose }: { data: LinkPreviewData; onClose: () => void }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  if (!mounted) return null;
+
+  const isAbsolute = /^https?:\/\//i.test(data.href);
+  const attrs: string[] = [];
+  if (data.isNofollow) attrs.push('nofollow');
+  if (data.isSponsored) attrs.push('sponsored');
+  if (data.isUgc) attrs.push('ugc');
+  if (!data.isNofollow && !data.isSponsored && !data.isUgc && data.status === undefined) attrs.push('dofollow');
+
+  return createPortal(
+    <>
+      <div aria-hidden="true" onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.55)', zIndex: 1000 }} />
+      <div
+        role="dialog"
+        aria-label="Aperçu du lien"
+        style={{
+          position: 'fixed', left: 16, right: 16, top: '50%', transform: 'translateY(-50%)',
+          margin: '0 auto', maxWidth: 520, maxHeight: '80vh', overflowY: 'auto',
+          zIndex: 1001, background: 'var(--sa-cream)', border: '2px solid var(--sa-ink)',
+        }}
+      >
+        <div className="ink-b mono" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--sa-ink)', color: 'var(--sa-cream)', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+          <span>Aperçu du lien</span>
+          <button onClick={onClose} aria-label="Fermer" style={{ background: 'transparent', border: 'none', color: 'var(--sa-cream)', cursor: 'pointer', padding: 0, display: 'inline-flex' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div className="mono" style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sa-ink-4)', marginBottom: 3 }}>URL</div>
+            <div className="mono" style={{ fontSize: 12, color: 'var(--sa-ink-2)', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{data.href}</div>
+          </div>
+
+          {data.texts && data.texts.length > 0 && (
+            <div>
+              <div className="mono" style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sa-ink-4)', marginBottom: 3 }}>Texte(s) d&apos;ancrage</div>
+              <div style={{ fontSize: 13, color: 'var(--sa-ink-2)', overflowWrap: 'anywhere' }}>{data.texts.join(' · ')}</div>
+            </div>
+          )}
+
+          {(attrs.length > 0 || data.status !== undefined) && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {data.status !== undefined && attrChip(data.status === 0 ? data.error || 'timeout' : `HTTP ${data.status}`, 'var(--sa-red)')}
+              {attrs.map((a) => attrChip(a, a === 'dofollow' ? 'var(--sa-ok)' : a === 'nofollow' ? 'var(--sa-red)' : 'var(--sa-ink-4)'))}
+            </div>
+          )}
+
+          {isAbsolute && (
+            <a
+              href={data.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mono"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, padding: '0 16px', background: 'var(--sa-red)', color: 'var(--sa-cream)', border: '2px solid var(--sa-ink)', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none' }}
+            >
+              Ouvrir le lien <span aria-hidden>↗</span>
+            </a>
+          )}
+        </div>
+      </div>
+    </>,
+    document.body,
   );
 }

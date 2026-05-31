@@ -118,8 +118,12 @@ const FIXTURE: AnalysisResult = {
     genericAnchors: 2,
     withImages: 3,
     uniqueAnchors: 30,
-    brokenLinks: [],
-    internalBrokenLinks: [],
+    brokenLinks: [
+      { href: 'https://example.com/ancienne-page-supprimee/avec-une-url-tres-longue-sans-aucun-espace-pour-tester-le-retour-a-la-ligne', status: 404 },
+    ],
+    internalBrokenLinks: [
+      { href: '/ressources/document-introuvable-au-chemin-particulierement-profond-et-long-qui-ne-rentre-pas-sur-une-ligne', status: 500 },
+    ],
     issues: [
       { type: 'info', message: '2 ancres génériques ("cliquez ici") détectées' },
     ],

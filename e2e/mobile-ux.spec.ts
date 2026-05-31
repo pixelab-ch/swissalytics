@@ -120,6 +120,23 @@ test('image preview modal opens with the media URL and closes', async ({ page })
   await expect(page.getByRole('dialog', { name: /aper[çc]u/i })).toHaveCount(0);
 });
 
+test('link preview popup opens with the full URL + open action, then closes', async ({ page }) => {
+  await page.setViewportSize(MOBILE);
+  await page.goto('/e2e/report?tab=details');
+  await page.locator('nav').nth(1).getByText(/liens/i).first().click();
+  // Tap an external (absolute) link URL → opens the preview popup.
+  await page.getByRole('button', { name: /example\.com/ }).first().click();
+  const dlg = page.getByRole('dialog', { name: /aper[çc]u du lien/i });
+  await expect(dlg).toBeVisible();
+  // Absolute URLs get an "Ouvrir le lien" action.
+  await expect(dlg.getByRole('link', { name: /ouvrir le lien/i })).toBeVisible();
+  // The popup never causes horizontal page overflow.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  // Closes on Escape.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: /aper[çc]u du lien/i })).toHaveCount(0);
+});
+
 test('mobile footer: no arrow on Pixelab, Geneva dedication shown', async ({ page }) => {
   await page.setViewportSize(MOBILE);
   await page.goto('/');
