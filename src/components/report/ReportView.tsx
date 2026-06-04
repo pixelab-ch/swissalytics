@@ -459,7 +459,7 @@ export default function ReportView({
           className="serif"
           style={{
             fontFamily: 'var(--sa-font-serif)',
-            fontStyle: 'italic',
+            fontStyle: 'normal',
             fontSize: 'clamp(17px, 1.8vw, 22px)',
             lineHeight: 1.45,
             margin: 0,
@@ -483,7 +483,7 @@ export default function ReportView({
                       color: 'var(--sa-red)',
                       textDecoration: 'underline',
                       textUnderlineOffset: '3px',
-                      fontStyle: 'italic',
+                      fontStyle: 'normal',
                       fontWeight: 600,
                     }}
                   >

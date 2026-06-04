@@ -78,7 +78,7 @@ function BodyBlocks({ blocks }: { blocks: JournalBlock[] }) {
                 background: 'var(--sa-cream-2)',
                 fontFamily: 'var(--sa-font-serif)',
                 fontSize: 26,
-                fontStyle: 'italic',
+                fontStyle: 'normal',
                 lineHeight: 1.3,
                 color: 'var(--sa-ink)',
                 textWrap: 'pretty',
@@ -358,7 +358,7 @@ export default function ArticlePage({
             style={{
               fontFamily: 'var(--sa-font-serif)',
               fontSize: 22,
-              fontStyle: 'italic',
+              fontStyle: 'normal',
               color: 'var(--sa-ink-2)',
               marginTop: 28,
               lineHeight: 1.45,
