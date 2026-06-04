@@ -82,6 +82,7 @@ export function createBlogLoader(contentDir: string) {
       .map((f) => parseFile(f))
       .filter((a) => (isProd ? !a.draft : true))
       .sort((x, y) => Date.parse(y.publishedAt) - Date.parse(x.publishedAt))
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       .map(({ body: _body, ...meta }) => meta);
   }
 
