@@ -53,7 +53,7 @@ export interface Copy {
 
 export const COPY: Record<Lang, Copy> = {
   fr: {
-    nav: ['Méthode', 'Exemples', 'Journal', 'À propos'],
+    nav: ['Méthode', 'Exemples', 'Blog', 'À propos'],
     cta: 'Analyser un site →',
     hero: {
       badges: ['CH · Genève', '100 % gratuit', 'Sans compte'],
@@ -114,13 +114,13 @@ export const COPY: Record<Lang, Copy> = {
     ctaBannerPrimary: 'Demander un audit complet',
     ctaBannerSecondary: 'Exporter ce rapport',
     footerProduit: ['Méthode', 'Exemples', 'Comparatifs'],
-    footerRessources: ['Journal', 'Glossaire SEO', 'Guide GEO', 'Mentions légales'],
+    footerRessources: ['Blog', 'Glossaire SEO', 'Guide GEO', 'Mentions légales'],
     footerAgence: ['Pixelab', 'Audit sur mesure', 'hello@swissalytics.com'],
     footerMeta: ['© 2026 Swissalytics', 'CH — Genève', '100 % hébergé en Suisse'],
     poweredBy: 'Propulsé par',
   },
   en: {
-    nav: ['Method', 'Examples', 'Journal', 'About'],
+    nav: ['Method', 'Examples', 'Blog', 'About'],
     cta: 'Analyze a site →',
     hero: {
       badges: ['CH · Geneva', '100 % free', 'No account'],
@@ -181,7 +181,7 @@ export const COPY: Record<Lang, Copy> = {
     ctaBannerPrimary: 'Request a full audit',
     ctaBannerSecondary: 'Export this report',
     footerProduit: ['Method', 'Examples', 'Comparisons'],
-    footerRessources: ['Journal', 'SEO glossary', 'GEO guide', 'Legal notice'],
+    footerRessources: ['Blog', 'SEO glossary', 'GEO guide', 'Legal notice'],
     footerAgence: ['Pixelab', 'Custom audit', 'hello@swissalytics.com'],
     footerMeta: ['© 2026 Swissalytics', 'CH — Geneva', '100 % hosted in Switzerland'],
     poweredBy: 'Powered by',

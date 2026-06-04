@@ -6,6 +6,12 @@ const nextConfig = {
   },
   reactStrictMode: true,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      { source: '/journal', destination: '/blog', permanent: true },
+      { source: '/journal/:slug', destination: '/blog/:slug', permanent: true },
+    ];
+  },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
   },

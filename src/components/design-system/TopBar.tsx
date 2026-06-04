@@ -17,7 +17,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { key: 'methode',  href: '/methode',   label: (c) => c.nav[0] },
   { key: 'exemples', href: '/exemples',  label: (c) => c.nav[1] },
-  { key: 'journal',  href: '/journal',   label: (c) => c.nav[2] },
+  { key: 'blog',     href: '/blog',      label: (c) => c.nav[2] },
   { key: 'apropos',  href: '/a-propos',  label: (c) => c.nav[3] },
 ];
 

@@ -49,7 +49,7 @@ test.describe('Footer — no API or Changelog link', () => {
   });
 });
 
-test.describe('Journal — EN language body', () => {
+test.describe('Blog — per-locale article bodies', () => {
   /**
    * The slug 'comment-chatgpt-choisit-ses-sources' has both `content` (FR)
    * and `contentEn` (EN) in posts.ts. The article page picks `contentEn`
@@ -61,14 +61,8 @@ test.describe('Journal — EN language body', () => {
   const SLUG = 'comment-chatgpt-choisit-ses-sources';
 
   test('journal article displays EN body when lang=en', async ({ page }) => {
-    // Set the language to EN via localStorage (ThemeProvider uses key 'sa_lang')
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.setItem('sa_lang', 'en');
-    });
-
-    // Navigate to the article
-    await page.goto(`/journal/${SLUG}`);
+    // EN articles live at their own server-rendered URL (per-locale routing).
+    await page.goto(`/blog/en/${SLUG}`);
 
     // Wait for the article body to render (the main article element in the body)
     await page.waitForSelector('article');
@@ -97,12 +91,7 @@ test.describe('Journal — EN language body', () => {
 
   test('journal article displays FR body by default (no lang set)', async ({ page }) => {
     // Clear any stored lang preference (ThemeProvider uses key 'sa_lang')
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.removeItem('sa_lang');
-    });
-
-    await page.goto(`/journal/${SLUG}`);
+    await page.goto(`/blog/${SLUG}`);
     await page.waitForSelector('article');
 
     // Use .first() to avoid strict-mode error when related article <article>
