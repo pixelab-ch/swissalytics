@@ -6,6 +6,7 @@ import { buildArticleSchema, buildBreadcrumbSchema, serializeJsonLd, SITE_URL } 
 import { MdxContent } from '@/components/blog/MdxContent';
 import { TableOfContents } from '@/components/blog/TableOfContents';
 import { ReadingProgressBar } from '@/components/blog/ReadingProgressBar';
+import { RelatedArticles } from '@/components/blog/RelatedArticles';
 
 export const dynamicParams = false;
 
@@ -25,7 +26,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       canonical: `${SITE_URL}/blog/en/${slug}`,
       languages: { en: `${SITE_URL}/blog/en/${slug}`, ...(alt.fr ? { fr: `${SITE_URL}/blog/${slug}` } : {}) },
     },
-    openGraph: { title: a.title, description: a.description, type: 'article' },
+    openGraph: {
+      title: a.title,
+      description: a.description,
+      type: 'article',
+      url: `${SITE_URL}/blog/en/${slug}`,
+      locale: 'en',
+    },
   };
 }
 
@@ -64,6 +71,7 @@ export default async function ArticlePageEn({ params }: { params: Promise<{ slug
             {a.title}
           </h1>
           <MdxContent source={a.body} />
+          <RelatedArticles posts={blog.getRelatedArticles(slug, 'en', 3)} base="/blog/en" title="Read next" />
         </div>
         <aside>
           <TableOfContents />

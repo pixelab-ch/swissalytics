@@ -9,6 +9,9 @@ import type { ArticleType } from '@/lib/blog/types';
  * `Content-Type: application/xml`.
  */
 
+// Generated at build time (reads MDX from the filesystem); no per-request fs work.
+export const dynamic = 'force-static';
+
 const SITE_URL = 'https://swissalytics.com';
 
 const TYPE_LABEL_FR: Record<ArticleType, string> = {
