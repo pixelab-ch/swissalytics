@@ -46,9 +46,21 @@ export default function TopBar() {
   // (blog content is server-rendered per locale, unlike the localStorage-toggled chrome).
   const handleLang = (l: Lang) => {
     setLang(l);
-    if (pathname) {
+    if (!pathname) return;
+    // Listings exist in both locales — safe to navigate directly.
+    if (pathname === '/blog' || pathname === '/blog/en') {
       const target = blogSiblingPath(pathname, l);
       if (target && target !== pathname) router.push(target);
+      return;
+    }
+    // Articles may be single-locale. The page emits an hreflang <link> for the sibling
+    // only when that translation exists, so use it as the source of truth — never push
+    // to a slug that would 404 (dynamicParams is false).
+    if (pathname.startsWith('/blog/')) {
+      const link = document.querySelector(
+        `link[rel="alternate"][hreflang="${l}"]`,
+      ) as HTMLLinkElement | null;
+      if (link?.href) router.push(new URL(link.href).pathname);
     }
   };
   const [menuOpen, setMenuOpen] = useState(false);

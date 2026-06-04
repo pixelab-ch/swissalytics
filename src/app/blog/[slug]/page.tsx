@@ -41,6 +41,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const a = blog.getArticleBySlug(slug, 'fr');
   if (!a) notFound();
   const url = `${SITE_URL}/blog/${slug}`;
+  // TableOfContents hides itself below 3 headings; collapse the side column to match.
+  const hasToc = (a.body.match(/^#{2,3}\s/gm) || []).length >= 3;
   return (
     <Shell>
       <ReadingProgressBar />
@@ -59,7 +61,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           margin: '0 auto',
           padding: '64px 24px',
           display: 'grid',
-          gridTemplateColumns: '1fr 240px',
+          gridTemplateColumns: hasToc ? '1fr 240px' : '1fr',
           gap: 48,
         }}
       >
@@ -73,9 +75,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <MdxContent source={a.body} />
           <RelatedArticles posts={blog.getRelatedArticles(slug, 'fr', 3)} base="/blog" title="À lire aussi" />
         </div>
-        <aside>
-          <TableOfContents />
-        </aside>
+        {hasToc && (
+          <aside>
+            <TableOfContents />
+          </aside>
+        )}
       </article>
     </Shell>
   );

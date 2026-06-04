@@ -59,11 +59,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // The blog is server-rendered per-locale via URL (/blog vs /blog/en). On those
     // routes the document language follows the URL, not the localStorage toggle, so we
     // don't clobber the server-set value with the chrome's stored preference.
-    const htmlLang = pathname?.startsWith('/blog/en')
-      ? 'en'
-      : pathname?.startsWith('/blog')
-        ? 'fr'
-        : lang;
+    const isEnBlog = pathname === '/blog/en' || pathname?.startsWith('/blog/en/');
+    const isBlog = pathname === '/blog' || pathname?.startsWith('/blog/');
+    const htmlLang = isEnBlog ? 'en' : isBlog ? 'fr' : lang;
     html.setAttribute('lang', htmlLang);
     html.setAttribute('data-dark', effectiveDark ? 'true' : 'false');
     html.setAttribute('data-density', density);

@@ -22,13 +22,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // ── Blog articles (per locale) ──
   const frEntries: MetadataRoute.Sitemap = blog.listArticles('fr').map((p) => ({
     url: `${baseUrl}/blog/${p.slug}`,
-    lastModified: new Date(p.publishedAt + 'T12:00:00Z'),
+    lastModified: new Date((p.updatedAt ?? p.publishedAt) + 'T12:00:00Z'),
     changeFrequency: 'monthly' as const,
     priority: 0.7,
   }));
   const enEntries: MetadataRoute.Sitemap = blog.listArticles('en').map((p) => ({
     url: `${baseUrl}/blog/en/${p.slug}`,
-    lastModified: new Date(p.publishedAt + 'T12:00:00Z'),
+    lastModified: new Date((p.updatedAt ?? p.publishedAt) + 'T12:00:00Z'),
     changeFrequency: 'monthly' as const,
     priority: 0.6,
   }));
