@@ -1,0 +1,24 @@
+---
+title: "Named entities: why ChatGPT confuses you with a competitor"
+description: "If your brand name is generic, LLMs mix you up with other companies. Here's how to fix it without a rebrand."
+publishedAt: "2025-10-14"
+type: "pillar"
+author: "pixelab"
+entities: []
+---
+
+Imagine two web agencies both called **"Atelier Web"**. One in Geneva, one in Montreal. For ChatGPT, without explicit context, they merge into a single blurry entity. Result: both lose.
+
+## The problem
+
+LLMs learn from vast amounts of text. When two entities share a name, they **merge statistically** unless distinctive signals are explicitly in place.
+
+> "A generic name without context is a face in a crowd. A generic name with context is an identifiable person."
+
+## The distinctive signals to put in place
+
+1. **Consistent location.** Say "Atelier Web Geneva" rather than "Atelier Web". In the `title`, the `h1`, the JSON-LD, and the footer.
+
+1. **Year of founding.** "Founded in 2020" in the Organization markup. It distinguishes you mechanically.
+
+1. **Named founders.** Proper names of people are strong anchors for LLMs. Put them in the About page and in the JSON-LD.

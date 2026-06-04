@@ -1,0 +1,24 @@
+---
+title: "Entités nommées : pourquoi ChatGPT vous confond avec un concurrent"
+description: "Si votre nom de marque est générique, les LLM vous mélangent avec d'autres entreprises. Voici comment s'en sortir sans changer de nom."
+publishedAt: "2025-10-14"
+type: "pillar"
+author: "pixelab"
+entities: []
+---
+
+Imaginez deux agences web qui s'appellent toutes les deux **« Atelier Web »**. L'une à Genève, l'autre à Montréal. Pour ChatGPT, sans contexte explicite, elles se fondent en une seule entité floue. Résultat : les deux perdent.
+
+## Le problème
+
+Les LLM apprennent à partir de grandes quantités de texte. Quand deux entités partagent un nom, elles se **fusionnent** statistiquement sauf si des signaux distinctifs sont posés explicitement.
+
+> « Un nom générique sans contexte, c'est un visage dans une foule. Un nom générique avec contexte, c'est une personne identifiable. »
+
+## Les signaux distinctifs à poser
+
+1. **Localisation systématique.** Dites « Atelier Web Genève » plutôt qu'« Atelier Web ». Dans le `title`, le `h1`, le JSON-LD, le footer.
+
+1. **Année de fondation.** « Fondé en 2020 » dans le balisage Organization. Ça distingue de manière mécanique.
+
+1. **Fondateurs nommés.** Les noms propres des personnes sont des ancres fortes pour les LLM. Mettez-les dans l'À propos et dans le JSON-LD.
