@@ -1,5 +1,5 @@
 import { blog } from '@/lib/blog/loader';
-import type { ArticleType } from '@/lib/blog/types';
+import { TYPE_LABEL } from '@/lib/blog/types';
 
 /**
  * RSS 2.0 feed for the Blog.
@@ -13,14 +13,6 @@ import type { ArticleType } from '@/lib/blog/types';
 export const dynamic = 'force-static';
 
 const SITE_URL = 'https://swissalytics.com';
-
-const TYPE_LABEL_FR: Record<ArticleType, string> = {
-  authority: 'Analyse',
-  pillar: 'Dossier',
-  versus: 'Comparatif',
-  decision: 'Décision',
-  checklist: 'Checklist',
-};
 
 /** Escape the five XML predefined entities so titles/descriptions stay valid. */
 function escapeXml(value: string): string {
@@ -54,7 +46,7 @@ export function GET(): Response {
         `      <link>${escapeXml(link)}</link>`,
         `      <guid isPermaLink="true">${escapeXml(link)}</guid>`,
         `      <pubDate>${toRfc822(post.publishedAt)}</pubDate>`,
-        `      <category>${escapeXml(TYPE_LABEL_FR[post.type])}</category>`,
+        `      <category>${escapeXml(TYPE_LABEL.fr[post.type])}</category>`,
         `      <description>${escapeXml(post.description)}</description>`,
         '    </item>',
       ].join('\n');

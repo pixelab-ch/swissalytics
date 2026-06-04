@@ -33,3 +33,10 @@ export type ArticleMeta = {
 
 /** Full article = meta + raw MDX body (frontmatter stripped). */
 export type Article = ArticleMeta & { body: string };
+
+/** Display label for each article `type`, per locale. Pure data (no React) so it can be
+ *  shared by the card, related list, RSS feed, and OG image routes alike. */
+export const TYPE_LABEL: Record<Locale, Record<ArticleType, string>> = {
+  fr: { authority: 'Analyse', pillar: 'Dossier', versus: 'Comparatif', decision: 'Décision', checklist: 'Checklist' },
+  en: { authority: 'Analysis', pillar: 'Guide', versus: 'Versus', decision: 'Decision', checklist: 'Checklist' },
+};

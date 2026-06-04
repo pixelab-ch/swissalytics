@@ -1,10 +1,5 @@
 import Link from 'next/link';
-import type { ArticleMeta, ArticleType, Locale } from '@/lib/blog/types';
-
-export const TYPE_LABEL: Record<Locale, Record<ArticleType, string>> = {
-  fr: { authority: 'Analyse', pillar: 'Dossier', versus: 'Comparatif', decision: 'Décision', checklist: 'Checklist' },
-  en: { authority: 'Analysis', pillar: 'Guide', versus: 'Versus', decision: 'Decision', checklist: 'Checklist' },
-};
+import { TYPE_LABEL, type ArticleMeta } from '@/lib/blog/types';
 
 export function ArticleCard({ a, base }: { a: ArticleMeta; base: string }) {
   return (

@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import type { ArticleMeta } from '@/lib/blog/types';
-import { TYPE_LABEL } from './ArticleCard';
+import { TYPE_LABEL, type ArticleMeta } from '@/lib/blog/types';
 
 export function RelatedArticles({
   posts,
