@@ -1,5 +1,9 @@
 import type { ArticleMeta } from './types';
 
+// Re-exported so existing blog imports (`from './schema'`) keep working; the
+// implementation is generic and shared with non-blog JSON-LD (StructuredData).
+export { serializeJsonLd } from '../jsonld';
+
 export const SITE_URL = 'https://swissalytics.com';
 export const SITE_NAME = 'Swissalytics';
 export const PUBLISHER = {
@@ -8,24 +12,6 @@ export const PUBLISHER = {
   url: 'https://pixelab.ch',
   address: { '@type': 'PostalAddress', addressLocality: 'Genève', addressCountry: 'CH' },
 };
-
-/**
- * Serialize a JSON-LD object for safe inlining in <script type="application/ld+json">.
- * JSON.stringify does NOT escape `<`, U+2028 or U+2029 — a literal `</script>` in any
- * field (plausible on a blog about HTML/Schema.org) would break out of the script tag.
- * Uses String.fromCharCode to avoid embedding the (invisible) line separators in source.
- */
-export function serializeJsonLd(obj: unknown): string {
-  const LS = String.fromCharCode(0x2028);
-  const PS = String.fromCharCode(0x2029);
-  return JSON.stringify(obj)
-    .split('<')
-    .join('\\u003c')
-    .split(LS)
-    .join('\\u2028')
-    .split(PS)
-    .join('\\u2029');
-}
 
 export function buildArticleSchema(a: ArticleMeta, bodyText: string, url: string) {
   return {

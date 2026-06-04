@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -135,4 +136,15 @@ export function createBlogLoader(contentDir: string) {
   };
 }
 
-export const blog = createBlogLoader(path.join(process.cwd(), 'content/blog'));
+const _blog = createBlogLoader(path.join(process.cwd(), 'content/blog'));
+
+// Wrap the hot read paths in React's request-scoped cache(): within a single page
+// render, generateMetadata + the page component parse a given article/list once
+// instead of twice. Request-scoped, so no staleness across requests, no impact on
+// dev hot-reload, and the env-toggling unit tests (which use createBlogLoader
+// directly, uncached) are unaffected.
+export const blog = {
+  ..._blog,
+  listArticles: cache(_blog.listArticles),
+  getArticleBySlug: cache(_blog.getArticleBySlug),
+};
