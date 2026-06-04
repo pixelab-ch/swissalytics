@@ -1,0 +1,31 @@
+---
+title: "Comment ChatGPT choisit ses sources"
+description: "On a analysé 400 réponses de ChatGPT pour comprendre pourquoi certains sites sont cités et d'autres non. La réponse n'est pas celle qu'on croyait."
+publishedAt: "2025-11-12"
+type: "authority"
+author: "pixelab"
+featured: true
+entities: []
+---
+
+En septembre 2025, on a posé **400 questions à ChatGPT** sur des sujets où nos clients auraient pu être cités : horlogerie genevoise, agences web suisses, assurances privées, restaurants étoilés. Pour chaque réponse, on a listé les sources citées et on a regardé ce qu'elles avaient en commun. *Ce qui est sorti de l'analyse est surprenant.*
+
+## Ce qui ne compte presque pas
+
+D'abord, ce qu'on pensait compter et qui ne compte quasiment pas : le **PageRank**, la position Google, le nombre de backlinks, l'ancienneté du domaine. Sur les 400 réponses, le site cité n°1 n'était **presque jamais** le premier résultat Google. Parfois il était même en page 3.
+
+> « Le site cité n°1 par ChatGPT n'était presque jamais le premier résultat Google. Parfois il était en page 3. »
+
+## Les trois signaux qui comptent
+
+En recoupant les 400 réponses, trois facteurs ressortent systématiquement. On les a classés par ordre d'importance empirique :
+
+1. **Des entités nommées explicites.** Le site dit clairement *qui* il est (nom de marque, fondateurs, année, localisation) dans le HTML — titres, intertitres, JSON-LD. Sans ça, ChatGPT ne sait pas vous identifier.
+2. **Un balisage Schema.org complet.** Les sites cités avaient **2,3× plus** de blocs JSON-LD que la moyenne. `Organization`, `LocalBusiness`, `FAQPage`. C'est quasi linéaire.
+3. **Un ton déclaratif, pas marketing.** « Nous sommes une agence web à Genève fondée en 2020 » se fait citer. « Donnons vie à vos ambitions digitales » ne se fait jamais citer. ChatGPT cherche des faits, pas des slogans.
+
+## La leçon
+
+Pour se faire citer par ChatGPT, il faut **écrire comme une encyclopédie**, pas comme une plaquette commerciale. Les sites qui ressortent gagnants sont ceux qui disent platement, en HTML propre, qui ils sont et ce qu'ils font.
+
+C'est exactement ce que Swissalytics audite. Collez votre URL : on vous dit, en 30 secondes, si un LLM peut vous identifier clairement ou pas.

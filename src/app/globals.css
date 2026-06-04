@@ -275,3 +275,17 @@ main, main * { backdrop-filter: none !important; }
   0%   { left: -40%; }
   100% { left: 100%; }
 }
+
+/* ── Blog (MDX) prose — brutalist, brand-aligned (not the generic typography defaults) ── */
+.blog-prose { max-width: 720px; color: var(--sa-ink-2); font-size: 18px; line-height: 1.7; }
+.blog-prose h2 { font-family: var(--sa-font-sans); font-weight: 800; font-size: 28px; letter-spacing: -0.02em; margin: 48px 0 14px; color: var(--sa-ink); }
+.blog-prose h3 { font-family: var(--sa-font-sans); font-weight: 700; font-size: 21px; margin: 32px 0 10px; color: var(--sa-ink); }
+.blog-prose p { margin: 0 0 18px; }
+.blog-prose a { color: var(--sa-red); text-decoration: underline; text-underline-offset: 3px; }
+.blog-prose ul, .blog-prose ol { margin: 0 0 18px; padding-left: 22px; }
+.blog-prose li { margin: 6px 0; }
+.blog-prose blockquote { border-left: 4px solid var(--sa-red); background: var(--sa-cream-2); margin: 28px 0; padding: 18px 22px; font-size: 19px; }
+.blog-prose img { border: 2px solid var(--sa-ink); border-radius: 0; max-width: 100%; }
+.blog-prose code { font-family: var(--sa-font-mono); font-size: 0.88em; background: var(--sa-cream-2); padding: 2px 5px; }
+.blog-prose pre { border: 2px solid var(--sa-ink); border-radius: 0; padding: 16px; overflow: auto; }
+.blog-prose pre code { background: transparent; padding: 0; }

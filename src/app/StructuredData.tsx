@@ -1,3 +1,5 @@
+import { serializeJsonLd } from '@/lib/jsonld';
+
 export default function StructuredData() {
   const orgSchema = {
     '@context': 'https://schema.org',
@@ -43,11 +45,11 @@ export default function StructuredData() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(orgSchema) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteSchema) }}
       />
     </>
   );

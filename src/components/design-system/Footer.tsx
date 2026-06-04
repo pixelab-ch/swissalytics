@@ -12,7 +12,7 @@ const LINKS: Record<string, { label: string; href?: string; external?: boolean }
     { label: 'Comparatifs', href: '/compare' },
   ],
   ressources: [
-    { label: 'Journal', href: '/journal' },
+    { label: 'Blog', href: '/blog' },
     { label: 'Glossaire SEO', href: '/glossaire' },
     { label: 'Guide GEO', href: '/guide-geo' },
     { label: 'Mentions légales', href: '/mentions-legales' },

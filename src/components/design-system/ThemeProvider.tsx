@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 
 export type Lang = 'fr' | 'en';
 export type Density = 'compact' | 'normal' | 'roomy';
@@ -29,6 +30,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // preference (it applies on desktop) but never render dark on mobile, so a
   // stored pref can't trap a phone in dark mode where the toggle is hidden.
   const [isMobile, setIsMobile] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     try {
@@ -54,7 +56,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (!mounted) return;
     const html = document.documentElement;
     const effectiveDark = dark && !isMobile;
-    html.setAttribute('lang', lang);
+    // The blog is server-rendered per-locale via URL (/blog vs /blog/en). On those
+    // routes the document language follows the URL, not the localStorage toggle, so we
+    // don't clobber the server-set value with the chrome's stored preference.
+    const isEnBlog = pathname === '/blog/en' || pathname?.startsWith('/blog/en/');
+    const isBlog = pathname === '/blog' || pathname?.startsWith('/blog/');
+    const htmlLang = isEnBlog ? 'en' : isBlog ? 'fr' : lang;
+    html.setAttribute('lang', htmlLang);
     html.setAttribute('data-dark', effectiveDark ? 'true' : 'false');
     html.setAttribute('data-density', density);
     try {
@@ -62,7 +70,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(LS_DARK, dark ? 'true' : 'false');
       localStorage.setItem(LS_DENSITY, density);
     } catch {}
-  }, [lang, dark, density, mounted, isMobile]);
+  }, [lang, dark, density, mounted, isMobile, pathname]);
 
   const setLang = (l: Lang) => setLangState(l);
   const setDark = (d: boolean) => setDarkState(d);
