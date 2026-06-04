@@ -2,10 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Shell from '@/components/design-system/Shell';
 import { blog } from '@/lib/blog/loader';
-import { buildArticleSchema, buildBreadcrumbSchema, SITE_URL } from '@/lib/blog/schema';
+import { buildArticleSchema, buildBreadcrumbSchema, serializeJsonLd, SITE_URL } from '@/lib/blog/schema';
 import { MdxContent } from '@/components/blog/MdxContent';
 import { TableOfContents } from '@/components/blog/TableOfContents';
 import { ReadingProgressBar } from '@/components/blog/ReadingProgressBar';
+
+export const dynamicParams = false;
 
 export function generateStaticParams() {
   return blog.listArticleParams('fr');
@@ -37,13 +39,14 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
       <ReadingProgressBar />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildArticleSchema(a, a.body, url)) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildArticleSchema(a, a.body, url)) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildBreadcrumbSchema(a, url)) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildBreadcrumbSchema(a, url)) }}
       />
       <article
+        lang="fr"
         style={{
           maxWidth: 1180,
           margin: '0 auto',

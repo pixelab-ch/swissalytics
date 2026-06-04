@@ -9,6 +9,24 @@ export const PUBLISHER = {
   address: { '@type': 'PostalAddress', addressLocality: 'Genève', addressCountry: 'CH' },
 };
 
+/**
+ * Serialize a JSON-LD object for safe inlining in <script type="application/ld+json">.
+ * JSON.stringify does NOT escape `<`, U+2028 or U+2029 — a literal `</script>` in any
+ * field (plausible on a blog about HTML/Schema.org) would break out of the script tag.
+ * Uses String.fromCharCode to avoid embedding the (invisible) line separators in source.
+ */
+export function serializeJsonLd(obj: unknown): string {
+  const LS = String.fromCharCode(0x2028);
+  const PS = String.fromCharCode(0x2029);
+  return JSON.stringify(obj)
+    .split('<')
+    .join('\\u003c')
+    .split(LS)
+    .join('\\u2028')
+    .split(PS)
+    .join('\\u2029');
+}
+
 export function buildArticleSchema(a: ArticleMeta, bodyText: string, url: string) {
   return {
     '@context': 'https://schema.org',
@@ -18,7 +36,7 @@ export function buildArticleSchema(a: ArticleMeta, bodyText: string, url: string
     inLanguage: a.locale,
     datePublished: a.publishedAt,
     dateModified: a.updatedAt ?? a.publishedAt,
-    wordCount: bodyText.trim().split(/\s+/).length,
+    wordCount: bodyText.trim() ? bodyText.trim().split(/\s+/).length : 0,
     image: a.coverImage ? `${SITE_URL}${a.coverImage}` : undefined,
     author: { '@type': 'Person', name: a.author.name, url: a.author.url },
     publisher: PUBLISHER,
@@ -27,12 +45,13 @@ export function buildArticleSchema(a: ArticleMeta, bodyText: string, url: string
 }
 
 export function buildBreadcrumbSchema(a: ArticleMeta, url: string) {
-  const blogUrl = a.locale === 'en' ? `${SITE_URL}/blog/en` : `${SITE_URL}/blog`;
+  const isEn = a.locale === 'en';
+  const blogUrl = isEn ? `${SITE_URL}/blog/en` : `${SITE_URL}/blog`;
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Accueil', item: SITE_URL },
+      { '@type': 'ListItem', position: 1, name: isEn ? 'Home' : 'Accueil', item: SITE_URL },
       { '@type': 'ListItem', position: 2, name: 'Blog', item: blogUrl },
       { '@type': 'ListItem', position: 3, name: a.title, item: url },
     ],

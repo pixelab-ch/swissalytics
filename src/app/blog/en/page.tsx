@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { blog } from '@/lib/blog/loader';
-import { buildBlogSchema, SITE_URL } from '@/lib/blog/schema';
+import { buildBlogSchema, serializeJsonLd, SITE_URL } from '@/lib/blog/schema';
 import { BlogListing } from '@/components/blog/BlogListing';
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ export default function BlogIndexEn() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildBlogSchema(posts, `${SITE_URL}/blog/en`)) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildBlogSchema(posts, `${SITE_URL}/blog/en`)) }}
       />
       <BlogListing posts={posts} base="/blog/en" title="The blog" />
     </>

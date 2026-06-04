@@ -1,4 +1,4 @@
-import { buildHowToSchema } from '@/lib/blog/schema';
+import { buildHowToSchema, serializeJsonLd } from '@/lib/blog/schema';
 
 export function HowTo({ name, steps }: { name: string; steps: { name: string; text: string }[] }) {
   return (
@@ -12,7 +12,7 @@ export function HowTo({ name, steps }: { name: string; steps: { name: string; te
       </ol>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildHowToSchema(name, steps)) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildHowToSchema(name, steps)) }}
       />
     </section>
   );

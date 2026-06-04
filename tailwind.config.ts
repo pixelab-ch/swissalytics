@@ -1,5 +1,4 @@
 import type { Config } from "tailwindcss";
-import typography from "@tailwindcss/typography";
 
 const config: Config = {
   darkMode: ["selector", 'html[data-dark="true"]'],
@@ -63,7 +62,7 @@ const config: Config = {
       borderRadius: { none: "0", xs: "2px" },
     },
   },
-  plugins: [typography],
+  plugins: [],
 };
 
 export default config;

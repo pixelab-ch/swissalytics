@@ -1,4 +1,4 @@
-import { buildFaqPageSchema } from '@/lib/blog/schema';
+import { buildFaqPageSchema, serializeJsonLd } from '@/lib/blog/schema';
 
 export function Faq({ items }: { items: { q: string; a: string }[] }) {
   return (
@@ -11,7 +11,7 @@ export function Faq({ items }: { items: { q: string; a: string }[] }) {
       ))}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildFaqPageSchema(items)) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildFaqPageSchema(items)) }}
       />
     </section>
   );

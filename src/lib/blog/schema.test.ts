@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { buildArticleSchema, buildBreadcrumbSchema, buildBlogSchema, buildFaqPageSchema } from './schema';
+import {
+  buildArticleSchema,
+  buildBreadcrumbSchema,
+  buildBlogSchema,
+  buildFaqPageSchema,
+  serializeJsonLd,
+} from './schema';
 import type { ArticleMeta } from './types';
 
 const meta: ArticleMeta = {
@@ -33,5 +39,20 @@ describe('blog JSON-LD', () => {
   it('FAQ schema maps Q/A', () => {
     const s = buildFaqPageSchema([{ q: 'Q?', a: 'A.' }]);
     expect(s.mainEntity[0].acceptedAnswer.text).toBe('A.');
+  });
+});
+
+describe('serializeJsonLd', () => {
+  it('escapes < so </script> cannot break out, without escaping spaces', () => {
+    const out = serializeJsonLd({ t: 'a </script> b c' });
+    expect(out).toContain('\\u003c/script>');
+    expect(out).not.toContain('</script>');
+    // normal spaces must remain intact (regression guard against escaping them)
+    expect(out).toContain('a \\u003c/script> b c');
+  });
+
+  it('escapes U+2028 / U+2029 line separators', () => {
+    const out = serializeJsonLd({ t: `x${String.fromCharCode(0x2028)}y${String.fromCharCode(0x2029)}z` });
+    expect(out).toContain('x\\u2028y\\u2029z');
   });
 });

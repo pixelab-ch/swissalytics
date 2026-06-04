@@ -60,3 +60,19 @@ describe('getRelatedArticles', () => {
     expect(rel.length).toBeLessThanOrEqual(2);
   });
 });
+
+describe('frontmatter fail-fast (build must break, never publish silently)', () => {
+  const bad = createBlogLoader(path.join(__dirname, '__fixtures_bad__'));
+
+  it('throws on an invalid `type`', () => {
+    expect(() => bad.getArticleBySlug('bad-type', 'fr')).toThrow(/invalid type/i);
+  });
+
+  it('throws on an unknown author key', () => {
+    expect(() => bad.getArticleBySlug('bad-author', 'fr')).toThrow(/unknown author/i);
+  });
+
+  it('throws on a missing required field', () => {
+    expect(() => bad.getArticleBySlug('missing-field', 'fr')).toThrow(/missing required frontmatter/i);
+  });
+});

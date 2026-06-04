@@ -26,15 +26,26 @@ function isIso(d: unknown): d is string {
 
 export function createBlogLoader(contentDir: string) {
   const authorsPath = path.join(contentDir, '_authors.json');
+  let authorsCache: Record<string, Omit<Author, 'key'>> | null = null;
 
   function loadAuthors(): Record<string, Omit<Author, 'key'>> {
-    return JSON.parse(fs.readFileSync(authorsPath, 'utf8'));
+    if (authorsCache) return authorsCache;
+    const parsed = JSON.parse(fs.readFileSync(authorsPath, 'utf8')) as Record<string, Omit<Author, 'key'>>;
+    authorsCache = parsed;
+    return parsed;
   }
 
   function parseFile(file: string): Article {
     const raw = fs.readFileSync(path.join(contentDir, file), 'utf8');
     const { data, content } = matter(raw);
-    const [slug, locale] = file.replace(/\.mdx$/, '').split('.') as [string, Locale];
+    // Filenames are "<slug>.<locale>.mdx"; parse by the trailing locale suffix so
+    // slugs containing dots can't corrupt the slug/locale split.
+    const base = file.replace(/\.mdx$/, '');
+    let locale: Locale;
+    if (base.endsWith('.fr')) locale = 'fr';
+    else if (base.endsWith('.en')) locale = 'en';
+    else throw new Error(`Blog ${file}: filename must end with .fr.mdx or .en.mdx`);
+    const slug = base.slice(0, -3);
 
     assertValidSlug(slug);
     for (const f of ['title', 'description', 'publishedAt', 'type', 'author'] as const) {
@@ -109,7 +120,8 @@ export function createBlogLoader(contentDir: string) {
     const all = listArticles(locale).filter((a) => a.slug !== slug);
     const self = getArticleBySlug(slug, locale);
     const sameType = all.filter((a) => self && a.type === self.type);
-    const rest = all.filter((a) => !sameType.includes(a));
+    const sameTypeSlugs = new Set(sameType.map((a) => a.slug));
+    const rest = all.filter((a) => !sameTypeSlugs.has(a.slug));
     return [...sameType, ...rest].slice(0, limit);
   }
 

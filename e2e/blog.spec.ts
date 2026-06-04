@@ -32,3 +32,14 @@ test('unknown slug 404s', async ({ page }) => {
   const res = await page.goto('/blog/nope-nope-nope');
   expect(res?.status()).toBe(404);
 });
+
+test('EN article is served with lang="en" in the static HTML', async ({ page }) => {
+  await page.goto('/blog/en/geo-vs-seo-definitions');
+  await expect(page.locator('article')).toHaveAttribute('lang', 'en');
+});
+
+test('FR/EN toggle navigates to the sibling-locale article URL', async ({ page }) => {
+  await page.goto('/blog/geo-vs-seo-definitions');
+  await page.getByRole('button', { name: 'en', exact: true }).click();
+  await expect(page).toHaveURL(/\/blog\/en\/geo-vs-seo-definitions$/);
+});
