@@ -52,3 +52,8 @@ data/
 # Playwright artifacts
 test-results/
 playwright-report/
+brand-assets/
+docs/vps-infomaniak-setup.md
+docs/vps-infomaniak-mise-en-route.md
+BLOG-HUB-WIRING.md
+tracker.md

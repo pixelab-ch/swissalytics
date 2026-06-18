@@ -1,16 +1,17 @@
 import { blog } from '@/lib/blog/loader';
-import { TYPE_LABEL } from '@/lib/blog/types';
+import { articleDate, TYPE_LABEL } from '@/lib/blog/types';
 
 /**
  * RSS 2.0 feed for the Blog.
  *
  * The /blog page advertises `/feed.xml` ("No newsletter, just an RSS feed"),
- * so this route generates a valid feed from the FR MDX articles. Served with
- * `Content-Type: application/xml`.
+ * so this route generates a valid feed from the FR articles (hub + MDX fallback).
+ * Served with `Content-Type: application/xml`.
  */
 
-// Generated at build time (reads MDX from the filesystem); no per-request fs work.
-export const dynamic = 'force-static';
+// Built once then refreshed hourly (ISR) — matches the hub fetch revalidation, so
+// newly-published hub articles surface in the feed without a redeploy.
+export const revalidate = 3600;
 
 const SITE_URL = 'https://swissalytics.com';
 
@@ -24,15 +25,14 @@ function escapeXml(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
-/** ISO date string → RFC 822 date required by RSS pubDate. */
-function toRfc822(iso: string): string {
-  const d = new Date(iso + 'T12:00:00Z');
-  return Number.isNaN(d.getTime()) ? new Date(0).toUTCString() : d.toUTCString();
+/** Article date (bare day or full ISO) → RFC 822 date required by RSS pubDate. */
+function toRfc822(value: string): string {
+  return articleDate(value).toUTCString();
 }
 
-export function GET(): Response {
+export async function GET(): Promise<Response> {
   // listArticles already returns newest-first.
-  const posts = blog.listArticles('fr');
+  const posts = await blog.listArticles('fr');
 
   const lastBuildDate =
     posts.length > 0 ? toRfc822(posts[0].publishedAt) : new Date().toUTCString();

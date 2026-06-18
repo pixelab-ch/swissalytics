@@ -1,8 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { blog } from '@/lib/blog/loader';
+import { articleDate, blogBase, LOCALES } from '@/lib/blog/types';
 import { COMPARE_PAGES } from '@/lib/compare/pages';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://swissalytics.com';
   const now = new Date();
 
@@ -12,26 +13,31 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/methode`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${baseUrl}/exemples`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${baseUrl}/a-propos`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${baseUrl}/blog`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${baseUrl}/blog/en`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${baseUrl}/compare`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${baseUrl}/mentions-legales`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${baseUrl}/confidentialite`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
-  // ── Blog articles (per locale) ──
-  const frEntries: MetadataRoute.Sitemap = blog.listArticles('fr').map((p) => ({
-    url: `${baseUrl}/blog/${p.slug}`,
-    lastModified: new Date((p.updatedAt ?? p.publishedAt) + 'T12:00:00Z'),
-    changeFrequency: 'monthly' as const,
-    priority: 0.7,
+  // ── Blog index per locale ──
+  const blogIndexEntries: MetadataRoute.Sitemap = LOCALES.map((l) => ({
+    url: `${baseUrl}${blogBase(l)}`,
+    lastModified: now,
+    changeFrequency: 'weekly' as const,
+    priority: l === 'fr' ? 0.8 : 0.6,
   }));
-  const enEntries: MetadataRoute.Sitemap = blog.listArticles('en').map((p) => ({
-    url: `${baseUrl}/blog/en/${p.slug}`,
-    lastModified: new Date((p.updatedAt ?? p.publishedAt) + 'T12:00:00Z'),
-    changeFrequency: 'monthly' as const,
-    priority: 0.6,
-  }));
+
+  // ── Blog articles per locale (hub + fs) ──
+  const perLocale = await Promise.all(
+    LOCALES.map(async (l) =>
+      (await blog.listArticles(l)).map((p) => ({
+        url: `${baseUrl}${blogBase(l)}/${p.slug}`,
+        lastModified: articleDate(p.updatedAt ?? p.publishedAt),
+        changeFrequency: 'monthly' as const,
+        priority: l === 'fr' ? 0.7 : 0.6,
+      })),
+    ),
+  );
+  const articleEntries: MetadataRoute.Sitemap = perLocale.flat();
 
   // ── Compare pages ──
   const compareEntries: MetadataRoute.Sitemap = COMPARE_PAGES.map((page) => ({
@@ -41,5 +47,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.9,
   }));
 
-  return [...staticEntries, ...frEntries, ...enEntries, ...compareEntries];
+  return [...staticEntries, ...blogIndexEntries, ...articleEntries, ...compareEntries];
 }
