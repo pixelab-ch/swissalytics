@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import path from 'node:path';
-import { createBlogLoader } from './loader';
+import { createBlogLoader, mergeArticleLists } from './loader';
+import { articleDate, type ArticleMeta } from './types';
 
 const FIX = path.join(__dirname, '__fixtures__');
 const loader = createBlogLoader(FIX);
@@ -38,9 +39,45 @@ describe('getArticleBySlug', () => {
 });
 
 describe('getAlternateLocales', () => {
-  it('reports which locales exist', () => {
-    expect(loader.getAlternateLocales('hello')).toEqual({ fr: true, en: true });
-    expect(loader.getAlternateLocales('solo-fr')).toEqual({ fr: true, en: false });
+  it('reports which locales exist (all four locales keyed)', () => {
+    expect(loader.getAlternateLocales('hello')).toEqual({ fr: true, en: true, de: false, it: false });
+    expect(loader.getAlternateLocales('solo-fr')).toEqual({ fr: true, en: false, de: false, it: false });
+  });
+});
+
+describe('mergeArticleLists', () => {
+  const meta = (slug: string, publishedAt: string, title: string): ArticleMeta =>
+    ({ slug, publishedAt, title }) as ArticleMeta;
+
+  it('dedupes by slug with the primary (hub) winning', () => {
+    const hub = [meta('a', '2026-01-02', 'hub-a')];
+    const fs = [meta('a', '2026-01-02', 'fs-a'), meta('b', '2026-01-01', 'fs-b')];
+    const merged = mergeArticleLists(hub, fs);
+    expect(merged.map((m) => m.slug)).toEqual(['a', 'b']);
+    expect(merged.find((m) => m.slug === 'a')?.title).toBe('hub-a');
+  });
+
+  it('sorts the merged set by publish date DESC', () => {
+    const hub = [meta('new', '2026-03-01', 'n')];
+    const fs = [meta('old', '2026-01-01', 'o'), meta('mid', '2026-02-01', 'm')];
+    expect(mergeArticleLists(hub, fs).map((m) => m.slug)).toEqual(['new', 'mid', 'old']);
+  });
+
+  it('breaks date ties by slug so builds are deterministic', () => {
+    const a = [meta('zebra', '2026-01-01', 'z'), meta('alpha', '2026-01-01', 'a')];
+    expect(mergeArticleLists(a, []).map((m) => m.slug)).toEqual(['alpha', 'zebra']);
+  });
+});
+
+describe('articleDate', () => {
+  it('parses a bare day (fs/MDX) to noon UTC', () => {
+    expect(articleDate('2025-09-08').toISOString()).toBe('2025-09-08T12:00:00.000Z');
+  });
+  it('parses a full ISO datetime (hub) as-is — no "T...Z" double-suffix bug', () => {
+    expect(articleDate('2026-06-04T12:00:00.000Z').toISOString()).toBe('2026-06-04T12:00:00.000Z');
+  });
+  it('falls back to the epoch on an unparseable value', () => {
+    expect(articleDate('not-a-date').getTime()).toBe(0);
   });
 });
 

@@ -5,10 +5,10 @@ export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
 export async function generateStaticParams() {
-  return articleOgParams('en');
+  return articleOgParams('de');
 }
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  return articleOgImage(slug, 'en');
+  return articleOgImage(slug, 'de');
 }
