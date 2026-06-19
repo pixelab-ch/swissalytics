@@ -48,6 +48,27 @@ export const ARTICLE_TYPES = [
 ] as const;
 export type ArticleType = (typeof ARTICLE_TYPES)[number];
 
+// Sitemap priority per article type (BLOG-HUB-WIRING.md §4). Higher = crawled/ranked
+// more eagerly. Unknown/legacy types fall back to the lowest tier rather than degrade.
+const ARTICLE_SITEMAP_PRIORITY: Record<ArticleType, number> = {
+  pillar: 0.9,
+  authority: 0.8,
+  guide: 0.8,
+  versus: 0.8,
+  comparison: 0.8,
+  decision: 0.8,
+  'case-study': 0.7,
+  glossary: 0.7,
+  checklist: 0.7,
+  news: 0.6,
+};
+
+// Accepts a raw string (not just ArticleType): the type is hub-sourced, so an
+// unrecognized value degrades to the lowest tier instead of throwing.
+export function articleSitemapPriority(type: ArticleType | (string & {})): number {
+  return ARTICLE_SITEMAP_PRIORITY[type as ArticleType] ?? 0.6;
+}
+
 export type Author = {
   key: string;
   name: string;
