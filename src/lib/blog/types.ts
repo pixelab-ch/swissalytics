@@ -63,8 +63,10 @@ const ARTICLE_SITEMAP_PRIORITY: Record<ArticleType, number> = {
   news: 0.6,
 };
 
-export function articleSitemapPriority(type: ArticleType): number {
-  return ARTICLE_SITEMAP_PRIORITY[type] ?? 0.6;
+// Accepts a raw string (not just ArticleType): the type is hub-sourced, so an
+// unrecognized value degrades to the lowest tier instead of throwing.
+export function articleSitemapPriority(type: ArticleType | (string & {})): number {
+  return ARTICLE_SITEMAP_PRIORITY[type as ArticleType] ?? 0.6;
 }
 
 export type Author = {

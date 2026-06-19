@@ -25,4 +25,9 @@ describe('articleSitemapPriority', () => {
       expect(p).toBeLessThanOrEqual(0.9);
     }
   });
+
+  it('degrades an unknown (hub-sourced) type to the lowest tier', () => {
+    expect(articleSitemapPriority('made-up-type')).toBe(0.6);
+    expect(articleSitemapPriority('')).toBe(0.6);
+  });
 });
