@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { blog } from '@/lib/blog/loader';
-import { articleDate, blogBase, LOCALES } from '@/lib/blog/types';
+import { articleDate, articleSitemapPriority, blogBase, LOCALES } from '@/lib/blog/types';
 import { COMPARE_PAGES } from '@/lib/compare/pages';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -33,7 +33,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${baseUrl}${blogBase(l)}/${p.slug}`,
         lastModified: articleDate(p.updatedAt ?? p.publishedAt),
         changeFrequency: 'monthly' as const,
-        priority: l === 'fr' ? 0.7 : 0.6,
+        // Priority by article type (BLOG-HUB-WIRING.md §4), not by locale.
+        priority: articleSitemapPriority(p.type),
       })),
     ),
   );
