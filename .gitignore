@@ -15,8 +15,8 @@ dist/
 .DS_Store
 *.pem
 .env
-.env.local
-.env.production.local
+.env.*
+!.env.example
 
 # debug
 npm-debug.log*
