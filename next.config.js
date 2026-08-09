@@ -18,11 +18,15 @@ const nextConfig = {
   // allow a specific third-party origin — so the hub is whitelisted via the modern
   // CSP `frame-ancestors`, on /blog only. Everything else keeps the strict policy.
   //
-  // COUPLING (host): nginx on the VPS currently posts `X-Frame-Options: SAMEORIGIN`
-  // GLOBALLY. That host header is appended on top of these and the browser keeps the
-  // most restrictive one — so the iframe stays blocked until that single
-  // `add_header X-Frame-Options ...` line is removed from the nginx config. The other
-  // host security headers (nosniff, Referrer-Policy, Permissions-Policy) stay as-is.
+  // HOST (resolved 2026-08-09): the global `add_header X-Frame-Options SAMEORIGIN`
+  // is gone from the nginx config, so framing is now decided here per-route and
+  // nothing overrides it. nginx still posts nosniff, Referrer-Policy and
+  // Permissions-Policy globally, which is intended.
+  //
+  // Verified live: `/` and `/methode` return SAMEORIGIN + frame-ancestors 'self';
+  // `/blog` returns frame-ancestors 'self' https://cms.pixelab.ch and no
+  // X-Frame-Options. Re-adding a global X-Frame-Options on the host would break
+  // the hub Live Preview again — the browser keeps the most restrictive header.
   async headers() {
     const FRONT = "'self'";
     const HUB = 'https://cms.pixelab.ch';
