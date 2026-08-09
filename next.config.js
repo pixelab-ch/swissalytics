@@ -12,7 +12,7 @@ const nextConfig = {
       { source: '/journal/:slug', destination: '/blog/:slug', permanent: true },
     ];
   },
-  // Framing policy — owned by the app, not the host (see PREVIEW-IFRAME-FIX.md).
+  // Framing policy — owned by the app, not the host (see docs/preview-iframe-fix.md).
   // The CMS hub (cms.pixelab.ch) loads the Live Preview in an iframe pointed at
   // /blog/<slug>. X-Frame-Options can only express SAMEORIGIN/DENY — it cannot
   // allow a specific third-party origin — so the hub is whitelisted via the modern
