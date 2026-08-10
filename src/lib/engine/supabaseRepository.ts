@@ -21,6 +21,7 @@ import type {
 import type { GeoAnalysisResult } from '@/lib/analyzers/types';
 import { normalizeEeatSignals } from '@/lib/analyzers/normalizeEeatSignals';
 import { getSupabaseClient } from './supabaseClient';
+import { newShareToken } from './ids';
 
 interface ReportRow {
   id: string;
@@ -111,11 +112,16 @@ export class SupabaseReportsRepository implements ReportsRepository {
     return data ? rowToStored(data as ReportRow) : null;
   }
 
-  async getSharedReport(id: string): Promise<StoredReport | null> {
+  async getSharedReport(token: string): Promise<StoredReport | null> {
+    // Guard against a caller passing an empty string: `.eq('share_token', '')`
+    // would be a normal miss, but null/undefined coerces to a filter that can
+    // match revoked rows whose token is NULL.
+    if (!token) return null;
+
     const { data, error } = await this.client
       .from('reports')
       .select('*')
-      .eq('id', id)
+      .eq('share_token', token)
       .gt('share_expires_at', new Date().toISOString())
       .maybeSingle();
     if (error) throw new Error(`supabase getSharedReport: ${error.message}`);
@@ -126,9 +132,15 @@ export class SupabaseReportsRepository implements ReportsRepository {
     id: string,
     expiresAt: number,
   ): Promise<StoredReport | null> {
+    // Reuse an existing token so re-sharing extends the window instead of
+    // breaking links already handed out. Only disableSharing drops it.
+    const existing = await this.getById(id);
+    if (!existing) return null;
+
     const { data, error } = await this.client
       .from('reports')
       .update({
+        share_token: existing.shareToken ?? newShareToken(),
         share_expires_at: new Date(expiresAt).toISOString(),
       })
       .eq('id', id)
@@ -139,9 +151,11 @@ export class SupabaseReportsRepository implements ReportsRepository {
   }
 
   async disableSharing(id: string): Promise<StoredReport | null> {
+    // Drop the token, not just the expiry — otherwise "revoke" would only
+    // pause access, and re-enabling would resurrect every link already sent.
     const { data, error } = await this.client
       .from('reports')
-      .update({ share_expires_at: null })
+      .update({ share_token: null, share_expires_at: null })
       .eq('id', id)
       .select('*')
       .maybeSingle();

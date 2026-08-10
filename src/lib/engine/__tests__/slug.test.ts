@@ -2,9 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { newReportSlug } from '../slug';
 
 describe('newReportSlug', () => {
-  it('returns slug from hostname with 4-char suffix', () => {
+  it('returns slug from hostname with 10-char suffix', () => {
     const slug = newReportSlug('https://pixelab.ch/about');
-    expect(slug).toMatch(/^pixelab-ch-[a-z2-9]{4}$/);
+    expect(slug).toMatch(/^pixelab-ch-[a-z2-9]{10}$/);
+  });
+
+  // The hostname half is public, so the suffix carries all the unguessability
+  // of a /r/<id> link. Pin it: shortening this silently re-opens enumeration.
+  it('suffix is long enough to resist enumeration', () => {
+    const suffix = newReportSlug('https://pixelab.ch').split('-').pop() ?? '';
+    expect(suffix.length).toBeGreaterThanOrEqual(10);
   });
 
   it('strips www prefix', () => {
@@ -27,7 +34,7 @@ describe('newReportSlug', () => {
 
   it('handles IDN by punycode (URL normalises)', () => {
     const slug = newReportSlug('https://xn--rksmrgs-5wao1o.com/');
-    expect(slug).toMatch(/^xn--rksmrgs-5wao1o-com-[a-z2-9]{4}$/);
+    expect(slug).toMatch(/^xn--rksmrgs-5wao1o-com-[a-z2-9]{10}$/);
   });
 
   it('produces different suffixes on repeated calls (collision-free)', () => {
