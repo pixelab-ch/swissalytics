@@ -26,25 +26,41 @@ export interface ReportsRepository {
   getById(id: string): Promise<StoredReport | null>;
 
   /**
-   * Enable sharing on a report — sets `shareExpiresAt = expiresAt`.
+   * Enable sharing on a report — sets `shareExpiresAt = expiresAt` and mints a
+   * `shareToken` if the report does not already have one.
+   *
+   * The token MUST be independent of the report id. The share URL is the only
+   * thing a recipient ever sees, so if it carried the id they could swap
+   * /s/<id> for /r/<id> and read the report forever, past expiry and past
+   * revocation. An opaque token is what makes the 30-day window and the revoke
+   * button mean anything.
+   *
+   * An existing token is reused so that re-sharing extends the window instead
+   * of silently breaking links already handed out. Rotation is the job of
+   * disableSharing.
+   *
    * Returns the updated StoredReport, or null if id not found.
    */
   enableSharing(id: string, expiresAt: number): Promise<StoredReport | null>;
 
   /**
-   * Disable sharing — clears `shareExpiresAt`.
+   * Disable sharing — clears BOTH `shareExpiresAt` and `shareToken`.
+   * Dropping the token is what makes revocation irreversible: re-enabling
+   * mints a new one, so previously distributed links stay dead.
    * Returns the updated StoredReport, or null if id not found.
    */
   disableSharing(id: string): Promise<StoredReport | null>;
 
   /**
-   * Fetch a report by slug, BUT only if sharing is enabled and not expired.
-   * Used by the public /s/<slug> route. Returns null if:
-   *   - no row with that id
+   * Fetch a report by SHARE TOKEN, only while sharing is live.
+   * Used by the public /s/<token> route. Returns null if:
+   *   - no row carries that token (revoked, or never shared)
    *   - shareExpiresAt is null (sharing disabled)
-   *   - shareExpiresAt < Date.now() (sharing expired)
+   *   - shareExpiresAt <= now (sharing expired)
+   *
+   * Takes a token, never an id — see enableSharing for why.
    */
-  getSharedReport(id: string): Promise<StoredReport | null>;
+  getSharedReport(token: string): Promise<StoredReport | null>;
 
   /**
    * Find the most recent report for a (url, lang) pair created within `maxAgeMs`.
