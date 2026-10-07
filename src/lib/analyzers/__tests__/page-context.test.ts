@@ -7,6 +7,22 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
  * the route uses to fetch the homepage ONCE before threading the context into
  * the sub-analyzers (eeat, schema-org).
  */
+/**
+ * `safeFetch` (real sockets, pinned to the vetted IP) is routed to the global
+ * `fetch` stub so these analyzer tests stay network-free. The guarded fetcher
+ * itself is covered against real local servers in security/__tests__.
+ */
+vi.mock('@/lib/security/safe-fetch', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/security/safe-fetch')>(
+    '@/lib/security/safe-fetch',
+  );
+  return {
+    ...actual,
+    safeFetch: (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal }) =>
+      globalThis.fetch(url, { headers: init?.headers, signal: init?.signal }),
+  };
+});
+
 vi.mock('@/lib/security/ssrf', async () => {
   const actual = await vi.importActual<typeof import('@/lib/security/ssrf')>(
     '@/lib/security/ssrf',
@@ -17,6 +33,8 @@ vi.mock('@/lib/security/ssrf', async () => {
       url: new URL(input),
       hostname: new URL(input).hostname,
       resolvedIp: '93.184.216.34',
+      port: 443,
+      resolvedIps: ['93.184.216.34'],
     })),
   };
 });
@@ -36,6 +54,8 @@ beforeEach(() => {
     url: new URL(input),
     hostname: new URL(input).hostname,
     resolvedIp: '93.184.216.34',
+    port: 443,
+    resolvedIps: ['93.184.216.34'],
   }));
 });
 

@@ -10,6 +10,7 @@
  */
 
 import * as cheerio from 'cheerio';
+import { safeFetch } from '@/lib/security/safe-fetch';
 
 export interface SEOResult {
   score: number;
@@ -103,10 +104,11 @@ export async function analyzeSEO(url: string): Promise<SEOResult> {
  * Fetch HTML de la page
  */
 async function fetchPageHTML(url: string): Promise<string> {
-  const response = await fetch(url, {
+  const response = await safeFetch(url, {
     headers: {
       'User-Agent': 'Swissalytics/1.0 (+https://swissalytics.com)',
     },
+    accept: 'html',
   });
   
   if (!response.ok) {
@@ -242,7 +244,7 @@ async function checkSitemap(url: string): Promise<boolean> {
     const baseUrl = new URL(url).origin;
     const sitemapUrl = `${baseUrl}/sitemap.xml`;
     
-    const response = await fetch(sitemapUrl, { method: 'HEAD' });
+    const response = await safeFetch(sitemapUrl, { method: 'HEAD' });
     return response.ok;
   } catch {
     return false;
@@ -257,7 +259,7 @@ async function checkRobotsTxt(url: string): Promise<boolean> {
     const baseUrl = new URL(url).origin;
     const robotsUrl = `${baseUrl}/robots.txt`;
     
-    const response = await fetch(robotsUrl, { method: 'HEAD' });
+    const response = await safeFetch(robotsUrl, { method: 'HEAD' });
     return response.ok;
   } catch {
     return false;

@@ -7,6 +7,7 @@
  */
 
 import { fetchPageSpeed } from '@/lib/pagespeed/client';
+import { safeFetch } from '@/lib/security/safe-fetch';
 
 export interface LighthouseResult {
   performance: number;
@@ -61,7 +62,7 @@ async function estimatePerformance(url: string): Promise<LighthouseResult> {
   const startTime = Date.now();
 
   try {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; Swissalytics/1.0 +https://swissalytics.com)',
       },
