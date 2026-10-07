@@ -1,8 +1,7 @@
 import type { CheerioAPI } from './cheerio';
-import https from 'https';
-import http from 'http';
 import type { LinksAnalysis, LinkInfo, BrokenLink, Issue } from '../types';
 import { validateUrl } from '@/lib/security';
+import { safeFetch, SafeFetchError } from '@/lib/security/safe-fetch';
 
 const GENERIC_ANCHORS = [
   'cliquez ici', 'click here', 'lire la suite', 'en savoir plus', 'read more',
@@ -17,33 +16,27 @@ async function checkLink(href: string): Promise<{ href: string; status: number; 
     return { href, status: 0, error: 'skipped (private/invalid)' };
   }
 
-  const doRequest = (method: string): Promise<{ href: string; status: number; error?: string }> => {
-    return new Promise((resolve) => {
-      try {
-        const parsedUrl = new URL(href);
-        const mod = parsedUrl.protocol === 'https:' ? https : http;
-
-        const req = mod.request({
-          hostname: parsedUrl.hostname,
-          port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-          path: parsedUrl.pathname + parsedUrl.search,
-          method,
-          timeout: 2000,
-          rejectUnauthorized: false,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; SEO-Analyzer/1.0)',
-          },
-        }, (res) => {
-          if (method === 'GET') req.destroy();
-          resolve({ href, status: res.statusCode || 0 });
-        });
-        req.on('timeout', () => { req.destroy(); resolve({ href, status: 0, error: 'timeout' }); });
-        req.on('error', (err) => resolve({ href, status: 0, error: err.message }));
-        req.end();
-      } catch {
-        resolve({ href, status: 0, error: 'invalid URL' });
+  // Status-only probe: redirects are NOT followed (a 3xx is reported as-is,
+  // as before) and the body is never downloaded. safeFetch re-validates the
+  // URL and pins the socket to the vetted IP.
+  const doRequest = async (method: 'HEAD' | 'GET'): Promise<{ href: string; status: number; error?: string }> => {
+    try {
+      const res = await safeFetch(href, {
+        method,
+        timeoutMs: 2000,
+        maxRedirects: 0,
+        readBody: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; SEO-Analyzer/1.0)',
+        },
+      });
+      return { href, status: res.status };
+    } catch (err) {
+      if (err instanceof SafeFetchError && err.code === 'timeout') {
+        return { href, status: 0, error: 'timeout' };
       }
-    });
+      return { href, status: 0, error: err instanceof Error ? err.message : 'invalid URL' };
+    }
   };
 
   const headResult = await doRequest('HEAD');

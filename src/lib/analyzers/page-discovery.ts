@@ -17,6 +17,7 @@
 
 import * as cheerio from 'cheerio';
 import { assertSafeUrl, SsrfError } from '@/lib/security/ssrf';
+import { safeFetch } from '@/lib/security/safe-fetch';
 
 /** A link extracted from a fetched page: href + visible anchor text. */
 export interface PageLink {
@@ -99,6 +100,9 @@ export type FetchOutcome =
  * does NOT blow the analyzer budget.
  */
 export const FETCH_TIMEOUT_MS = 8_000;
+
+/** Body cap for a discovered page (only parsed for title / soft-404 / signals). */
+const PAGE_MAX_BYTES = 3 * 1024 * 1024;
 
 /** Max candidate URLs fetched per signal — see eeat I-1 (route promises ≤3). */
 export const MAX_CANDIDATES = 3;
@@ -297,7 +301,14 @@ async function attemptFetch(url: string): Promise<FetchOutcome> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(url, { headers: { 'User-Agent': UA }, signal: controller.signal });
+    // safeFetch re-validates every redirect hop and pins the socket to the
+    // vetted IP (global fetch followed redirects unchecked).
+    const response = await safeFetch(url, {
+      headers: { 'User-Agent': UA },
+      signal: controller.signal,
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxBytes: PAGE_MAX_BYTES,
+    });
     if (response.ok) {
       const html = await response.text();
       const title = cheerio.load(html)('title').text();

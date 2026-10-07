@@ -1,56 +1,27 @@
 import type { CheerioAPI } from './cheerio';
-import https from 'https';
-import http from 'http';
 import type { TechnicalAnalysis, AccessibilityBasics, Issue, CwvMetrics } from '../types';
 import { validateUrl } from '@/lib/security';
+import { safeFetch } from '@/lib/security/safe-fetch';
 import { fetchPageSpeed } from '@/lib/pagespeed/client';
 import { parseRobotsForAiBots } from './bot-coverage';
 
-async function fetchText(url: string, maxRedirects = 5): Promise<{ ok: boolean; text: string }> {
+async function fetchText(url: string, readBody = true): Promise<{ ok: boolean; text: string }> {
   try {
     await validateUrl(url);
   } catch {
     return { ok: false, text: '' };
   }
 
-  return new Promise((resolve) => {
-    try {
-      const parsedUrl = new URL(url);
-      const mod = parsedUrl.protocol === 'https:' ? https : http;
-
-      const req = mod.request({
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: 'GET',
-        timeout: 3000,
-        rejectUnauthorized: false,
-      }, (res) => {
-        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          if (maxRedirects <= 0) {
-            resolve({ ok: false, text: '' });
-            return;
-          }
-          const redirectUrl = new URL(res.headers.location, url).href;
-          fetchText(redirectUrl, maxRedirects - 1).then(resolve);
-          return;
-        }
-        if (!res.statusCode || res.statusCode >= 400) {
-          resolve({ ok: false, text: '' });
-          return;
-        }
-        const chunks: Buffer[] = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => resolve({ ok: true, text: Buffer.concat(chunks).toString('utf-8') }));
-        res.on('error', () => resolve({ ok: false, text: '' }));
-      });
-      req.on('timeout', () => { req.destroy(); resolve({ ok: false, text: '' }); });
-      req.on('error', () => resolve({ ok: false, text: '' }));
-      req.end();
-    } catch {
-      resolve({ ok: false, text: '' });
-    }
-  });
+  // SSRF-guarded (redirect hops re-validated, socket pinned, TLS verified).
+  // 2 MB is far above what robots.txt / llms.txt legitimately need (Google
+  // itself stops reading robots.txt at 500 KiB).
+  try {
+    const res = await safeFetch(url, { timeoutMs: 3000, maxBytes: 2 * 1024 * 1024, maxRedirects: 5, readBody });
+    if (res.status < 200 || res.status >= 400) return { ok: false, text: '' };
+    return { ok: true, text: await res.text() };
+  } catch {
+    return { ok: false, text: '' };
+  }
 }
 
 export async function fetchCoreWebVitals(url: string, strategy: 'mobile' | 'desktop' = 'mobile'): Promise<CwvMetrics | undefined> {
@@ -258,7 +229,8 @@ export async function analyzeTechnical($: CheerioAPI, pageUrl: string, html?: st
   const [robotsRes, llmsRes, sitemapRes] = await Promise.all([
     fetchText(`${baseUrl}/robots.txt`),
     fetchText(`${baseUrl}/llms.txt`),
-    fetchText(`${baseUrl}/sitemap.xml`),
+    // Only existence is used — don't download (possibly huge) sitemaps.
+    fetchText(`${baseUrl}/sitemap.xml`, false),
   ]);
 
   const robotsTxt = { exists: robotsRes.ok, content: robotsRes.ok ? robotsRes.text.substring(0, 2000) : undefined };

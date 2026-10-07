@@ -182,3 +182,55 @@ describe('validateUrl — legacy shim delegates to assertSafeUrl', () => {
     await expect(validateUrl('https://rebind.example.com/')).rejects.toThrow();
   });
 });
+
+describe('assertSafeUrl — hardened ranges, ports and name tricks', () => {
+  it.each([
+    'http://[::]/',
+    'http://[::ffff:7f00:1]/', // mapped loopback, hex form
+    'http://[::ffff:a9fe:a9fe]/', // mapped metadata, hex form
+    'http://[::127.0.0.1]/', // IPv4-compatible
+    'http://[64:ff9b::a9fe:a9fe]/', // NAT64
+    'http://[2002:a9fe:a9fe::1]/', // 6to4 embedding 169.254.169.254
+    'http://[2001::1]/', // Teredo
+    'http://[2001:db8::1]/', // documentation
+    'http://[ff02::1]/', // multicast
+    'http://[fec0::1]/', // site-local
+    'http://192.0.2.1/',
+    'http://203.0.113.9/',
+    'http://255.255.255.255/',
+    'http://2130706433/', // 127.0.0.1 as a decimal integer
+    'http://0x7f.1/', // 127.0.0.1 in hex shorthand
+  ])('blocks %s', async (url) => {
+    await expectSsrf(url, 'private-ip');
+  });
+
+  it('blocks a resolved IPv4-mapped private address', async () => {
+    resolve4.mockRejectedValue(new Error('no A'));
+    resolve6.mockResolvedValue(['::ffff:10.1.2.3']);
+    await expectSsrf('https://mapped.example.com/', 'private-ip');
+  });
+
+  it('allows public IPv6 and a mapped public IPv4', async () => {
+    await expect(assertSafeUrl('http://[2606:4700:4700::1111]/')).resolves.toBeTruthy();
+    await expect(assertSafeUrl('http://[::ffff:8.8.8.8]/')).resolves.toBeTruthy();
+  });
+
+  it('only allows ports 80 and 443', async () => {
+    await expectSsrf('http://example.com:8080/', 'bad-port');
+    await expectSsrf('https://example.com:22/', 'bad-port');
+    await expect(assertSafeUrl('http://example.com:443/')).resolves.toMatchObject({ port: 443 });
+    await expect(assertSafeUrl('https://example.com/')).resolves.toMatchObject({ port: 443 });
+  });
+
+  it('blocks a trailing-dot localhost', async () => {
+    await expectSsrf('http://localhost./', 'blocked-host');
+  });
+
+  it('pins to an IPv4 answer and reports every vetted address', async () => {
+    resolve4.mockResolvedValue(['93.184.216.34']);
+    resolve6.mockResolvedValue(['2606:2800:220:1::1']);
+    const r = await assertSafeUrl('https://dual.example.com/');
+    expect(r.resolvedIp).toBe('93.184.216.34');
+    expect(r.resolvedIps).toEqual(['93.184.216.34', '2606:2800:220:1::1']);
+  });
+});
