@@ -3,7 +3,9 @@ import http from 'node:http';
 import https from 'node:https';
 import zlib from 'node:zlib';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import type { AddressInfo } from 'node:net';
 import { safeFetch, SafeFetchError, type SafeFetchOptions } from '../safe-fetch';
 import { SsrfError } from '../ssrf';
@@ -32,11 +34,30 @@ const DNS: Record<string, string[]> = {
 const resolver = vi.fn(async (host: string) => DNS[host] ?? []);
 
 let server: http.Server;
-let tlsServer: https.Server;
+let tlsServer: https.Server | undefined;
 let port = 0;
 let tlsPort = 0;
 const hits: string[] = [];
 const hostHeaders: string[] = [];
+
+function makeSelfSignedCert(): { key: Buffer; cert: Buffer } | null {
+  try {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'safe-fetch-tls-'));
+    const key = path.join(dir, 'key.pem');
+    const cert = path.join(dir, 'cert.pem');
+    execFileSync(
+      'openssl',
+      ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', key, '-out', cert, '-days', '1',
+        '-subj', '/CN=public.example', '-addext', 'subjectAltName=DNS:public.example'],
+      { stdio: 'ignore', env: { ...process.env, MSYS_NO_PATHCONV: '1' } },
+    );
+    const out = { key: fs.readFileSync(key), cert: fs.readFileSync(cert) };
+    fs.rmSync(dir, { recursive: true, force: true });
+    return out;
+  } catch {
+    return null;
+  }
+}
 
 let dial: ReturnType<typeof vi.fn<(ip: string, p: number) => { host: string; port: number }>>;
 
@@ -116,26 +137,26 @@ beforeAll(async () => {
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   port = (server.address() as AddressInfo).port;
 
-  const fixtures = path.join(__dirname, 'fixtures');
-  tlsServer = https.createServer(
-    {
-      key: fs.readFileSync(path.join(fixtures, 'self-signed-key.pem')),
-      cert: fs.readFileSync(path.join(fixtures, 'self-signed-cert.pem')),
-    },
-    (_req, res) => {
+  // Throwaway self-signed certificate generated at runtime (no key material
+  // committed). If openssl is unavailable the TLS test is skipped.
+  const tls = makeSelfSignedCert();
+  if (tls) {
+    tlsServer = https.createServer(tls, (_req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('<html>tls</html>');
-    },
-  );
-  await new Promise<void>((r) => tlsServer.listen(0, '127.0.0.1', r));
-  tlsPort = (tlsServer.address() as AddressInfo).port;
+    });
+    await new Promise<void>((r) => tlsServer!.listen(0, '127.0.0.1', r));
+    tlsPort = (tlsServer.address() as AddressInfo).port;
+  }
 });
 
 afterAll(async () => {
   server.closeAllConnections();
-  tlsServer.closeAllConnections();
   await new Promise((r) => server.close(r));
-  await new Promise((r) => tlsServer.close(r));
+  if (tlsServer) {
+    tlsServer.closeAllConnections();
+    await new Promise((r) => tlsServer!.close(r));
+  }
 });
 
 beforeEach(() => {
@@ -273,7 +294,8 @@ describe('safeFetch — response limits', () => {
 });
 
 describe('safeFetch — TLS', () => {
-  it('verifies certificates (a self-signed cert is rejected)', async () => {
+  it('verifies certificates (a self-signed cert is rejected)', async (ctx) => {
+    if (!tlsServer) ctx.skip();
     const err = await safeFetch('https://public.example/', opts()).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err).toMatchObject({ code: 'DEPTH_ZERO_SELF_SIGNED_CERT' });
